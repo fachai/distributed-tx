@@ -19,6 +19,10 @@ and is available at http://www.eclipse.org/legal/epl-v10.html
             <module>
                 <type xmlns:prefix="urn:opendaylight:params:xml:ns:yang:distributed-tx:it:provider">prefix:distributed-tx-it-provider</type>
                 <name>distributed-tx-it-provider</name>
+                <broker>
+                    <type xmlns:binding="urn:opendaylight:params:xml:ns:yang:controller:md:sal:binding">binding:binding-broker-osgi-registry</type>
+                    <name>binding-osgi-broker</name>
+                </broker>
                 <dtx-provider>
                     <type xmlns:prefix="urn:opendaylight:params:xml:ns:yang:distributed-tx-api">prefix:dtx-provider</type>
                     <name>distributed-tx-impl</name>

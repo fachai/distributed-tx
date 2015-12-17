@@ -18,6 +18,8 @@ public class DistributedTxItProviderModule extends org.opendaylight.yang.gen.v1.
 
     @Override
     public java.lang.AutoCloseable createInstance() {
-        return new DistributedTXItProvider(getDtxProviderDependency());
+        DistributedTXItProvider provider = new DistributedTXItProvider(getDtxProviderDependency());
+        getBrokerDependency().registerProvider(provider);
+        return provider;
     }
 }
