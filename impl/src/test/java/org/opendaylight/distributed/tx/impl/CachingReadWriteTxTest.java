@@ -51,6 +51,13 @@ public class CachingReadWriteTxTest {
         System.out.println("size is "+cacheRWTx.getSizeOfCache());
         Assert.assertEquals("size is wrong", cacheRWTx.getSizeOfCache(), numberOfObjs);
     }
+    @Test
+    public void testAsyncPutReadError() throws InterruptedException {
+    }
+
+    @Test
+    public void testAsyncPutWriteError() throws InterruptedException {
+    }
 
     @Test
     public void testAsyncMerge() throws InterruptedException {
