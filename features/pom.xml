@@ -108,6 +108,18 @@ and is available at http://www.eclipse.org/legal/epl-v10.html INTERNAL
       <type>xml</type>
       <classifier>config</classifier>
     </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>distributed-tx-it-xrmodel</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>distributed-tx-it-provider</artifactId>
+      <version>${project.version}</version>
+      <type>xml</type>
+      <classifier>xrnodes</classifier>
+    </dependency>
   </dependencies>
 
 </project>

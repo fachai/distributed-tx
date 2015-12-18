@@ -55,7 +55,9 @@ and is available at http://www.eclipse.org/legal/epl-v10.html
     <feature version='${project.version}'>odl-distributed-tx-api</feature>
     <feature version='${project.version}'>odl-distributed-tx</feature>
     <bundle>mvn:org.opendaylight.distributed.tx/distributed-tx-it-provider/${project.version}</bundle>
+    <bundle>mvn:org.opendaylight.distributed.tx/distributed-tx-it-xrmodel/${project.version}</bundle>
     <configfile finalname="${configfile.directory}/distributed-tx-it.xml">mvn:org.opendaylight.distributed.tx/distributed-tx-it-provider/${project.version}/xml/config</configfile>
+    <configfile finalname="${configfile.directory}/xrnodes-config.xml">mvn:org.opendaylight.distributed.tx/distributed-tx-it-provider/${project.version}/xml/xrnodes</configfile>
   </feature>
 
 </features>

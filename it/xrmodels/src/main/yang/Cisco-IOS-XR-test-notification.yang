@@ -1,0 +1,82 @@
+module Cisco-IOS-XR-test-notification {
+
+  /*** NAMESPACE / PREFIX DEFINITION ***/
+  yang-version 1;
+  namespace "urn:cisco:params:xml:ns:yang:Cisco-IOS-XR-test-notification";
+
+  /*** 
+    namespace "http://cisco.com/ns/yang"+
+    "/Cisco-IOS-XR-test-notification";
+   ***/
+
+
+  prefix "test-notification";
+
+  /*** LINKAGE (IMPORTS / INCLUDES) ***/
+
+  import ietf-inet-types { prefix inet; }
+
+  /*** import Cisco-IOS-XR-types { prefix xr; } ***/
+
+  /*** META INFORMATION ***/
+
+  organization "Cisco Systems, Inc.";
+
+  contact
+    "Cisco Systems, Inc.
+     Customer Service
+
+     Postal: 170 West Tasman Drive
+     San Jose, CA 95134
+
+     Tel: +1 800 553-NETS
+
+     E-mail: cs-yang@cisco.com";
+
+  description 
+    "This module contains a collection of YANG definitions
+     for Cisco IOS-XR test-notification.
+
+     Copyright (c) 2013-2015 by Cisco Systems, Inc.
+     All rights reserved.";
+
+  revision "2015-01-07" {
+    description
+      "IOS XR 5.3.1 revision.";
+  }
+
+  feature test-notification-data {
+    description
+      "This feature represents the ability to receive 
+       test-notification messages in structured data format.";
+  }
+
+
+  notification  test-notification {
+    description "A FIB notification test message";
+    leaf serial-number {
+        type uint32;
+        description "Serial Number for the notification";
+    }
+    leaf vrf-id {
+      type uint32;
+      description "VRF ID of the interface";
+    }
+    leaf  ipv4-route {
+        type inet:ipv4-address;
+        description "route to add";
+    }
+    leaf prefix-length {
+      type uint32;
+      description "Prefix length of address";
+    }
+    leaf nh-index {
+      type uint32;
+      description "Next-Hop Index";
+    }
+    leaf filler {
+        type string;
+        description "filler data for increasing size";
+    }
+  }
+}
