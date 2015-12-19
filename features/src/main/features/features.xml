@@ -15,6 +15,7 @@ and is available at http://www.eclipse.org/legal/epl-v10.html
   <repository>mvn:org.opendaylight.yangtools/features-yangtools/${yangtools.version}/xml/features</repository>
   <repository>mvn:org.opendaylight.controller/features-mdsal/${mdsal.version}/xml/features</repository>
   <repository>mvn:org.opendaylight.controller/features-restconf/${mdsal.version}/xml/features</repository>
+  <repository>mvn:org.opendaylight.controller/features-netconf-connector/${mdsal.version}/xml/features</repository>
   <feature name='odl-distributed-tx-api' version='${project.version}' description='OpenDaylight :: distributed-tx :: api'>
     <feature version='${yangtools.version}'>odl-yangtools-models</feature>
     <bundle>mvn:org.opendaylight.distributed.tx/distributed-tx-api/${project.version}</bundle>
@@ -54,6 +55,7 @@ and is available at http://www.eclipse.org/legal/epl-v10.html
     <feature version='${project.version}'>odl-distributed-tx-it-api</feature>
     <feature version='${project.version}'>odl-distributed-tx-api</feature>
     <feature version='${project.version}'>odl-distributed-tx</feature>
+    <feature version='${mdsal.version}'>odl-netconf-connector-ssh</feature>
     <bundle>mvn:org.opendaylight.distributed.tx/distributed-tx-it-provider/${project.version}</bundle>
     <bundle>mvn:org.opendaylight.distributed.tx/distributed-tx-it-xrmodel/${project.version}</bundle>
     <configfile finalname="${configfile.directory}/distributed-tx-it.xml">mvn:org.opendaylight.distributed.tx/distributed-tx-it-provider/${project.version}/xml/config</configfile>
