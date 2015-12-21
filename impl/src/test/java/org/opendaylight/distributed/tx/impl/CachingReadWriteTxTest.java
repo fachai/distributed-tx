@@ -7,13 +7,18 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import org.hamcrest.core.IsInstanceOf;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
+import org.mockito.internal.matchers.InstanceOf;
 import org.opendaylight.controller.md.sal.binding.api.ReadWriteTransaction;
 import org.opendaylight.controller.md.sal.common.api.TransactionStatus;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
 import org.opendaylight.controller.md.sal.common.api.data.ReadFailedException;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
+import org.opendaylight.distributed.tx.api.DTxException;
 import org.opendaylight.distributed.tx.impl.spi.CachingReadWriteTx;
 import org.opendaylight.yangtools.yang.binding.DataContainer;
 import org.opendaylight.yangtools.yang.binding.DataObject;
@@ -25,6 +30,9 @@ import org.junit.Assert;
 
 public class CachingReadWriteTxTest {
     DTXTestTransaction testTx;
+
+    @Rule
+    ExpectedException expectedException = ExpectedException.none();
 
     @Before
     public void testInit(){ this.testTx = new DTXTestTransaction(); }
@@ -51,6 +59,32 @@ public class CachingReadWriteTxTest {
         System.out.println("size is "+cacheRWTx.getSizeOfCache());
         Assert.assertEquals("size is wrong", cacheRWTx.getSizeOfCache(), numberOfObjs);
     }
+
+    @Test
+    public void testAsyncPutReadError() throws ReadFailedException {
+
+        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(testTx);
+        //simulate the read fail case
+        //an ReadFailedException nesting the EditFailedException is expected
+        testTx.setReadException(true);
+
+        expectedException.expectCause(
+                IsInstanceOf.<Throwable>instanceOf(DTxException.EditFailedException.class)
+        );
+
+        CheckedFuture<Void, ReadFailedException> cf =  cacheRWTx.asyncPut(LogicalDatastoreType.OPERATIONAL, InstanceIdentifier.create(DTXTestTransaction.myDataObj.class), new DTXTestTransaction.myDataObj());
+
+        cf.checkedGet();
+
+    }
+
+    @Test
+    public void testAsyncPutWriteError()
+    {
+
+    }
+
+
 
     @Test
     public void testAsyncMerge() throws InterruptedException {

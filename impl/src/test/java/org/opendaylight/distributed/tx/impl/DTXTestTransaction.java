@@ -25,10 +25,19 @@ import java.util.Set;
 
 public class DTXTestTransaction implements ReadWriteTransaction {
     boolean readException = false;
+    boolean putException=false;
+    boolean mergeException=false;
+    boolean deleteException=false;
+    boolean submitException=false;
 
     public void setReadException(boolean ept){
         this.readException = ept;
     }
+    public void setPutException(boolean ept) {this.putException = ept;}
+    public void setMergeException(boolean ept) {this.mergeException = ept;}
+    public void setDeleteException(boolean ept) {this.deleteException = ept;}
+    public void setSubmitException(boolean ept) { this.submitException = ept;}
+
     @Override
     public <T extends DataObject> CheckedFuture<Optional<T>, ReadFailedException> read(LogicalDatastoreType logicalDatastoreType, final InstanceIdentifier<T> instanceIdentifier) {
         Class<T> clazz = null;
@@ -94,22 +103,34 @@ public class DTXTestTransaction implements ReadWriteTransaction {
 
     @Override
     public <T extends DataObject> void put(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t) {
-
+       if(!putException)
+           return;
+        else
+          throw new RuntimeException("simulate the put exception");
     }
 
     @Override
     public <T extends DataObject> void put(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, boolean b) {
-
+        if(!putException)
+            return;
+        else
+            throw new RuntimeException("simulate the put exception");
     }
 
     @Override
     public <T extends DataObject> void merge(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t) {
-
+        if(!mergeException)
+            return;
+        else
+            throw new RuntimeException("simulate the merge exception");
     }
 
     @Override
     public <T extends DataObject> void merge(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, boolean b) {
-
+        if(!putException)
+            return;
+        else
+            throw new RuntimeException("simulate the merge exception");
     }
 
     @Override
@@ -119,12 +140,46 @@ public class DTXTestTransaction implements ReadWriteTransaction {
 
     @Override
     public void delete(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<?> instanceIdentifier) {
-
+        if(!deleteException)
+            return;
+        else
+            throw new RuntimeException("simulate delete exception");
     }
 
     @Override
     public CheckedFuture<Void, TransactionCommitFailedException> submit() {
-        return null;
+
+        final SettableFuture<Void> retFuture = SettableFuture.create();
+
+        Runnable submitResult = new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Thread.sleep(5);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+                if (!submitException){
+                  retFuture.set(null);
+                }else
+                    retFuture.setException(new Throwable("simulated submit error"));
+                retFuture.notifyAll();
+            }
+        };
+
+        new Thread(submitResult).start();
+
+        Function<Exception, TransactionCommitFailedException> f = new Function<Exception, TransactionCommitFailedException>() {
+            @Nullable
+            @Override
+            public TransactionCommitFailedException apply(@Nullable Exception e) {
+                return new TransactionCommitFailedException("Merge failed and rollback", e);
+            }
+        };
+
+        return Futures.makeChecked(retFuture, f);
+
     }
 
     @Override
