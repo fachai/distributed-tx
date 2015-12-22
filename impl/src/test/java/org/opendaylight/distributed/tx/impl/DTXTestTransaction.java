@@ -20,15 +20,19 @@ import org.opendaylight.yangtools.yang.common.RpcResult;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Set;
 
 
 public class DTXTestTransaction implements ReadWriteTransaction {
     boolean readException = false;
-    boolean putException=false;
-    boolean mergeException=false;
-    boolean deleteException=false;
-    boolean submitException=false;
+    boolean putException = false;
+    boolean mergeException = false;
+    boolean deleteException = false;
+    boolean submitException = false;
+
+    private List<DataObject> txData = new LinkedList<DataObject>();
 
     public void setReadException(boolean ept){
         this.readException = ept;
@@ -37,6 +41,8 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     public void setMergeException(boolean ept) {this.mergeException = ept;}
     public void setDeleteException(boolean ept) {this.deleteException = ept;}
     public void setSubmitException(boolean ept) { this.submitException = ept;}
+
+    public int getTxDataSize() { return this.txData.size(); }
 
     @Override
     public <T extends DataObject> CheckedFuture<Optional<T>, ReadFailedException> read(LogicalDatastoreType logicalDatastoreType, final InstanceIdentifier<T> instanceIdentifier) {
@@ -104,7 +110,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     @Override
     public <T extends DataObject> void put(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t) {
        if(!putException)
-           return;
+           txData.add(t);
         else
           throw new RuntimeException("simulate the put exception");
     }
@@ -112,7 +118,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     @Override
     public <T extends DataObject> void put(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, boolean b) {
         if(!putException)
-            return;
+            txData.add(t);
         else
             throw new RuntimeException("simulate the put exception");
     }
@@ -120,15 +126,15 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     @Override
     public <T extends DataObject> void merge(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t) {
         if(!mergeException)
-            return;
+            txData.add(t);
         else
             throw new RuntimeException("simulate the merge exception");
     }
 
     @Override
     public <T extends DataObject> void merge(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, boolean b) {
-        if(!putException)
-            return;
+        if(!mergeException)
+            txData.add(t);
         else
             throw new RuntimeException("simulate the merge exception");
     }
@@ -141,7 +147,10 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     @Override
     public void delete(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<?> instanceIdentifier) {
         if(!deleteException)
-            return;
+            if(txData.size()>0)
+                txData.remove(txData.size()-1);
+            else
+                throw new RuntimeException("no data in the DTXTestTransaction Data store");
         else
             throw new RuntimeException("simulate delete exception");
     }
@@ -174,7 +183,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
             @Nullable
             @Override
             public TransactionCommitFailedException apply(@Nullable Exception e) {
-                return new TransactionCommitFailedException("Merge failed and rollback", e);
+                return new TransactionCommitFailedException("submit failed", e);
             }
         };
 
