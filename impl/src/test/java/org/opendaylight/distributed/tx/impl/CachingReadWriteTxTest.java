@@ -1,37 +1,22 @@
 package org.opendaylight.distributed.tx.impl;
 
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.util.concurrent.CheckedFuture;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
-import org.hamcrest.core.IsInstanceOf;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.mockito.internal.matchers.InstanceOf;
-import org.opendaylight.controller.md.sal.binding.api.ReadWriteTransaction;
-import org.opendaylight.controller.md.sal.common.api.TransactionStatus;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
 import org.opendaylight.controller.md.sal.common.api.data.ReadFailedException;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
-import org.opendaylight.distributed.tx.api.DTxException;
 import org.opendaylight.distributed.tx.impl.spi.CachingReadWriteTx;
-import org.opendaylight.yangtools.yang.binding.DataContainer;
 import org.opendaylight.yangtools.yang.binding.DataObject;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
-import org.opendaylight.yangtools.yang.common.RpcResult;
 
-import javax.annotation.Nullable;
 import org.junit.Assert;
 
 import static org.junit.Assert.fail;
 
 public class CachingReadWriteTxTest {
     DTXTestTransaction testTx;
+    InstanceIdentifier<DTXTestTransaction.myDataObj> instanceIdentifier = InstanceIdentifier.create(DTXTestTransaction.myDataObj.class);
 
     @Before
     public void testInit(){ this.testTx = new DTXTestTransaction(); }
@@ -51,15 +36,16 @@ public class CachingReadWriteTxTest {
         int numberOfObjs = 10;
 
         for(int i = 0; i < numberOfObjs; i++){
-            CheckedFuture<Void, ReadFailedException> cf =  cacheRWTx.asyncPut(LogicalDatastoreType.OPERATIONAL, InstanceIdentifier.create(DTXTestTransaction.myDataObj.class), new DTXTestTransaction.myDataObj());
+            CheckedFuture<Void, ReadFailedException> cf =  cacheRWTx.asyncPut(LogicalDatastoreType.OPERATIONAL, instanceIdentifier, new DTXTestTransaction.myDataObj());
 
             Thread.sleep(20);
             Assert.assertEquals(cf.isDone(), true);
         }
+
         System.out.println("size is "+cacheRWTx.getSizeOfCache());
         Assert.assertEquals("size is wrong", cacheRWTx.getSizeOfCache(), numberOfObjs);
-        System.out.println("size of data in DtxTestTransaction is " + testTx.getTxDataSize());
-        Assert.assertEquals("The size in DtxTestTransaction is wrong", testTx.getTxDataSize(), numberOfObjs);
+        System.out.println("size of data in DtxTestTransaction is " + testTx.getTxDataSize(instanceIdentifier));
+        Assert.assertEquals("The size in DtxTestTransaction is wrong", 1, testTx.getTxDataSize(instanceIdentifier));
     }
 
     @Test
@@ -72,12 +58,11 @@ public class CachingReadWriteTxTest {
 
         int numberOfObjs = 10;
 
-
         for (int i = 0; i < numberOfObjs; i++ ) {
 
             testTx.setReadException(true);
 
-            CheckedFuture<Void, ReadFailedException> cf = cacheRWTx.asyncPut(LogicalDatastoreType.OPERATIONAL, InstanceIdentifier.create(DTXTestTransaction.myDataObj.class), new DTXTestTransaction.myDataObj());
+            CheckedFuture<Void, ReadFailedException> cf = cacheRWTx.asyncPut(LogicalDatastoreType.OPERATIONAL, instanceIdentifier, new DTXTestTransaction.myDataObj());
 
             Thread.sleep(20);
             Assert.assertEquals(cf.isDone(), true);
@@ -92,7 +77,7 @@ public class CachingReadWriteTxTest {
         }
         System.out.println("The Size of the ReadErrorCase is " + numberOfObjs);
         Assert.assertEquals("The size is wrong", 0, cacheRWTx.getSizeOfCache() );
-
+        Assert.assertEquals("The size of the data in DTXTestTrasaction is wrong", 0, testTx.getTxDataSize(instanceIdentifier));
 
     }
 
@@ -125,7 +110,7 @@ public class CachingReadWriteTxTest {
         }
         System.out.println("The Size of the WriteErrorCase is " + numberOfObjs);
         Assert.assertEquals("The size of cached data in cachingReadWriteTx is wrong", numberOfObjs, cacheRWTx.getSizeOfCache());
-        Assert.assertEquals("The size of the number in Dtxtransaction is wrong", 0, testTx.getTxDataSize());
+        Assert.assertEquals("The size of the number in Dtxtransaction is wrong", 0, testTx.getTxDataSize(instanceIdentifier));
 
 
     }
@@ -148,7 +133,7 @@ public class CachingReadWriteTxTest {
 
         System.out.println("size is "+cacheRWTx.getSizeOfCache());
         Assert.assertEquals("size is wrong", cacheRWTx.getSizeOfCache(), 10);
-        Assert.assertEquals("size of the data in DTXTestTransaction is wrong", numberOfObjs, testTx.getTxDataSize());
+        Assert.assertEquals("size of the data in DTXTestTransaction is wrong", numberOfObjs, testTx.getTxDataSize(instanceIdentifier));
     }
 
     @Test
@@ -178,7 +163,7 @@ public class CachingReadWriteTxTest {
         }
 
         Assert.assertEquals("The size of cached data in the CachingReadWriteTransaction is wrong", 0, cacheRWTx.getSizeOfCache());
-        Assert.assertEquals("The size of the data in the DTXTestTransaction is wrong", 0, testTx.getTxDataSize() );
+        Assert.assertEquals("The size of the data in the DTXTestTransaction is wrong", 0, testTx.getTxDataSize(instanceIdentifier) );
 
     }
 
@@ -209,7 +194,7 @@ public class CachingReadWriteTxTest {
         }
 
         Assert.assertEquals("The size of cached data in the CachingReadWriteTransaction is wrong", numberOfObjs, cacheRWTx.getSizeOfCache());
-        Assert.assertEquals("The size of the data in the DTXTestTransaction is wrong", 0, testTx.getTxDataSize() );
+        Assert.assertEquals("The size of the data in the DTXTestTransaction is wrong", 0, testTx.getTxDataSize(instanceIdentifier) );
     }
 
     @Test
@@ -232,7 +217,7 @@ public class CachingReadWriteTxTest {
         }
 
         Assert.assertEquals("size is wrong", cacheRWTx.getSizeOfCache(), numberOfObjs + numberOfDeleted);
-        Assert.assertEquals("size of the data in DTXTestTransaction is wrong", testTx.getTxDataSize(), numberOfObjs - numberOfDeleted);
+        Assert.assertEquals("size of the data in DTXTestTransaction is wrong", testTx.getTxDataSize(instanceIdentifier), numberOfObjs - numberOfDeleted);
     }
 
     @Test
@@ -270,7 +255,7 @@ public class CachingReadWriteTxTest {
         }
 
         Assert.assertEquals("size of the caching data in CachingReadWriteTx is wrong", numberOfObjs, cacheRWTx.getSizeOfCache());
-        Assert.assertEquals("size of the data in the DTXTestTransaction is wrong", numberOfObjs, testTx.getTxDataSize());
+        Assert.assertEquals("size of the data in the DTXTestTransaction is wrong", numberOfObjs, testTx.getTxDataSize(instanceIdentifier));
     }
 
     @Test
@@ -308,7 +293,7 @@ public class CachingReadWriteTxTest {
         }
 
         Assert.assertEquals("size of the caching data in CachingReadWriteTx is wrong", numberOfObjs + numberOfWriteErrorDeleted, cacheRWTx.getSizeOfCache());
-        Assert.assertEquals("size of the data in the DTXTestTransaction is wrong", numberOfObjs, testTx.getTxDataSize());
+        Assert.assertEquals("size of the data in the DTXTestTransaction is wrong", numberOfObjs, testTx.getTxDataSize(instanceIdentifier));
 
     }
 
@@ -349,6 +334,34 @@ public class CachingReadWriteTxTest {
         for(int i = 0; i < numberOfDeleted; i++){
             cacheRWTx.delete(LogicalDatastoreType.OPERATIONAL, InstanceIdentifier.create(DTXTestTransaction.myDataObj.class));
         }
+    }
+
+    @Test
+    public void testSubmitSucceed(){
+        DTXTestTransaction testTx = new DTXTestTransaction();
+        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(testTx);
+
+        CheckedFuture<Void, TransactionCommitFailedException> cf = cacheRWTx.submit();
+
+
+    }
+
+    @Test
+    public void testSubmitFail() {
+        DTXTestTransaction testTx = new DTXTestTransaction();
+        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(testTx);
+        testTx.setSubmitException(true);
+        CheckedFuture<Void, TransactionCommitFailedException> cf = cacheRWTx.submit();
+
+        try
+        {
+            cf.checkedGet();
+            fail("Can't get the exception, the test failed");
+        }catch(Exception e)
+        {
+            Assert.assertTrue("Can't get the expected exception, the test failed", e instanceof TransactionCommitFailedException);
+        }
+
     }
     @Test
     public void testConcurrentAsyncPut(){

@@ -1,7 +1,7 @@
 package org.opendaylight.distributed.tx.impl;
 
 import com.google.common.util.concurrent.CheckedFuture;
-import junit.framework.Assert;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.opendaylight.controller.md.sal.binding.api.ReadWriteTransaction;
@@ -21,15 +21,20 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class DtxImplTest{
-    DtxImpl dtxImpl;
+
     InstanceIdentifier<TestClassNode1> n1;
     InstanceIdentifier<TestClassNode2> n2;
     InstanceIdentifier<TestClassNode> n0;
 
+    DTXTestTransaction internalDtxTestTransaction1;
+    DTXTestTransaction internalDtxTestTransaction2;
+    Set s;
+
     private class myTxProvider implements TxProvider{
         @Override
         public ReadWriteTransaction newTx(InstanceIdentifier<?> nodeId) throws TxException.TxInitiatizationFailedException {
-            return new DTXTestTransaction();
+
+            return nodeId == n1? internalDtxTestTransaction1 : internalDtxTestTransaction2;
         }
     }
 
@@ -56,14 +61,14 @@ public class DtxImplTest{
     }
 
     private void testInit(){
-        Set s = new HashSet<InstanceIdentifier<TestClassNode>>();
+        s = new HashSet<InstanceIdentifier<TestClassNode>>();
         this.n1 = InstanceIdentifier.create(TestClassNode1.class);
         s.add(this.n1);
         this.n2 = InstanceIdentifier.create(TestClassNode2.class);
         s.add(n2);
         this.n0 = InstanceIdentifier.create(TestClassNode.class);
 
-        dtxImpl = new DtxImpl(new myTxProvider(), s);
+        DtxImpl dtxImpl = new DtxImpl(new myTxProvider(), s);
     }
 
     @Before
@@ -72,52 +77,92 @@ public class DtxImplTest{
     }
 
     @Test
-    public void testPutAndRollbackOnFailure(){
-        Assert.assertNotNull(this.dtxImpl);
+    public void testPutAndRollbackOnFailure() throws InterruptedException {
 
-        CheckedFuture<Void, ReadFailedException> f = this.dtxImpl.putAndRollbackOnFailure(LogicalDatastoreType.OPERATIONAL, n0, new TestClassNode(), n1);
+        internalDtxTestTransaction1 = new DTXTestTransaction();
+        internalDtxTestTransaction2 = new DTXTestTransaction();
+        DtxImpl dtxImpl = new DtxImpl(new myTxProvider(), s);
+
+        int numberOfObjs = 10;
+
+        for (int i = 0; i < numberOfObjs ; i++) {
+
+            CheckedFuture<Void, ReadFailedException> f1 = dtxImpl.putAndRollbackOnFailure(LogicalDatastoreType.OPERATIONAL, n0, new TestClassNode(), n1);
+            CheckedFuture<Void, ReadFailedException> f2 = dtxImpl.putAndRollbackOnFailure(LogicalDatastoreType.OPERATIONAL, n0, new TestClassNode(), n2);
+
+            Thread.sleep(20);
+
+            Assert.assertTrue(f1.isDone());
+            Assert.assertTrue(f2.isDone());
+        }
+
+
+
+        Assert.assertEquals("size of n1 data is wrong", 1, internalDtxTestTransaction1.getTxDataSize(n0));
+        Assert.assertEquals("size of n2 data is wrong", 1, internalDtxTestTransaction1.getTxDataSize(n0));
     }
 
     @Test
     public void testMergeAndRollbackOnFailure(){
-        Assert.assertNotNull(this.dtxImpl);
+        internalDtxTestTransaction1 = new DTXTestTransaction();
+        internalDtxTestTransaction2 = new DTXTestTransaction();
+        DtxImpl dtxImpl = new DtxImpl(new myTxProvider(), s);
 
-        CheckedFuture<Void, ReadFailedException> f = this.dtxImpl.mergeAndRollbackOnFailure(LogicalDatastoreType.OPERATIONAL, n0, new TestClassNode(), n1);
+
+        CheckedFuture<Void, ReadFailedException> f = dtxImpl.mergeAndRollbackOnFailure(LogicalDatastoreType.OPERATIONAL, n0, new TestClassNode(), n1);
     }
 
     @Test
     public void testDeleteAndRollbackOnFailure(){
-        Assert.assertNotNull(this.dtxImpl);
+        internalDtxTestTransaction1 = new DTXTestTransaction();
+        internalDtxTestTransaction2 = new DTXTestTransaction();
+        DtxImpl dtxImpl = new DtxImpl(new myTxProvider(), s);
 
-        CheckedFuture<Void, ReadFailedException> f = this.dtxImpl.deleteAndRollbackOnFailure(LogicalDatastoreType.OPERATIONAL, n0, n1);
+
+        CheckedFuture<Void, ReadFailedException> f = dtxImpl.deleteAndRollbackOnFailure(LogicalDatastoreType.OPERATIONAL, n0, n1);
     }
 
     @Test public void testPut() {
-        Assert.assertNotNull(this.dtxImpl);
-        this.dtxImpl.put(LogicalDatastoreType.OPERATIONAL, n0, new TestClassNode(), n1);
+        internalDtxTestTransaction1 = new DTXTestTransaction();
+        internalDtxTestTransaction2 = new DTXTestTransaction();
+        DtxImpl dtxImpl = new DtxImpl(new myTxProvider(), s);
+
+        dtxImpl.put(LogicalDatastoreType.OPERATIONAL, n0, new TestClassNode(), n1);
     }
     @Test public void testMerge() {
-        Assert.assertNotNull(this.dtxImpl);
-        this.dtxImpl.merge(LogicalDatastoreType.OPERATIONAL, n0, new TestClassNode(), n1);
+        internalDtxTestTransaction1 = new DTXTestTransaction();
+        internalDtxTestTransaction2 = new DTXTestTransaction();
+        DtxImpl dtxImpl = new DtxImpl(new myTxProvider(), s);
+
+        dtxImpl.merge(LogicalDatastoreType.OPERATIONAL, n0, new TestClassNode(), n1);
     }
     @Test public void testDelete() {
-        Assert.assertNotNull(this.dtxImpl);
-        this.dtxImpl.delete(LogicalDatastoreType.OPERATIONAL, n0, n1);
+        internalDtxTestTransaction1 = new DTXTestTransaction();
+        internalDtxTestTransaction2 = new DTXTestTransaction();
+        DtxImpl dtxImpl = new DtxImpl(new myTxProvider(), s);
+
+        dtxImpl.delete(LogicalDatastoreType.OPERATIONAL, n0, n1);
     }
     @Test public void testRollback(){
-        Assert.assertNotNull(this.dtxImpl);
-        this.testPut();
-        this.testMerge();
-        this.testDelete();
+        internalDtxTestTransaction1 = new DTXTestTransaction();
+        internalDtxTestTransaction2 = new DTXTestTransaction();
+        DtxImpl dtxImpl = new DtxImpl(new myTxProvider(), s);
+
+        testPut();
+        testMerge();
+        testDelete();
         // CheckedFuture<Void, DTxException.RollbackFailedException> f = this.dtxImpl.rollback();
     }
     @Test
     public void testSubmit() {
-        Assert.assertNotNull(this.dtxImpl);
+        internalDtxTestTransaction1 = new DTXTestTransaction();
+        internalDtxTestTransaction2 = new DTXTestTransaction();
+        DtxImpl dtxImpl = new DtxImpl(new myTxProvider(), s);
 
-        this.testPut();
-        this.testMerge();
-        this.testDelete();
+
+        testPut();
+        testMerge();
+        testDelete();
 
         // CheckedFuture<Void, TransactionCommitFailedException> f = this.dtxImpl.submit();
     }

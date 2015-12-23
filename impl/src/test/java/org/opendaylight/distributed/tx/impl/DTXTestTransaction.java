@@ -2,7 +2,6 @@ package org.opendaylight.distributed.tx.impl;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
-import com.google.common.base.Supplier;
 import com.google.common.util.concurrent.CheckedFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -20,9 +19,7 @@ import org.opendaylight.yangtools.yang.common.RpcResult;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 
 public class DTXTestTransaction implements ReadWriteTransaction {
@@ -32,7 +29,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     boolean deleteException = false;
     boolean submitException = false;
 
-    private List<DataObject> txData = new LinkedList<DataObject>();
+    private Map<InstanceIdentifier<?>,HashSet<DataObject>> txDataMap = new HashMap<InstanceIdentifier<?>, HashSet<DataObject>>();
 
     public void setReadException(boolean ept){
         this.readException = ept;
@@ -42,10 +39,14 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     public void setDeleteException(boolean ept) {this.deleteException = ept;}
     public void setSubmitException(boolean ept) { this.submitException = ept;}
 
-    public int getTxDataSize() { return this.txData.size(); }
+    public int getTxDataSize(InstanceIdentifier<?> instanceIdentifier) { return this.txDataMap.get(instanceIdentifier).size(); }
 
     @Override
     public <T extends DataObject> CheckedFuture<Optional<T>, ReadFailedException> read(LogicalDatastoreType logicalDatastoreType, final InstanceIdentifier<T> instanceIdentifier) {
+
+        if(!txDataMap.containsKey(instanceIdentifier))
+            txDataMap.put(instanceIdentifier, new HashSet<DataObject>());
+
         Class<T> clazz = null;
         Constructor<T> ctor = null;
         try {
@@ -109,32 +110,50 @@ public class DTXTestTransaction implements ReadWriteTransaction {
 
     @Override
     public <T extends DataObject> void put(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t) {
-       if(!putException)
-           txData.add(t);
+       if(!txDataMap.containsKey(instanceIdentifier))
+           txDataMap.put(instanceIdentifier, new HashSet<DataObject>());
+
+       if(!putException) {
+           txDataMap.get(instanceIdentifier).clear();
+
+           txDataMap.get(instanceIdentifier).add(t);
+       }
         else
           throw new RuntimeException("simulate the put exception");
     }
 
     @Override
     public <T extends DataObject> void put(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, boolean b) {
+        if(!txDataMap.containsKey(instanceIdentifier))
+            txDataMap.put(instanceIdentifier, new HashSet<DataObject>());
+
         if(!putException)
-            txData.add(t);
+        {
+            txDataMap.get(instanceIdentifier).clear();
+            txDataMap.get(instanceIdentifier).add(t);
+        }
         else
             throw new RuntimeException("simulate the put exception");
     }
 
     @Override
     public <T extends DataObject> void merge(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t) {
+        if(!txDataMap.containsKey(instanceIdentifier))
+            txDataMap.put(instanceIdentifier, new HashSet<DataObject>());
+
         if(!mergeException)
-            txData.add(t);
+            txDataMap.get(instanceIdentifier).add(t);
         else
             throw new RuntimeException("simulate the merge exception");
     }
 
     @Override
     public <T extends DataObject> void merge(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, boolean b) {
+        if(!txDataMap.containsKey(instanceIdentifier))
+            txDataMap.put(instanceIdentifier, new HashSet<DataObject>());
+
         if(!mergeException)
-            txData.add(t);
+            txDataMap.get(instanceIdentifier).add(t);
         else
             throw new RuntimeException("simulate the merge exception");
     }
@@ -146,9 +165,12 @@ public class DTXTestTransaction implements ReadWriteTransaction {
 
     @Override
     public void delete(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<?> instanceIdentifier) {
+        if(!txDataMap.containsKey(instanceIdentifier))
+            txDataMap.put(instanceIdentifier, new HashSet<DataObject>());
+
         if(!deleteException)
-            if(txData.size()>0)
-                txData.remove(txData.size()-1);
+            if(txDataMap.get(instanceIdentifier).size()>0)
+                txDataMap.get(instanceIdentifier).clear();
             else
                 throw new RuntimeException("no data in the DTXTestTransaction Data store");
         else
