@@ -45,7 +45,7 @@ public class DtxImpl implements DTx {
     private Map<InstanceIdentifier<?>, CachingReadWriteTx> initializeTransactions(final TxProvider txProvider,
         final Set<InstanceIdentifier<?>> nodes) {
 
-        return Maps.asMap(nodes, new Function<InstanceIdentifier<?>, CachingReadWriteTx>() {
+        return Maps.toMap(nodes, new Function<InstanceIdentifier<?>, CachingReadWriteTx>() {
             @Nullable @Override public CachingReadWriteTx apply(@Nullable final InstanceIdentifier<?> input) {
                 return new CachingReadWriteTx(txProvider.newTx(input));
             }

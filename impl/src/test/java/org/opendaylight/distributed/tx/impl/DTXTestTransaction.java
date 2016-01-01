@@ -6,6 +6,7 @@ import com.google.common.util.concurrent.CheckedFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import com.romix.scala.Option;
 import org.antlr.v4.runtime.misc.Nullable;
 import org.opendaylight.controller.md.sal.binding.api.ReadWriteTransaction;
 import org.opendaylight.controller.md.sal.common.api.TransactionStatus;
@@ -29,7 +30,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     boolean deleteException = false;
     boolean submitException = false;
 
-    private Map<InstanceIdentifier<?>,HashSet<DataObject>> txDataMap = new HashMap<InstanceIdentifier<?>, HashSet<DataObject>>();
+    private Map<InstanceIdentifier<?>,ArrayList<DataObject>> txDataMap = new HashMap<>();
 
     public void setReadException(boolean ept){
         this.readException = ept;
@@ -39,41 +40,49 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     public void setDeleteException(boolean ept) {this.deleteException = ept;}
     public void setSubmitException(boolean ept) { this.submitException = ept;}
 
-    public int getTxDataSize(InstanceIdentifier<?> instanceIdentifier) { return this.txDataMap.get(instanceIdentifier).size(); }
+    public int getTxDataSize(InstanceIdentifier<?> instanceIdentifier) {
+        return this.txDataMap.containsKey(instanceIdentifier)?
+                this.txDataMap.get(instanceIdentifier).size() : 0;
+    }
 
     @Override
     public <T extends DataObject> CheckedFuture<Optional<T>, ReadFailedException> read(LogicalDatastoreType logicalDatastoreType, final InstanceIdentifier<T> instanceIdentifier) {
 
-        if(!txDataMap.containsKey(instanceIdentifier))
-            txDataMap.put(instanceIdentifier, new HashSet<DataObject>());
-
-        Class<T> clazz = null;
-        Constructor<T> ctor = null;
-        try {
-             clazz = (Class<T>)Class.forName("org.opendaylight.distributed.tx.impl.DTXTestTransaction$myDataObj");
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-        if(clazz != null)
-            try {
-                ctor = clazz.getConstructor();
-            } catch (NoSuchMethodException e) {
-                e.printStackTrace();
-            }
-
-        //Object obj = null;
+//        if(!txDataMap.containsKey(instanceIdentifier))
+//            txDataMap.put(instanceIdentifier, new ArrayList<DataObject>());
+//
+//        Class<T> clazz = null;
+//        Constructor<T> ctor = null;
+//        try {
+//             clazz = (Class<T>)Class.forName("org.opendaylight.distributed.tx.impl.DTXTestTransaction$myDataObj");
+//        } catch (ClassNotFoundException e) {
+//            e.printStackTrace();
+//        }
+//        if(clazz != null)
+//            try {
+//                ctor = clazz.getConstructor();
+//            } catch (NoSuchMethodException e) {
+//                e.printStackTrace();
+//            }
+//
+//        //Object obj = null;
+//        T obj = null;
+//        try {
+//            obj = ctor.newInstance();
+//        } catch (InstantiationException e) {
+//            e.printStackTrace();
+//        } catch (IllegalAccessException e) {
+//            e.printStackTrace();
+//        } catch (InvocationTargetException e) {
+//            e.printStackTrace();
+//        }
         T obj = null;
-        try {
-            obj = ctor.newInstance();
-        } catch (InstantiationException e) {
-            e.printStackTrace();
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        } catch (InvocationTargetException e) {
-            e.printStackTrace();
-        }
 
-        final Optional<T> retOpt = Optional.of(obj);
+        if(txDataMap.containsKey(instanceIdentifier) && txDataMap.get(instanceIdentifier).size() > 0)
+            obj = (T)txDataMap.get(instanceIdentifier).get(0);
+
+        final Optional<T> retOpt = Optional.fromNullable(obj);
+//        final Optional<T> retOpt = Optional.of(obj);
 
         final SettableFuture<Optional<T>> retFuture = SettableFuture.create();
         Runnable readResult = new Runnable() {
@@ -111,7 +120,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     @Override
     public <T extends DataObject> void put(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t) {
        if(!txDataMap.containsKey(instanceIdentifier))
-           txDataMap.put(instanceIdentifier, new HashSet<DataObject>());
+           txDataMap.put(instanceIdentifier, new ArrayList<DataObject>());
 
        if(!putException) {
            txDataMap.get(instanceIdentifier).clear();
@@ -125,7 +134,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     @Override
     public <T extends DataObject> void put(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, boolean b) {
         if(!txDataMap.containsKey(instanceIdentifier))
-            txDataMap.put(instanceIdentifier, new HashSet<DataObject>());
+            txDataMap.put(instanceIdentifier, new ArrayList<DataObject>());
 
         if(!putException)
         {
@@ -139,7 +148,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     @Override
     public <T extends DataObject> void merge(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t) {
         if(!txDataMap.containsKey(instanceIdentifier))
-            txDataMap.put(instanceIdentifier, new HashSet<DataObject>());
+            txDataMap.put(instanceIdentifier, new ArrayList<DataObject>());
 
         if(!mergeException)
             txDataMap.get(instanceIdentifier).add(t);
@@ -150,7 +159,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     @Override
     public <T extends DataObject> void merge(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, boolean b) {
         if(!txDataMap.containsKey(instanceIdentifier))
-            txDataMap.put(instanceIdentifier, new HashSet<DataObject>());
+            txDataMap.put(instanceIdentifier, new ArrayList<DataObject>());
 
         if(!mergeException)
             txDataMap.get(instanceIdentifier).add(t);
@@ -166,7 +175,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     @Override
     public void delete(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<?> instanceIdentifier) {
         if(!txDataMap.containsKey(instanceIdentifier))
-            txDataMap.put(instanceIdentifier, new HashSet<DataObject>());
+            return;
 
         if(!deleteException)
             if(txDataMap.get(instanceIdentifier).size()>0)

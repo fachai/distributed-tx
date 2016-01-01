@@ -70,7 +70,7 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
 
         Futures.addCallback(readFuture, new FutureCallback<Optional<DataObject>>() {
             @Override public void onSuccess(final Optional<DataObject> result) {
-                cache.add(new CachedData(instanceIdentifier, result.get(), ModifyAction.DELETE));
+                cache.add(new CachedData(instanceIdentifier, result.orNull(), ModifyAction.DELETE));
 
                 try {
                     delegate.delete(logicalDatastoreType, instanceIdentifier);
@@ -158,7 +158,7 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
 
         Futures.addCallback(read, new FutureCallback<Optional<T>>() {
             @Override public void onSuccess(final Optional<T> result) {
-                cache.add(new CachedData(instanceIdentifier, result.get(), ModifyAction.REPLACE));
+                cache.add(new CachedData(instanceIdentifier, result.orNull(), ModifyAction.REPLACE));
                 try {
                     delegate.put(logicalDatastoreType, instanceIdentifier, t);
                 } catch (RuntimeException e) {
