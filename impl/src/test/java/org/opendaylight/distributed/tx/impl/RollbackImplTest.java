@@ -20,6 +20,7 @@ import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -103,5 +104,31 @@ public class RollbackImplTest {
         Assert.assertEquals(0,testTransaction1.getTxDataSize(identifier2));
         Assert.assertEquals(0,testTransaction2.getTxDataSize(identifier1));
         Assert.assertEquals(0,testTransaction2.getTxDataSize(identifier2));
+    }
+
+    @Test
+    public void testRollbackFail() throws InterruptedException {
+        DTXTestTransaction testTransaction = new DTXTestTransaction();
+
+        CachingReadWriteTx cachingReadWriteTx = new CachingReadWriteTx(testTransaction);
+
+        cachingReadWriteTx.put(LogicalDatastoreType.OPERATIONAL, identifier1,new TestData1());
+        Thread.sleep(20);
+        Assert.assertEquals(1, testTransaction.getTxDataSize(identifier1));
+
+        Map<InstanceIdentifier<?>, CachingReadWriteTx> perNodeTransactions = new HashMap<>();
+        perNodeTransactions.put(node1, cachingReadWriteTx);
+        testTransaction.setDeleteException(true); // rollback will fail
+
+        RollbackImpl testRollback = new RollbackImpl();
+        CheckedFuture<Void, DTxException.RollbackFailedException> rollbackFuture =  testRollback.rollback(perNodeTransactions,perNodeTransactions);
+        Thread.sleep(20);
+        Assert.assertTrue(rollbackFuture.isDone());
+        try{
+            rollbackFuture.checkedGet();
+        }catch (Exception e)
+        {
+            Assert.assertTrue("Can't get the rollbackFail exception", e instanceof DTxException.RollbackFailedException);
+        }
     }
 }
