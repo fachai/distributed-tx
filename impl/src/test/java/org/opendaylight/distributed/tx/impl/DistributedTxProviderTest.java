@@ -97,6 +97,7 @@ public class DistributedTxProviderTest {
 
         Set<InstanceIdentifier<?>> nodeSet1 = Sets.newSet(node1, node2, node3);
         Set<InstanceIdentifier<?>> nodeSet2 = Sets.newSet(node3, node4, node5);
+        Set<InstanceIdentifier<?>> nodeSet3 = Sets.newSet(node4, node5);
 
         DTx dTx1 = dTxProvider.newTx(nodeSet1);
 
@@ -109,6 +110,7 @@ public class DistributedTxProviderTest {
             Assert.assertTrue(e instanceof DTxException.DTxInitializationFailedException);
             System.out.println(e.getMessage());
         }
+        DTx dTx3 = dTxProvider. newTx(nodeSet3);
 
 
     }

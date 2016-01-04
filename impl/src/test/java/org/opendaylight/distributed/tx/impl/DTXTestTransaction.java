@@ -128,7 +128,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
            txDataMap.get(instanceIdentifier).add(t);
        }
         else
-          throw new RuntimeException("simulate the put exception");
+          throw new RuntimeException(" put exception");
     }
 
     @Override
@@ -142,7 +142,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
             txDataMap.get(instanceIdentifier).add(t);
         }
         else
-            throw new RuntimeException("simulate the put exception");
+            throw new RuntimeException("put exception");
     }
 
     @Override
@@ -153,7 +153,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
         if(!mergeException)
             txDataMap.get(instanceIdentifier).add(t);
         else
-            throw new RuntimeException("simulate the merge exception");
+            throw new RuntimeException(" merge exception");
     }
 
     @Override
@@ -164,7 +164,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
         if(!mergeException)
             txDataMap.get(instanceIdentifier).add(t);
         else
-            throw new RuntimeException("simulate the merge exception");
+            throw new RuntimeException("merge exception");
     }
 
     @Override
@@ -183,7 +183,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
             else
                 throw new RuntimeException("no data in the DTXTestTransaction Data store");
         else
-            throw new RuntimeException("simulate delete exception");
+            throw new RuntimeException(" delete exception");
     }
 
     @Override
@@ -203,7 +203,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
                 if (!submitException){
                   retFuture.set(null);
                 }else
-                    retFuture.setException(new Throwable("simulated submit error"));
+                    retFuture.setException(new RuntimeException("submit error"));
                 retFuture.notifyAll();
             }
         };

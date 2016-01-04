@@ -24,6 +24,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import static org.junit.Assert.fail;
+
 
 public class RollbackImplTest {
 
@@ -107,28 +109,72 @@ public class RollbackImplTest {
     }
 
     @Test
-    public void testRollbackFail() throws InterruptedException {
+    public void testRollbackFailWithDeleteException() throws InterruptedException {
         DTXTestTransaction testTransaction = new DTXTestTransaction();
-
         CachingReadWriteTx cachingReadWriteTx = new CachingReadWriteTx(testTransaction);
 
         cachingReadWriteTx.put(LogicalDatastoreType.OPERATIONAL, identifier1,new TestData1());
         Thread.sleep(20);
         Assert.assertEquals(1, testTransaction.getTxDataSize(identifier1));
 
-        Map<InstanceIdentifier<?>, CachingReadWriteTx> perNodeTransactions = new HashMap<>();
-        perNodeTransactions.put(node1, cachingReadWriteTx);
+        Map<InstanceIdentifier<?>, CachingReadWriteTx> perNodeCaches = Maps.newHashMap();
+        perNodeCaches.put(node1, cachingReadWriteTx);
         testTransaction.setDeleteException(true); // rollback will fail
 
+        Map<InstanceIdentifier<?>, ReadWriteTransaction> perNodeRollbackTxs = Maps.newHashMap();
+        perNodeRollbackTxs.put(node1, testTransaction);
+
         RollbackImpl testRollback = new RollbackImpl();
-        CheckedFuture<Void, DTxException.RollbackFailedException> rollbackFuture =  testRollback.rollback(perNodeTransactions,perNodeTransactions);
+        CheckedFuture<Void, DTxException.RollbackFailedException> rollbackFuture =  testRollback.rollback(perNodeCaches,perNodeRollbackTxs);
         Thread.sleep(20);
         Assert.assertTrue(rollbackFuture.isDone());
         try{
             rollbackFuture.checkedGet();
+            fail();
         }catch (Exception e)
         {
             Assert.assertTrue("Can't get the rollbackFail exception", e instanceof DTxException.RollbackFailedException);
+            System.out.println(e.getMessage());
+        }
+    }
+
+    @Test
+    public void testRollbackFailWithSubmitException() throws InterruptedException{
+        DTXTestTransaction testTransaction1 = new DTXTestTransaction();
+        DTXTestTransaction testTransaction2 = new DTXTestTransaction();
+
+        final CachingReadWriteTx cachingReadWriteTx1 = new CachingReadWriteTx(testTransaction1); //nodeId1
+        final CachingReadWriteTx cachingReadWriteTx2 = new CachingReadWriteTx(testTransaction2); //nodeId2
+
+        cachingReadWriteTx1.put(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
+        cachingReadWriteTx1.put(LogicalDatastoreType.OPERATIONAL, identifier2, new TestData2());
+        cachingReadWriteTx2.put(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
+        cachingReadWriteTx2.put(LogicalDatastoreType.OPERATIONAL, identifier2, new TestData2());
+
+        Thread.sleep(20);
+
+        Set<InstanceIdentifier<?>> s = Sets.newHashSet(node1, node2);
+        Map<InstanceIdentifier<?>, ? extends CachingReadWriteTx> perNodeTransactions;
+
+        perNodeTransactions = Maps.toMap(s, new Function<InstanceIdentifier<?>, CachingReadWriteTx>() {
+            @Nullable
+            @Override
+            public CachingReadWriteTx apply(@Nullable InstanceIdentifier<?> instanceIdentifier) {
+                return instanceIdentifier == node1? cachingReadWriteTx1:cachingReadWriteTx2;
+            }
+        });
+
+        testTransaction2.setSubmitException(true);
+        RollbackImpl testRollBack = new RollbackImpl();
+        CheckedFuture<Void, DTxException.RollbackFailedException> rollBackFut = testRollBack.rollback(perNodeTransactions, perNodeTransactions);
+
+        try
+        {
+            rollBackFut.checkedGet();
+            fail();
+        }catch (Exception e)
+        {
+            Assert.assertTrue(e instanceof DTxException.RollbackFailedException);
         }
     }
 }
