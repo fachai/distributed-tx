@@ -372,8 +372,6 @@ public class DtxImpl implements DTx {
                 @Override
                 public void onFailure(Throwable throwable) {
 
-                    retFuture.setException(throwable);
-
                     CheckedFuture<Void, DTxException.RollbackFailedException> rollExcept =  rollback();
 
                     Futures.addCallback(rollExcept, new FutureCallback<Void>() {
@@ -418,8 +416,6 @@ public class DtxImpl implements DTx {
             @Override
             public void onFailure(Throwable throwable) {
 
-                retFuture.setException(throwable);
-
                 CheckedFuture<Void, DTxException.RollbackFailedException> rollExcept =  rollback();
 
                 Futures.addCallback(rollExcept, new FutureCallback<Void>() {
@@ -461,8 +457,6 @@ public class DtxImpl implements DTx {
 
             @Override
             public void onFailure(Throwable throwable) {
-
-                retFuture.setException(throwable);
 
                 CheckedFuture<Void, DTxException.RollbackFailedException> rollExcept =  rollback();
 
