@@ -110,7 +110,7 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
 
         Futures.addCallback(readFuture, new FutureCallback<Optional<T>>() {
             @Override public void onSuccess(final Optional<T> result) {
-                cache.add(new CachedData(instanceIdentifier, result.get(), ModifyAction.MERGE));
+                cache.add(new CachedData(instanceIdentifier, result.orNull(), ModifyAction.MERGE));
 
                 try {
                     delegate.merge(logicalDatastoreType, instanceIdentifier, t);
