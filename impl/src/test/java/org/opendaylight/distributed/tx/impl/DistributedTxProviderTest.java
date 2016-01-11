@@ -44,6 +44,7 @@ public class DistributedTxProviderTest {
     InstanceIdentifier<TestClassNode4> node4 = InstanceIdentifier.create(TestClassNode4.class);
     InstanceIdentifier<TestClassNode5> node5 = InstanceIdentifier.create(TestClassNode5.class);
 
+
     private class myTxProvider implements TxProvider{
 
         @Override
@@ -51,6 +52,8 @@ public class DistributedTxProviderTest {
             return new DTXTestTransaction();
         }
     }
+
+    //these classes are used to be create the nodeId
 
     private class TestClassNode1  implements DataObject {
 
@@ -91,6 +94,7 @@ public class DistributedTxProviderTest {
         }
     }
 
+    //these class are uesd to create the dtx from the dtx provider
     private class CreateNewTx1 implements Runnable{
 
         @Override
@@ -179,6 +183,8 @@ public class DistributedTxProviderTest {
 
         dTxProvider = new DTxProviderImpl(new myTxProvider());
         ExecutorService threadPool = Executors.newCachedThreadPool();
+        //in three independent threads we try to get dtx from the dtx provider
+        //some node may be in use and dtxprovider will throw an exception
         threadPool.execute(new CreateNewTx1());
         threadPool.execute(new CreateNewTx2());
         threadPool.execute(new CreateNewTx3());
@@ -193,6 +199,10 @@ public class DistributedTxProviderTest {
     @Test
     public void testCancel()
     {
+        //test the concurrency in cancel
+        //when the dtx is canceled, the node should be released
+        //use multithread to test the data safety
+
         Runnable createDtx1 = new Runnable() {
             @Override
             public void run() {
@@ -205,7 +215,7 @@ public class DistributedTxProviderTest {
                     DTx dTx = dTxProvider.newTx((Set<InstanceIdentifier<?>>)Sets.newSet(node1, node2, node3));
                 }catch (Exception e)
                 {
-                    System.out.println(e.getMessage());
+//                    System.out.println(e.getMessage());
                     return;
                 }
                 dTx1.cancel();
@@ -217,7 +227,7 @@ public class DistributedTxProviderTest {
             @Override
             public void run() {
                 try {
-                    Thread.sleep(30);
+                    Thread.sleep(100);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -225,7 +235,7 @@ public class DistributedTxProviderTest {
                     DTx dTx = dTxProvider.newTx((Set<InstanceIdentifier<?>>)Sets.newSet(node2, node3, node4));
                 }catch (Exception e)
                 {
-                    System.out.println(e.getMessage());
+//                    System.out.println(e.getMessage());
                     fail();
                 }
             }
@@ -236,7 +246,7 @@ public class DistributedTxProviderTest {
         threadPool.execute(createDtx2);
 
         try {
-            Thread.sleep(100);
+            Thread.sleep(300);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }

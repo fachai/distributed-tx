@@ -124,7 +124,6 @@ public class DTXTestTransaction implements ReadWriteTransaction {
 
        if(!putException) {
            txDataMap.get(instanceIdentifier).clear();
-
            txDataMap.get(instanceIdentifier).add(t);
        }
         else
@@ -150,8 +149,10 @@ public class DTXTestTransaction implements ReadWriteTransaction {
         if(!txDataMap.containsKey(instanceIdentifier))
             txDataMap.put(instanceIdentifier, new ArrayList<DataObject>());
 
-        if(!mergeException)
+        if(!mergeException) {
+            txDataMap.get(instanceIdentifier).clear();
             txDataMap.get(instanceIdentifier).add(t);
+        }
         else
             throw new RuntimeException(" merge exception");
     }
@@ -161,8 +162,10 @@ public class DTXTestTransaction implements ReadWriteTransaction {
         if(!txDataMap.containsKey(instanceIdentifier))
             txDataMap.put(instanceIdentifier, new ArrayList<DataObject>());
 
-        if(!mergeException)
+        if(!mergeException) {
+            txDataMap.get(instanceIdentifier).clear();
             txDataMap.get(instanceIdentifier).add(t);
+        }
         else
             throw new RuntimeException("merge exception");
     }

@@ -66,6 +66,12 @@ public class RollbackImplTest {
 
     @Test
     public void testRollBack() throws InterruptedException {
+
+        //put data in node1 and node2
+        //invoke rollback
+        //rollback succeed
+        //no data in the node
+
         DTXTestTransaction testTransaction1 = new DTXTestTransaction();
         DTXTestTransaction testTransaction2 = new DTXTestTransaction();
 
@@ -85,7 +91,7 @@ public class RollbackImplTest {
         Assert.assertEquals(1,testTransaction2.getTxDataSize(identifier2));
 
         Set<InstanceIdentifier<?>> s = Sets.newHashSet(node1, node2);
-        Map<InstanceIdentifier<?>, ? extends CachingReadWriteTx> perNodeTransactions;
+        Map<InstanceIdentifier<?>, ? extends CachingReadWriteTx> perNodeTransactions; //this map store every node transaction
 
         perNodeTransactions = Maps.toMap(s, new Function<InstanceIdentifier<?>, CachingReadWriteTx>() {
             @Nullable
@@ -110,6 +116,12 @@ public class RollbackImplTest {
 
     @Test
     public void testRollbackFailWithDeleteException() throws InterruptedException {
+
+        //put data in node1
+        //invoke rollback
+        //delete exception occurs the rollback fail
+
+
         DTXTestTransaction testTransaction = new DTXTestTransaction();
         CachingReadWriteTx cachingReadWriteTx = new CachingReadWriteTx(testTransaction);
 
@@ -117,17 +129,18 @@ public class RollbackImplTest {
         Thread.sleep(20);
         Assert.assertEquals(1, testTransaction.getTxDataSize(identifier1));
 
+        //perNodeCaches a map store every node caching data
         Map<InstanceIdentifier<?>, CachingReadWriteTx> perNodeCaches = Maps.newHashMap();
         perNodeCaches.put(node1, cachingReadWriteTx);
-        testTransaction.setDeleteException(true); // rollback will fail
+        //delete exception rollback will fail
+        testTransaction.setDeleteException(true);
 
         Map<InstanceIdentifier<?>, ReadWriteTransaction> perNodeRollbackTxs = Maps.newHashMap();
         perNodeRollbackTxs.put(node1, testTransaction);
 
         RollbackImpl testRollback = new RollbackImpl();
         CheckedFuture<Void, DTxException.RollbackFailedException> rollbackFuture =  testRollback.rollback(perNodeCaches,perNodeRollbackTxs);
-        Thread.sleep(20);
-        Assert.assertTrue(rollbackFuture.isDone());
+
         try{
             rollbackFuture.checkedGet();
             fail();
@@ -140,8 +153,13 @@ public class RollbackImplTest {
 
     @Test
     public void testRollbackFailWithSubmitException() throws InterruptedException{
-        DTXTestTransaction testTransaction1 = new DTXTestTransaction();
-        DTXTestTransaction testTransaction2 = new DTXTestTransaction();
+
+        //put data in node1 and node2
+        //invoke rollback
+        //submit fail rollback fail
+
+        DTXTestTransaction testTransaction1 = new DTXTestTransaction(); //node1 delegate transaction
+        DTXTestTransaction testTransaction2 = new DTXTestTransaction(); //node2 delegate transaction
 
         final CachingReadWriteTx cachingReadWriteTx1 = new CachingReadWriteTx(testTransaction1); //nodeId1
         final CachingReadWriteTx cachingReadWriteTx2 = new CachingReadWriteTx(testTransaction2); //nodeId2
@@ -153,7 +171,9 @@ public class RollbackImplTest {
 
         Thread.sleep(20);
 
+        //nodes set
         Set<InstanceIdentifier<?>> s = Sets.newHashSet(node1, node2);
+        //map store every node transaction and the caching data
         Map<InstanceIdentifier<?>, ? extends CachingReadWriteTx> perNodeTransactions;
 
         perNodeTransactions = Maps.toMap(s, new Function<InstanceIdentifier<?>, CachingReadWriteTx>() {
