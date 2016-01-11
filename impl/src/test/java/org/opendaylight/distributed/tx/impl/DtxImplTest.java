@@ -126,7 +126,6 @@ public class DtxImplTest{
         Thread.sleep(20);
         internalDtxTestTransaction2.setReadException(false);
 
-        Thread.sleep(500); // the main Thread must be halted for enough time until the rollback finish
 
         try{
             f.checkedGet();
@@ -164,7 +163,6 @@ public class DtxImplTest{
             fail("Transaction1 get the unexpected exception, the test has failed ");
         }
 
-        Thread.sleep(100);
 
         try{
             f2.checkedGet();
@@ -210,10 +208,7 @@ public class DtxImplTest{
         internalDtxTestTransaction2.setMergeException(true);
         CheckedFuture<Void, ReadFailedException> f = dtxImpl.mergeAndRollbackOnFailure(LogicalDatastoreType.OPERATIONAL, n0, new TestClassNode(), n2);
 
-        Thread.sleep(20);
-        internalDtxTestTransaction2.setReadException(false);
 
-        Thread.sleep(500); // the main Thread must be halted for enough time until the rollback finish
 
         try{
             f.checkedGet();
@@ -246,7 +241,6 @@ public class DtxImplTest{
             fail("Transaction1 get the unexpected exception, the test has failed ");
         }
 
-        Thread.sleep(100);
 
         try{
             f2.checkedGet();
@@ -269,7 +263,7 @@ public class DtxImplTest{
 
         CheckedFuture<Void, ReadFailedException> deleteFuture = dtxImpl.deleteAndRollbackOnFailure(LogicalDatastoreType.OPERATIONAL, n0, n1);
 
-        Thread.sleep(20);
+        Thread.sleep(30);
         Assert.assertTrue(deleteFuture.isDone());
         Assert.assertEquals("Size in n1 is wrong", 0, internalDtxTestTransaction1.getTxDataSize(n0));
 
@@ -298,7 +292,6 @@ public class DtxImplTest{
         Thread.sleep(20);
         internalDtxTestTransaction2.setDeleteException(false); // after the delete action fail we must set the exception false to rollback successfully
 
-        Thread.sleep(200);
 
         try{
             f2.checkedGet();
@@ -328,8 +321,6 @@ public class DtxImplTest{
         internalDtxTestTransaction2.setSubmitException(true);
         f2 = dtxImpl.deleteAndRollbackOnFailure(LogicalDatastoreType.OPERATIONAL, n0, n2);
 
-        Thread.sleep(100);
-        Assert.assertTrue(f2.isDone());
         try{
             f2.checkedGet();
             fail("Can't get the exception the test failed");
@@ -429,8 +420,7 @@ public class DtxImplTest{
         CheckedFuture<Void, TransactionCommitFailedException> f = dtxImpl.submit();
         Thread.sleep(30);
         internalDtxTestTransaction2.setSubmitException(false); //no submit exception occur rollback will succeed
-
-        Thread.sleep(150);
+        
 
         try{
             f.checkedGet();
@@ -460,7 +450,6 @@ public class DtxImplTest{
         internalDtxTestTransaction2.setSubmitException(true);
         CheckedFuture<Void, TransactionCommitFailedException> f = dtxImpl.submit();
 
-        Thread.sleep(150);
 
         try{
             f.checkedGet();
