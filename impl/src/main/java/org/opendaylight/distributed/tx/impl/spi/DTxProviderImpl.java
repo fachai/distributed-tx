@@ -9,7 +9,10 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Future;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import org.opendaylight.controller.md.sal.common.api.TransactionStatus;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
 import org.opendaylight.controller.md.sal.common.api.data.ReadFailedException;
@@ -40,7 +43,8 @@ public class DTxProviderImpl implements DTxProvider, AutoCloseable {
         throws DTxException.DTxInitializationFailedException {
 
         final Sets.SetView<InstanceIdentifier<?>> lockedDevices = Sets.intersection(devicesInUse, nodes);
-        if(!lockedDevices.isEmpty()) {
+        if(false)
+        if(lockedDevices.isEmpty()) {
             LOG.warn("Unable to lock nodes(in use): {}", lockedDevices);
             throw new DTxException.DTxInitializationFailedException("Unable to lock nodes(in use): " + lockedDevices);
         }
@@ -55,7 +59,7 @@ public class DTxProviderImpl implements DTxProvider, AutoCloseable {
     @Nonnull
     @Override
     public void test() {
-        LOG.info("FM: this is a test.");
+        LOG.info("this is a test.");
     }
 
     @Override public void close() throws Exception {
@@ -97,7 +101,23 @@ public class DTxProviderImpl implements DTxProvider, AutoCloseable {
 
         @Override
         public <T extends DataObject> CheckedFuture<Void, ReadFailedException> putAndRollbackOnFailure(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, InstanceIdentifier<?> nodeId) throws DTxException.EditFailedException {
-            return delegate.putAndRollbackOnFailure(logicalDatastoreType, instanceIdentifier, t, nodeId);
+            CheckedFuture<Void, ReadFailedException> putFuture = delegate.putAndRollbackOnFailure(logicalDatastoreType, instanceIdentifier, t, nodeId);
+
+            /*
+            Futures.addCallback(putFuture, new FutureCallback<Void>() {
+                @Override
+                public void onSuccess(@Nullable Void result) {
+                    releaseNodes();
+                }
+
+                @Override
+                public void onFailure(Throwable t) {
+                    releaseNodes();
+                }
+            });
+            */
+
+            return putFuture;
         }
 
         @Override

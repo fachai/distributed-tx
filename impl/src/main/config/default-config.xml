@@ -23,10 +23,22 @@ and is available at http://www.eclipse.org/legal/epl-v10.html
             <type xmlns:prefix="urn:opendaylight:params:xml:ns:yang:distributed-tx:spi">prefix:tx-provider</type>
             <name>mount-point-tx-provider</name>
           </tx-provider>
+          <data-store-tx-provider>
+            <type xmlns:prefix="urn:opendaylight:params:xml:ns:yang:distributed-tx:spi">prefix:tx-provider</type>
+            <name>data-store-tx-provider</name>
+          </data-store-tx-provider>
         </module>
         <module>
           <type xmlns:prefix="urn:opendaylight:params:xml:ns:yang:distributed-tx:spi:impl">prefix:mount-service-tx-provider</type>
           <name>mount-point-tx-provider</name>
+          <broker>
+            <type xmlns:binding="urn:opendaylight:params:xml:ns:yang:controller:md:sal:binding">binding:binding-broker-osgi-registry</type>
+            <name>binding-osgi-broker</name>
+          </broker>
+        </module>
+        <module>
+          <type xmlns:prefix="urn:opendaylight:params:xml:ns:yang:distributed-tx:spi:datastore:txprovider">prefix:data-store-tx-provider</type>
+          <name>data-store-tx-provider</name>
           <broker>
             <type xmlns:binding="urn:opendaylight:params:xml:ns:yang:controller:md:sal:binding">binding:binding-broker-osgi-registry</type>
             <name>binding-osgi-broker</name>
@@ -39,6 +51,13 @@ and is available at http://www.eclipse.org/legal/epl-v10.html
           <instance>
             <name>mount-point-tx-provider</name>
             <provider>/modules/module[type='mount-service-tx-provider'][name='mount-point-tx-provider']</provider>
+          </instance>
+        </service>
+        <service>
+          <type xmlns:prefix="urn:opendaylight:params:xml:ns:yang:distributed-tx:spi">prefix:tx-provider</type>
+          <instance>
+            <name>data-store-tx-provider</name>
+            <provider>/modules/module[type='data-store-tx-provider'][name='data-store-tx-provider']</provider>
           </instance>
         </service>
       </services>

@@ -12,6 +12,8 @@ import org.opendaylight.controller.sal.binding.api.BindingAwareConsumer;
 import org.opendaylight.distributed.tx.spi.TxException;
 import org.opendaylight.distributed.tx.spi.TxProvider;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Per node transaction provider SPI. Distributed tx treats every node just as an instance of ReadWriteTransaction.
@@ -20,6 +22,7 @@ import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 public class MountServiceTxProvider implements TxProvider, AutoCloseable, BindingAwareConsumer {
 
     private volatile MountPointService mountService;
+    private static final Logger LOG = LoggerFactory.getLogger(MountServiceTxProvider.class);
 
     /**
      *
@@ -34,10 +37,11 @@ public class MountServiceTxProvider implements TxProvider, AutoCloseable, Bindin
         final Optional<MountPoint> mountPoint = mountService.getMountPoint(path);
 
         if(mountPoint.isPresent()) {
-            final MountPoint mpNode = (MountPoint) mountPoint;
+            final MountPoint mpNode = mountPoint.get();
             // Get the DataBroker for the mounted node
             final DataBroker dataBroker = mpNode.getService(DataBroker.class).get();
             // Open an read and write transaction using the databroker.
+
             return dataBroker.newReadWriteTransaction();
         } else {
             throw new TxException.TxInitiatizationFailedException("Unable to create tx for " + path + ", Mountpoint does not exist");

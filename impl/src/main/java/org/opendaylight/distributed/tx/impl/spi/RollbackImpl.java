@@ -45,6 +45,7 @@ public class RollbackImpl implements Rollback {
 
                 ModifyAction revertAction = getRevertAction(cachedData.getOperation(), cachedData.getData());
 
+                LOG.info("perNodeCache {}", revertAction);
                 switch (revertAction) {
                 case REPLACE: {
                     try {
@@ -68,7 +69,6 @@ public class RollbackImpl implements Rollback {
                             .format("Unable to rollback change for node: %s, %s data: %s. Node in unknown state.",
                                 perNodeCacheEntry.getKey(), revertAction, dataId), e));
                     }
-
                 }
                 case NONE: {
                     break;

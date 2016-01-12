@@ -11,23 +11,23 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import java.util.Set;
-import java.util.logging.Logger;
 
 public class DTXProviderService implements DTxProvider, AutoCloseable, BindingAwareConsumer{
     private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(DTXProviderService.class);
     DTxProviderImpl dtxProvider;
     TxProvider mountServiceProvider;
+    TxProvider dataStoreSeviceProvider;
 
-    public DTXProviderService(TxProvider msProvider) {
+    public DTXProviderService(TxProvider msProvider, TxProvider dsProvider) {
         this.mountServiceProvider = msProvider;
+        this.dataStoreSeviceProvider = dsProvider;
+        // this.dtxProvider = new DTxProviderImpl(this.dataStoreSeviceProvider);
         this.dtxProvider = new DTxProviderImpl(this.mountServiceProvider);
-        LOG.info("FM: constructing dtx provider.");
     }
 
     @Nonnull
     @Override
     public DTx newTx(@Nonnull Set<InstanceIdentifier<?>> nodes) throws DTxException.DTxInitializationFailedException {
-        LOG.info("FM: DTXPrividerService new dtx.");
         return this.dtxProvider.newTx(nodes);
     }
 
@@ -45,6 +45,6 @@ public class DTXProviderService implements DTxProvider, AutoCloseable, BindingAw
 
     @Override
     public void onSessionInitialized(BindingAwareBroker.ConsumerContext session){
-        LOG.info("FM: DTXPrividerService started.");
+        LOG.info("DTXPrividerService started.");
     }
 }

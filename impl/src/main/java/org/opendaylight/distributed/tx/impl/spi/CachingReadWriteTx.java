@@ -2,16 +2,19 @@ package org.opendaylight.distributed.tx.impl.spi;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
-import com.google.common.util.concurrent.*;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Deque;
 import java.util.Iterator;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.google.common.util.concurrent.*;
 import org.opendaylight.controller.md.sal.binding.api.ReadWriteTransaction;
 import org.opendaylight.controller.md.sal.common.api.TransactionStatus;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
@@ -26,15 +29,20 @@ import org.opendaylight.yangtools.yang.binding.DataObject;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.opendaylight.yangtools.yang.common.RpcResult;
 import org.opendaylight.yangtools.yang.data.api.ModifyAction;
-import com.google.common.util.concurrent.SettableFuture;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Closeable {
-
+    private static final Logger LOG = LoggerFactory.getLogger(CachingReadWriteTx.class);
     private final ReadWriteTransaction delegate;
     public final Deque<CachedData> cache = new ConcurrentLinkedDeque<>();
+    private final ListeningExecutorService executorService;
+    private final ExecutorService executorPoolPerCache;
 
     public CachingReadWriteTx(@Nonnull final ReadWriteTransaction delegate) {
         this.delegate = delegate;
+        this.executorPoolPerCache = Executors.newCachedThreadPool();
+        this.executorService = MoreExecutors.listeningDecorator(executorPoolPerCache);
     }
 
     @Override public Iterator<CachedData> iterator() {
@@ -61,7 +69,6 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
 
     public CheckedFuture<Void, ReadFailedException> asyncDelete(final LogicalDatastoreType logicalDatastoreType,
                                       final InstanceIdentifier<?> instanceIdentifier) {
-
         @SuppressWarnings("unchecked")
         final CheckedFuture<Optional<DataObject>, ReadFailedException> readFuture = delegate
                 .read(logicalDatastoreType, (InstanceIdentifier<DataObject>) instanceIdentifier);
@@ -72,14 +79,27 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
             @Override public void onSuccess(final Optional<DataObject> result) {
                 cache.add(new CachedData(instanceIdentifier, result.get(), ModifyAction.DELETE));
 
-                try {
-                    delegate.delete(logicalDatastoreType, instanceIdentifier);
-                } catch (RuntimeException e) {
-                    retFuture.setException(e);
+                final ListenableFuture asyncPutFuture = executorService.submit(new Callable() {
+                    @Override
+                    public Object call() throws Exception {
+                        delegate.delete(logicalDatastoreType, instanceIdentifier);
+                        return null;
+                    }
+                });
 
-                    return ;
-                }
-                retFuture.set(null);
+                Futures.addCallback(asyncPutFuture, new FutureCallback() {
+                    @Override
+                    public void onSuccess(@Nullable Object result) {
+                        retFuture.set(null);
+                        LOG.info("asyncPut put done and return !!!!");
+                    }
+
+                    @Override
+                    public void onFailure(Throwable t) {
+                        LOG.info("asyncPut put exception");
+                        retFuture.setException(t);
+                    }
+                });
             }
 
             @Override public void onFailure(final Throwable t) {
@@ -112,14 +132,27 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
             @Override public void onSuccess(final Optional<T> result) {
                 cache.add(new CachedData(instanceIdentifier, result.get(), ModifyAction.MERGE));
 
-                try {
-                    delegate.merge(logicalDatastoreType, instanceIdentifier, t);
-                } catch (RuntimeException e) {
-                    retFuture.setException(e);
+                final ListenableFuture asyncPutFuture = executorService.submit(new Callable() {
+                    @Override
+                    public Object call() throws Exception {
+                        delegate.merge(logicalDatastoreType, instanceIdentifier, t);
+                        return null;
+                    }
+                });
 
-                    return;
-                }
-                retFuture.set(null);
+                Futures.addCallback(asyncPutFuture, new FutureCallback() {
+                    @Override
+                    public void onSuccess(@Nullable Object result) {
+                        retFuture.set(null);
+                        LOG.info("asyncPut device put done and return");
+                    }
+
+                    @Override
+                    public void onFailure(Throwable t) {
+                        LOG.info("asyncPut device put exception");
+                        retFuture.setException(t);
+                    }
+                });
             }
 
             @Override public void onFailure(final Throwable t) {
@@ -151,28 +184,74 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
 
     public <T extends DataObject> CheckedFuture<Void, ReadFailedException> asyncPut(final LogicalDatastoreType logicalDatastoreType,
                                                      final InstanceIdentifier<T> instanceIdentifier, final T t) {
-        final CheckedFuture<Optional<T>, ReadFailedException> read = delegate
-                .read(logicalDatastoreType, instanceIdentifier);
-
         final SettableFuture<Void> retFuture = SettableFuture.create();
 
-        Futures.addCallback(read, new FutureCallback<Optional<T>>() {
-            @Override public void onSuccess(final Optional<T> result) {
-                cache.add(new CachedData(instanceIdentifier, result.get(), ModifyAction.REPLACE));
-                try {
-                    delegate.put(logicalDatastoreType, instanceIdentifier, t);
-                } catch (RuntimeException e) {
-                    retFuture.setException(e);
+        if(false){
+            final CheckedFuture<Optional<T>, ReadFailedException> read = delegate
+                    .read(logicalDatastoreType, instanceIdentifier);
 
-                    return;
+            while(!read.isDone()){Thread.yield();};
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            delegate.put(logicalDatastoreType, instanceIdentifier, t);
+
+            Runnable readResult = new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Thread.sleep(500);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+
+                    retFuture.set(null);
                 }
-                retFuture.set(null);
-            }
+            };
+            new Thread(readResult).start();
+        }else {
+            final CheckedFuture<Optional<T>, ReadFailedException> read = delegate
+                    .read(logicalDatastoreType, instanceIdentifier);
+            Futures.addCallback(read, new FutureCallback<Optional<T>>() {
+                @Override
+                public void onSuccess(final Optional<T> result) {
+                    cache.add(new CachedData(instanceIdentifier, result.orNull(), ModifyAction.REPLACE));
+                    LOG.info("asyncPut read successfully and add cache");
 
-            @Override public void onFailure(final Throwable t) {
-                retFuture.setException(new DTxException.EditFailedException("failed to read from node in put action", t));
-            }
-        });
+                    final ListenableFuture asyncPutFuture = executorService.submit(new Callable() {
+                        @Override
+                        public Object call() throws Exception {
+                            LOG.info("asyncPut put obj {}", Integer.toHexString(System.identityHashCode(t)));
+                            delegate.put(logicalDatastoreType, instanceIdentifier, t);
+                            return null;
+                        }
+                    });
+
+                    Futures.addCallback(asyncPutFuture, new FutureCallback() {
+                        @Override
+                        public void onSuccess(@Nullable Object result) {
+                            retFuture.set(null);
+                            LOG.info("in asyncPut device put done and return ");
+                        }
+
+                        @Override
+                        public void onFailure(Throwable t) {
+                            LOG.info("asyncPut device put exception");
+                            retFuture.setException(t);
+                        }
+                    });
+                }
+
+                @Override
+                public void onFailure(final Throwable t) {
+                    LOG.info("asyncPut read fail");
+                    retFuture.setException(new DTxException.EditFailedException("failed to read from node in put action", t));
+                }
+            });
+        }
 
         return Futures.makeChecked(retFuture, new Function<Exception, ReadFailedException>() {
             @Nullable
@@ -187,10 +266,6 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
     @Override public <T extends DataObject> void put(final LogicalDatastoreType logicalDatastoreType,
         final InstanceIdentifier<T> instanceIdentifier, final T t, final boolean ensureParents) {
         delegate.put(logicalDatastoreType, instanceIdentifier, t, ensureParents);
-        // TODO ERUAN
-        // TODO How do we handle this ?
-        // Either ignore ensure parents and log warning that ensure parents is unsupported
-        // Or throw an exception (but that means rollback) unless we wont do auto-rollback on errors during edit
     }
 
     @Override public boolean cancel() {
