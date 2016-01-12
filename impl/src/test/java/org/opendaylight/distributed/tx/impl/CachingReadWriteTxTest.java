@@ -8,12 +8,9 @@ import org.opendaylight.controller.md.sal.common.api.data.ReadFailedException;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
 import org.opendaylight.distributed.tx.api.DTxException;
 import org.opendaylight.distributed.tx.impl.spi.CachingReadWriteTx;
-import org.opendaylight.yangtools.yang.binding.DataObject;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 
 import org.junit.Assert;
-
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.fail;
 
@@ -29,9 +26,12 @@ public class CachingReadWriteTxTest {
     }
 
     @Test
-    public void testAsyncPut() throws InterruptedException {
+    public void testAsyncPutWithoutObjEx() throws InterruptedException {
         /* FIXME The case should test right read after read in DTXTestTransaction is fixed. */
-        // testTx.setReadException(true);
+
+        /*
+        test the case no data exist at the beginning and successfully AsyncPut
+         */
         CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(testTx);
 
         int numberOfObjs = 10;
@@ -48,9 +48,33 @@ public class CachingReadWriteTxTest {
     }
 
     @Test
-    public void testAsyncPutReadError() throws InterruptedException {
+    public void testAsyncPutWithObjEx() throws InterruptedException{
+        /*
+         test the case data exist at the begining and successfully AsyncPut
+         */
         CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(testTx);
-        // read fail case
+        testTx.createObjForIdentifier(instanceIdentifier);
+
+        int numberOfObjs = 10;
+
+        for(int i = 0; i < numberOfObjs; i++){
+            CheckedFuture<Void, ReadFailedException> cf =  cacheRWTx.asyncPut(LogicalDatastoreType.OPERATIONAL, instanceIdentifier, new DTXTestTransaction.myDataObj());
+
+            Thread.sleep(30);
+            Assert.assertTrue(cf.isDone());
+        }
+
+        Assert.assertEquals("size is wrong", cacheRWTx.getSizeOfCache(), numberOfObjs);
+        Assert.assertEquals("size in DtxTestTransaction is wrong", 1, testTx.getTxDataSize(instanceIdentifier));
+    }
+
+    @Test
+    public void testAsyncPutWithoutObjExReadError() throws InterruptedException {
+        /*
+        test the case when try to AsyncPut read error occur and put failed
+         */
+        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(testTx);
+
         testTx.setReadException(true);
 
         int numberOfObjs = 10;
@@ -75,9 +99,12 @@ public class CachingReadWriteTxTest {
     }
 
     @Test
-    public void testAsyncPutWriteError() throws InterruptedException {
+    public void testAsyncPutWithoutObjExWriteError() throws InterruptedException {
+        /*
+        test the case try to AsyncPut put error occur and put failed
+         */
         CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(testTx);
-        //read success write fail case
+
         testTx.setPutException(true);
         int numberOfObjs = 10;
 
@@ -103,8 +130,33 @@ public class CachingReadWriteTxTest {
 
 
     @Test
-    public void testAsyncMerge() throws InterruptedException {
+    public void testAsyncMergeWithoutObjEx() throws InterruptedException {
+        /*
+        test the case no data exist at the beginning successfully Asyncmerge
+         */
         CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(testTx);
+
+        int numberOfObjs = 10;
+
+        for(int i = 0; i < numberOfObjs; i++){
+            CheckedFuture<Void, ReadFailedException> cf =  cacheRWTx.asyncMerge(LogicalDatastoreType.OPERATIONAL, InstanceIdentifier.create(DTXTestTransaction.myDataObj.class), new DTXTestTransaction.myDataObj());
+
+            Thread.sleep(30);
+            Assert.assertTrue(cf.isDone());
+        }
+
+        System.out.println("size is "+cacheRWTx.getSizeOfCache());
+        Assert.assertEquals("size is wrong", cacheRWTx.getSizeOfCache(), 10);
+        Assert.assertEquals("size of the data in DTXTestTransaction is wrong", 1, testTx.getTxDataSize(instanceIdentifier));
+    }
+
+    @Test
+    public void testAsyncMergeWithObjEx() throws InterruptedException{
+        /*
+        test the case data exist at the beginning successfully Asyncmerge
+         */
+        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(testTx);
+        testTx.createObjForIdentifier(instanceIdentifier);
 
         int numberOfObjs = 10;
         //AsyncMerge succeed case
@@ -121,12 +173,15 @@ public class CachingReadWriteTxTest {
     }
 
     @Test
-    public void testAsyncMergeReadError() throws InterruptedException {
+    public void testAsyncMergeWithoutObjExReadError() throws InterruptedException {
+        /*
+        try to Async merge but read error occur and merge failed
+         */
         CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(testTx);
         testTx.setReadException(true);
 
         int numberOfObjs = 10;
-        //AsyncMerge read fail case
+
 
         for(int i = 0; i < numberOfObjs; i++)
         {
@@ -149,10 +204,13 @@ public class CachingReadWriteTxTest {
     }
 
     @Test
-    public void testAsyncMergeWriteError() throws InterruptedException {
+    public void testAsyncMergeWithoutObjExWriteError() throws InterruptedException {
+        /*
+        test the case try to Async merge, write error occur and test fail
+        */
         CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(testTx);
         testTx.setMergeException(true);
-        //AsyncMerge read succeed but merge fail case
+
         int numberOfObjs = 10;
 
         for(int i = 0; i < numberOfObjs; i++)
@@ -174,9 +232,12 @@ public class CachingReadWriteTxTest {
     }
 
     @Test
-    public  void testAsyncDelete() throws InterruptedException {
+    public  void testAsyncDeleteWithoutObjEx() throws InterruptedException {
+        /*
+        test the case no data exist at the beginning and we put a data in it and then successfully delete it
+         */
         CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(testTx);
-        //AsyncDelete succeed case
+
         CheckedFuture<Void, ReadFailedException> cf =  cacheRWTx.asyncPut(LogicalDatastoreType.OPERATIONAL, InstanceIdentifier.create(DTXTestTransaction.myDataObj.class), new DTXTestTransaction.myDataObj());
         Thread.sleep(30);
         Assert.assertTrue(cf.isDone());
@@ -190,14 +251,31 @@ public class CachingReadWriteTxTest {
     }
 
     @Test
-    public void testAsyncDeleteReadError() throws InterruptedException {
+    public void testAsyncDeleteWithObjEx() throws InterruptedException{
+        /*
+        test the case data exist at the beginning, successfully delete it
+         */
+        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(testTx);
+        testTx.createObjForIdentifier(instanceIdentifier);
+
+        CheckedFuture<Void, ReadFailedException> f = cacheRWTx.asyncDelete(LogicalDatastoreType.OPERATIONAL, InstanceIdentifier.create(DTXTestTransaction.myDataObj.class));
+        Thread.sleep(30);
+        Assert.assertEquals(f.isDone(), true);
+
+        Assert.assertEquals("Size in cacheRWTx is wrong", 1, cacheRWTx.getSizeOfCache());
+        Assert.assertEquals("Size of the data in DTXTestTransaction is wrong", 0, testTx.getTxDataSize(instanceIdentifier));
+    }
+
+    @Test
+    public void testAsyncDeleteWithObjExReadError() throws InterruptedException {
+        /*
+        test the case data exist at the beginning, try to Async delete the data
+        read error occur delete fail
+         */
         DTXTestTransaction testTx = new DTXTestTransaction();
         CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(testTx);
 
-        CheckedFuture<Void, ReadFailedException> cf = cacheRWTx.asyncPut(LogicalDatastoreType.OPERATIONAL, InstanceIdentifier.create(DTXTestTransaction.myDataObj.class), new DTXTestTransaction.myDataObj());
-        Thread.sleep(20); //we must ensure all the put action has been ended???
-        Assert.assertTrue(cf.isDone());
-
+        testTx.createObjForIdentifier(instanceIdentifier);
         testTx.setReadException(true);
 
         CheckedFuture<Void, ReadFailedException> f = cacheRWTx.asyncDelete(LogicalDatastoreType.OPERATIONAL, InstanceIdentifier.create(DTXTestTransaction.myDataObj.class));
@@ -210,18 +288,18 @@ public class CachingReadWriteTxTest {
                 Throwable cause = e.getCause().getCause();
                 Assert.assertTrue("Can't get the EditFailedException the test failed", cause instanceof DTxException.EditFailedException);
         }
-        Assert.assertEquals("Size in CachingReadWriteTx is wrong", 1, cacheRWTx.getSizeOfCache());
+        Assert.assertEquals("Size in CachingReadWriteTx is wrong", 0, cacheRWTx.getSizeOfCache());
         Assert.assertEquals("Size in the DTXTestTransaction is wrong", 1, testTx.getTxDataSize(instanceIdentifier));
     }
 
     @Test
-    public void testAsyncDeleteWriteError() throws InterruptedException {
-        DTXTestTransaction testTx = new DTXTestTransaction();
+    public void testAsyncDeleteWithObjExWriteError() throws InterruptedException {
+        /*
+        test the case data exist at the beginning, try to delete it successfully read and delete error occur
+        delete fail
+         */
         CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(testTx);
-
-        CheckedFuture<Void, ReadFailedException> f1 = cacheRWTx.asyncPut(LogicalDatastoreType.OPERATIONAL, InstanceIdentifier.create(DTXTestTransaction.myDataObj.class), new DTXTestTransaction.myDataObj());
-//        Thread.sleep(20);
-//        Assert.assertTrue(f1.isDone());
+        testTx.createObjForIdentifier(instanceIdentifier);
 
         testTx.setDeleteException(true);
 
@@ -235,7 +313,7 @@ public class CachingReadWriteTxTest {
             Assert.assertTrue("Can't get the RuntimeException the test failed", cause.getClass().equals(RuntimeException.class));
         }
 
-        Assert.assertEquals("Size of the caching data in CachingReadWriteTx is wrong", 2, cacheRWTx.getSizeOfCache());
+        Assert.assertEquals("Size of the caching data in CachingReadWriteTx is wrong", 1, cacheRWTx.getSizeOfCache());
         Assert.assertEquals("Size of the data in the DTXTestTransaction is wrong", 1, testTx.getTxDataSize(instanceIdentifier));
 
     }

@@ -2,6 +2,7 @@ package org.opendaylight.distributed.tx.impl;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.CheckedFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -31,6 +32,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     boolean submitException = false;
 
     private Map<InstanceIdentifier<?>,ArrayList<DataObject>> txDataMap = new HashMap<>();
+    private Map<InstanceIdentifier<?>,Boolean> perIdentiferDataExistFlag = new HashMap<>(); //this map is used to mark if data exist at the beginning
 
     public void setReadException(boolean ept){
         this.readException = ept;
@@ -43,6 +45,13 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     public int getTxDataSize(InstanceIdentifier<?> instanceIdentifier) {
         return this.txDataMap.containsKey(instanceIdentifier)?
                 this.txDataMap.get(instanceIdentifier).size() : 0;
+    }
+
+
+    public void createObjForIdentifier(InstanceIdentifier<?> instanceIdentifier)
+    {
+        perIdentiferDataExistFlag.put(instanceIdentifier, Boolean.TRUE);
+        txDataMap.put(instanceIdentifier, new ArrayList<DataObject>(Sets.newHashSet(new myDataObj())));
     }
 
     @Override
