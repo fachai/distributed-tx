@@ -7,7 +7,6 @@ import com.google.common.util.concurrent.CheckedFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import com.romix.scala.Option;
 import org.antlr.v4.runtime.misc.Nullable;
 import org.opendaylight.controller.md.sal.binding.api.ReadWriteTransaction;
 import org.opendaylight.controller.md.sal.common.api.TransactionStatus;
@@ -18,11 +17,9 @@ import org.opendaylight.yangtools.yang.binding.DataContainer;
 import org.opendaylight.yangtools.yang.binding.DataObject;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.opendaylight.yangtools.yang.common.RpcResult;
-
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.*;
-
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 public class DTXTestTransaction implements ReadWriteTransaction {
     boolean readException = false;
@@ -32,7 +29,6 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     boolean submitException = false;
 
     private Map<InstanceIdentifier<?>,ArrayList<DataObject>> txDataMap = new HashMap<>();
-    private Map<InstanceIdentifier<?>,Boolean> perIdentiferDataExistFlag = new HashMap<>(); //this map is used to mark if data exist at the beginning
 
     public void setReadException(boolean ept){
         this.readException = ept;
@@ -42,56 +38,33 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     public void setDeleteException(boolean ept) {this.deleteException = ept;}
     public void setSubmitException(boolean ept) { this.submitException = ept;}
 
+    /**
+     * this method is used to get the data size of the specific instanceIdentifier
+     * @param instanceIdentifier the specific identifier
+     * @return the size of data
+     */
     public int getTxDataSize(InstanceIdentifier<?> instanceIdentifier) {
         return this.txDataMap.containsKey(instanceIdentifier)?
                 this.txDataMap.get(instanceIdentifier).size() : 0;
     }
 
-
+    /**
+     * this method is used to manually create the data object for the specific instanceIdentifier
+     * @param instanceIdentifier the specific identifier
+     */
     public void createObjForIdentifier(InstanceIdentifier<?> instanceIdentifier)
     {
-        perIdentiferDataExistFlag.put(instanceIdentifier, Boolean.TRUE);
         txDataMap.put(instanceIdentifier, new ArrayList<DataObject>(Sets.newHashSet(new myDataObj())));
     }
 
     @Override
     public <T extends DataObject> CheckedFuture<Optional<T>, ReadFailedException> read(LogicalDatastoreType logicalDatastoreType, final InstanceIdentifier<T> instanceIdentifier) {
-
-//        if(!txDataMap.containsKey(instanceIdentifier))
-//            txDataMap.put(instanceIdentifier, new ArrayList<DataObject>());
-//
-//        Class<T> clazz = null;
-//        Constructor<T> ctor = null;
-//        try {
-//             clazz = (Class<T>)Class.forName("org.opendaylight.distributed.tx.impl.DTXTestTransaction$myDataObj");
-//        } catch (ClassNotFoundException e) {
-//            e.printStackTrace();
-//        }
-//        if(clazz != null)
-//            try {
-//                ctor = clazz.getConstructor();
-//            } catch (NoSuchMethodException e) {
-//                e.printStackTrace();
-//            }
-//
-//        //Object obj = null;
-//        T obj = null;
-//        try {
-//            obj = ctor.newInstance();
-//        } catch (InstantiationException e) {
-//            e.printStackTrace();
-//        } catch (IllegalAccessException e) {
-//            e.printStackTrace();
-//        } catch (InvocationTargetException e) {
-//            e.printStackTrace();
-//        }
         T obj = null;
 
         if(txDataMap.containsKey(instanceIdentifier) && txDataMap.get(instanceIdentifier).size() > 0)
             obj = (T)txDataMap.get(instanceIdentifier).get(0);
 
         final Optional<T> retOpt = Optional.fromNullable(obj);
-//        final Optional<T> retOpt = Optional.of(obj);
 
         final SettableFuture<Optional<T>> retFuture = SettableFuture.create();
         Runnable readResult = new Runnable() {
@@ -105,10 +78,11 @@ public class DTXTestTransaction implements ReadWriteTransaction {
 
                 if (!readException){
                     //fixme should set the instance of T
-                    // retFuture.set(null);
                     retFuture.set(retOpt);
-                }else
+                }else {
+                    setReadException(false); //it ensure all the exception will occur once
                     retFuture.setException(new Throwable("simulated error"));
+                }
                 retFuture.notifyAll();
             }
         };
@@ -135,8 +109,10 @@ public class DTXTestTransaction implements ReadWriteTransaction {
            txDataMap.get(instanceIdentifier).clear();
            txDataMap.get(instanceIdentifier).add(t);
        }
-        else
-          throw new RuntimeException(" put exception");
+        else {
+           setPutException(false);
+           throw new RuntimeException(" put exception");
+       }
     }
 
     @Override
@@ -149,8 +125,10 @@ public class DTXTestTransaction implements ReadWriteTransaction {
             txDataMap.get(instanceIdentifier).clear();
             txDataMap.get(instanceIdentifier).add(t);
         }
-        else
+        else {
+            setPutException(false);
             throw new RuntimeException("put exception");
+        }
     }
 
     @Override
@@ -162,8 +140,10 @@ public class DTXTestTransaction implements ReadWriteTransaction {
             txDataMap.get(instanceIdentifier).clear();
             txDataMap.get(instanceIdentifier).add(t);
         }
-        else
+        else {
+            setMergeException(false);
             throw new RuntimeException(" merge exception");
+        }
     }
 
     @Override
@@ -175,8 +155,10 @@ public class DTXTestTransaction implements ReadWriteTransaction {
             txDataMap.get(instanceIdentifier).clear();
             txDataMap.get(instanceIdentifier).add(t);
         }
-        else
+        else {
+            setMergeException(false);
             throw new RuntimeException("merge exception");
+        }
     }
 
     @Override
@@ -192,15 +174,18 @@ public class DTXTestTransaction implements ReadWriteTransaction {
         if(!deleteException)
             if(txDataMap.get(instanceIdentifier).size()>0)
                 txDataMap.get(instanceIdentifier).clear();
-            else
+            else {
+                setDeleteException(false);
                 throw new RuntimeException("no data in the DTXTestTransaction Data store");
-        else
+            }
+        else {
+            setDeleteException(false);
             throw new RuntimeException(" delete exception");
+        }
     }
 
     @Override
     public CheckedFuture<Void, TransactionCommitFailedException> submit() {
-
         final SettableFuture<Void> retFuture = SettableFuture.create();
 
         Runnable submitResult = new Runnable() {
@@ -214,8 +199,10 @@ public class DTXTestTransaction implements ReadWriteTransaction {
 
                 if (!submitException){
                   retFuture.set(null);
-                }else
+                }else {
+                    setSubmitException(false);
                     retFuture.setException(new RuntimeException("submit error"));
+                }
                 retFuture.notifyAll();
             }
         };
@@ -231,7 +218,6 @@ public class DTXTestTransaction implements ReadWriteTransaction {
         };
 
         return Futures.makeChecked(retFuture, f);
-
     }
 
     @Override

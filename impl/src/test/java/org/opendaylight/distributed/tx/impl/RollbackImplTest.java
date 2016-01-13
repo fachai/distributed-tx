@@ -8,41 +8,32 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.opendaylight.controller.md.sal.binding.api.ReadWriteTransaction;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
+import org.opendaylight.controller.md.sal.common.api.data.ReadFailedException;
 import org.opendaylight.distributed.tx.api.DTxException;
 import org.opendaylight.distributed.tx.impl.spi.CachingReadWriteTx;
 import org.opendaylight.distributed.tx.impl.spi.RollbackImpl;
-import org.opendaylight.distributed.tx.spi.Rollback;
-import org.opendaylight.distributed.tx.spi.TxCache;
-import org.opendaylight.distributed.tx.spi.TxException;
 import org.opendaylight.yangtools.yang.binding.DataContainer;
 import org.opendaylight.yangtools.yang.binding.DataObject;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
-
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-
 import static org.junit.Assert.fail;
 
-
 public class RollbackImplTest {
-
     InstanceIdentifier<TestData1> identifier1 = InstanceIdentifier.create(TestData1.class); // data identifier
     InstanceIdentifier<TestData2> identifier2 = InstanceIdentifier.create(TestData2.class);
     InstanceIdentifier<TestNode1> node1 = InstanceIdentifier.create(TestNode1.class);  //nodeId identifier
     InstanceIdentifier<TestNode2> node2 = InstanceIdentifier.create(TestNode2.class);
 
     private class TestData1 implements DataObject {
-
         @Override
         public Class<? extends DataContainer> getImplementedInterface() {
             return null;
         }
     }
-    private class TestData2 implements DataObject{
 
+    private class TestData2 implements DataObject{
         @Override
         public Class<? extends DataContainer> getImplementedInterface() {
             return null;
@@ -50,51 +41,57 @@ public class RollbackImplTest {
     }
 
     private class TestNode1 implements DataObject {
-
         @Override
         public Class<? extends DataContainer> getImplementedInterface() {
             return null;
         }
     }
+
     private class TestNode2 implements DataObject{
-
         @Override
         public Class<? extends DataContainer> getImplementedInterface() {
             return null;
         }
     }
 
+    /**
+     *put data in node1 and node2
+     *invoke rollback
+     *rollback succeed
+     *no data in all the nodes
+     */
     @Test
-    public void testRollBack() throws InterruptedException {
-
-        /*
-        put data in node1 and node2
-        invoke rollback
-        rollback succeed
-        no data in the node
-          */
-
+    public void testRollBack() {
         DTXTestTransaction testTransaction1 = new DTXTestTransaction();
         DTXTestTransaction testTransaction2 = new DTXTestTransaction();
 
         final CachingReadWriteTx cachingReadWriteTx1 = new CachingReadWriteTx(testTransaction1); //nodeId1 caching transaction
         final CachingReadWriteTx cachingReadWriteTx2 = new CachingReadWriteTx(testTransaction2); //nodeId2 caching transaction
 
-        cachingReadWriteTx1.put(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
-        cachingReadWriteTx1.put(LogicalDatastoreType.OPERATIONAL, identifier2, new TestData2());
-        cachingReadWriteTx2.put(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
-        cachingReadWriteTx2.put(LogicalDatastoreType.OPERATIONAL, identifier2, new TestData2());
+        CheckedFuture<Void, ReadFailedException> f1 = cachingReadWriteTx1.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
+        CheckedFuture<Void, ReadFailedException> f2 = cachingReadWriteTx1.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier2, new TestData2());
+        CheckedFuture<Void, ReadFailedException> f3 = cachingReadWriteTx2.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
+        CheckedFuture<Void, ReadFailedException> f4 = cachingReadWriteTx2.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier2, new TestData2());
 
-        Thread.sleep(20);
+        try
+        {
+            f1.checkedGet();
+            f2.checkedGet();
+            f3.checkedGet();
+            f4.checkedGet();
 
-        Assert.assertEquals(1,testTransaction1.getTxDataSize(identifier1));
-        Assert.assertEquals(1,testTransaction1.getTxDataSize(identifier2));
-        Assert.assertEquals(1,testTransaction2.getTxDataSize(identifier1));
-        Assert.assertEquals(1,testTransaction2.getTxDataSize(identifier2));
+            //check if all the data has been put into the transactions
+            Assert.assertEquals(1,testTransaction1.getTxDataSize(identifier1));
+            Assert.assertEquals(1,testTransaction1.getTxDataSize(identifier2));
+            Assert.assertEquals(1,testTransaction2.getTxDataSize(identifier1));
+            Assert.assertEquals(1,testTransaction2.getTxDataSize(identifier2));
+        }catch (Exception e)
+        {
+            fail("get the unexpected exception from the asyncPut");
+        }
 
         Set<InstanceIdentifier<?>> s = Sets.newHashSet(node1, node2);
         Map<InstanceIdentifier<?>, ? extends CachingReadWriteTx> perNodeTransactions; //this map store every node transaction
-
         perNodeTransactions = Maps.toMap(s, new Function<InstanceIdentifier<?>, CachingReadWriteTx>() {
             @Nullable
             @Override
@@ -106,36 +103,45 @@ public class RollbackImplTest {
         RollbackImpl testRollBack = new RollbackImpl();
         CheckedFuture<Void, DTxException.RollbackFailedException> rollBackFut = testRollBack.rollback(perNodeTransactions, perNodeTransactions);
 
-        Thread.sleep(100);
+        try
+        {
+           rollBackFut.checkedGet();
+        }catch (Exception e)
+        {
+           fail("get the unexpected exception from the rollback method");
+        }
 
-        Assert.assertTrue(rollBackFut.isDone());
-
-        Assert.assertEquals(0,testTransaction1.getTxDataSize(identifier1));
-        Assert.assertEquals(0,testTransaction1.getTxDataSize(identifier2));
-        Assert.assertEquals(0,testTransaction2.getTxDataSize(identifier1));
-        Assert.assertEquals(0,testTransaction2.getTxDataSize(identifier2));
+        int expectedDataNumInNode1Ident1 = 0, expectedDataNumInNode1Ident2 = 0, expectedDataNumInNode2Ident1 = 0, expectedDataNumInNode2Ident2 = 0;
+        Assert.assertEquals("size of identifier1 data in transaction1 is wrong", expectedDataNumInNode1Ident1,testTransaction1.getTxDataSize(identifier1));
+        Assert.assertEquals("size of identifier2 data in transaction1 is wrong", expectedDataNumInNode1Ident2,testTransaction1.getTxDataSize(identifier2));
+        Assert.assertEquals("size of identifier1 data in transaction2 is wrong", expectedDataNumInNode2Ident1,testTransaction2.getTxDataSize(identifier1));
+        Assert.assertEquals("size of identifier2 data in transaction2 is wrong", expectedDataNumInNode2Ident2,testTransaction2.getTxDataSize(identifier2));
     }
 
+     /**
+      *put data in node1
+      *invoke rollback
+      *delete exception occurs the rollback fail
+      */
     @Test
-    public void testRollbackFailWithDeleteException() throws InterruptedException {
-
-        /*
-        put data in node1
-        invoke rollback
-        delete exception occurs the rollback fail
-         */
-
-
+    public void testRollbackFailWithDeleteException() {
         DTXTestTransaction testTransaction = new DTXTestTransaction();
         CachingReadWriteTx cachingReadWriteTx = new CachingReadWriteTx(testTransaction); // node1 caching transaction
 
-        cachingReadWriteTx.put(LogicalDatastoreType.OPERATIONAL, identifier1,new TestData1());
-        Thread.sleep(20);
-        Assert.assertEquals(1, testTransaction.getTxDataSize(identifier1));
+        CheckedFuture<Void, ReadFailedException> f = cachingReadWriteTx.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1,new TestData1());
+        try
+        {
+            f.checkedGet();
+            Assert.assertEquals(1, testTransaction.getTxDataSize(identifier1));
+        }catch (Exception e)
+        {
+            fail("get unexpected exception from the AsyncPut");
+        }
 
         //perNodeCaches a map store every node caching data
         Map<InstanceIdentifier<?>, CachingReadWriteTx> perNodeCaches = Maps.newHashMap();
         perNodeCaches.put(node1, cachingReadWriteTx);
+
         //delete exception rollback will fail
         testTransaction.setDeleteException(true);
 
@@ -147,35 +153,48 @@ public class RollbackImplTest {
 
         try{
             rollbackFuture.checkedGet();
-            fail();
+            fail("can't get the exception from the failed rollback");
         }catch (Exception e)
         {
-            Assert.assertTrue("Can't get the rollbackFail exception", e instanceof DTxException.RollbackFailedException);
+            Assert.assertTrue("type of exception is wrong", e instanceof DTxException.RollbackFailedException);
             System.out.println(e.getMessage());
         }
     }
 
+    /**
+     *put data in node1 and node2
+     *invoke rollback
+     *submit fail rollback fail
+     */
     @Test
-    public void testRollbackFailWithSubmitException() throws InterruptedException{
-
-        /*
-        put data in node1 and node2
-        invoke rollback
-        submit fail rollback fail
-         */
-
+    public void testRollbackFailWithSubmitException() {
         DTXTestTransaction testTransaction1 = new DTXTestTransaction(); //node1 delegate transaction
         DTXTestTransaction testTransaction2 = new DTXTestTransaction(); //node2 delegate transaction
 
         final CachingReadWriteTx cachingReadWriteTx1 = new CachingReadWriteTx(testTransaction1); //nodeId1 caching transaction
         final CachingReadWriteTx cachingReadWriteTx2 = new CachingReadWriteTx(testTransaction2); //nodeId2 caching transaction
 
-        cachingReadWriteTx1.put(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
-        cachingReadWriteTx1.put(LogicalDatastoreType.OPERATIONAL, identifier2, new TestData2());
-        cachingReadWriteTx2.put(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
-        cachingReadWriteTx2.put(LogicalDatastoreType.OPERATIONAL, identifier2, new TestData2());
+        CheckedFuture<Void, ReadFailedException> f1 = cachingReadWriteTx1.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
+        CheckedFuture<Void, ReadFailedException> f2 = cachingReadWriteTx1.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier2, new TestData2());
+        CheckedFuture<Void, ReadFailedException> f3 = cachingReadWriteTx2.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
+        CheckedFuture<Void, ReadFailedException> f4 = cachingReadWriteTx2.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier2, new TestData2());
 
-        Thread.sleep(20);
+        try
+        {
+            f1.checkedGet();
+            f2.checkedGet();
+            f3.checkedGet();
+            f4.checkedGet();
+
+            //check if all the data has been put into the transactions
+            Assert.assertEquals(1,testTransaction1.getTxDataSize(identifier1));
+            Assert.assertEquals(1,testTransaction1.getTxDataSize(identifier2));
+            Assert.assertEquals(1,testTransaction2.getTxDataSize(identifier1));
+            Assert.assertEquals(1,testTransaction2.getTxDataSize(identifier2));
+        }catch (Exception e)
+        {
+            fail("get the unexpected exception from the asyncPut");
+        }
 
         //nodes set
         Set<InstanceIdentifier<?>> s = Sets.newHashSet(node1, node2);
@@ -197,10 +216,10 @@ public class RollbackImplTest {
         try
         {
             rollBackFut.checkedGet();
-            fail();
+            fail("can't get the exception from the rollback");
         }catch (Exception e)
         {
-            Assert.assertTrue(e instanceof DTxException.RollbackFailedException);
+            Assert.assertTrue("type of exception from the rollback is wrong", e instanceof DTxException.RollbackFailedException);
         }
     }
 }

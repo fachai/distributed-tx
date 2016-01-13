@@ -7,11 +7,7 @@
  */
 package org.opendaylight.distributed.tx.impl;
 
-import com.google.common.util.concurrent.CheckedFuture;
-import com.sun.jmx.snmp.tasks.ThreadService;
-import org.eclipse.xtend.lib.annotations.Data;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 import org.mockito.internal.util.collections.Sets;
 import org.opendaylight.controller.md.sal.binding.api.ReadWriteTransaction;
@@ -23,20 +19,12 @@ import org.opendaylight.distributed.tx.spi.TxProvider;
 import org.opendaylight.yangtools.yang.binding.DataContainer;
 import org.opendaylight.yangtools.yang.binding.DataObject;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
-
 import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
 import static org.junit.Assert.fail;
 
 public class DistributedTxProviderTest {
     private TxProvider txProvider;
     private DTxProviderImpl dTxProvider;
-    private DTx dTx1;
-    private DTx dTx2;
-    private DTx dTx3;
 
     InstanceIdentifier<TestClassNode1> node1 = InstanceIdentifier.create(TestClassNode1.class);
     InstanceIdentifier<TestClassNode2> node2 = InstanceIdentifier.create(TestClassNode2.class);
@@ -44,9 +32,7 @@ public class DistributedTxProviderTest {
     InstanceIdentifier<TestClassNode4> node4 = InstanceIdentifier.create(TestClassNode4.class);
     InstanceIdentifier<TestClassNode5> node5 = InstanceIdentifier.create(TestClassNode5.class);
 
-
     private class myTxProvider implements TxProvider{
-
         @Override
         public ReadWriteTransaction newTx(InstanceIdentifier<?> nodeId) throws TxException.TxInitiatizationFailedException {
             return new DTXTestTransaction();
@@ -54,16 +40,13 @@ public class DistributedTxProviderTest {
     }
 
     //these classes are used to be create the nodeId
-
     private class TestClassNode1  implements DataObject {
-
         @Override
         public Class<? extends DataContainer> getImplementedInterface() {
             return null;
         }
     }
     private class TestClassNode2 implements DataObject{
-
         @Override
         public Class<? extends DataContainer> getImplementedInterface() {
             return null;
@@ -71,7 +54,6 @@ public class DistributedTxProviderTest {
     }
 
     private class TestClassNode3 implements DataObject{
-
         @Override
         public Class<? extends DataContainer> getImplementedInterface() {
             return null;
@@ -79,7 +61,6 @@ public class DistributedTxProviderTest {
     }
 
     private class TestClassNode4 implements DataObject{
-
         @Override
         public Class<? extends DataContainer> getImplementedInterface() {
             return null;
@@ -87,86 +68,11 @@ public class DistributedTxProviderTest {
     }
 
     private class TestClassNode5 implements DataObject{
-
         @Override
         public Class<? extends DataContainer> getImplementedInterface() {
             return null;
         }
     }
-
-    //these class are uesd to create the dtx from the dtx provider
-    private class CreateNewTx1 implements Runnable{
-
-        @Override
-        public void run() {
-
-            int sleepTime = (int)(Math.random()*100);
-            try {
-                Thread.sleep(sleepTime);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-
-            Set<InstanceIdentifier<?>> nodeSet = Sets.newSet(node1, node2, node3);
-            try
-            {
-               dTx1 = dTxProvider.newTx(nodeSet);
-            }catch (Exception e)
-            {
-                Assert.assertTrue(e instanceof DTxException.DTxInitializationFailedException);
-                System.out.println(e.getMessage());
-            }
-        }
-    }
-
-    private class CreateNewTx2 implements Runnable{
-
-        @Override
-        public void run() {
-
-            int sleepTime = (int)(Math.random()*100);
-            try {
-                Thread.sleep(sleepTime);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-
-            Set<InstanceIdentifier<?>> nodeSet = Sets.newSet(node3, node4, node5);
-            try
-            {
-               dTx2 = dTxProvider.newTx(nodeSet);
-            }catch (Exception e)
-            {
-                Assert.assertTrue(e instanceof DTxException.DTxInitializationFailedException);
-                System.out.println(e.getMessage());
-            }
-        }
-    }
-
-    private class CreateNewTx3 implements Runnable{
-
-        @Override
-        public void run() {
-
-            int sleepTime = (int)(Math.random()*100);
-            try {
-                Thread.sleep(sleepTime);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-
-            Set<InstanceIdentifier<?>> nodeSet = Sets.newSet(node4, node5);
-            try
-            {
-                dTx3 = dTxProvider.newTx(nodeSet);
-            }catch (Exception e)
-            {
-                Assert.assertTrue(e instanceof DTxException.DTxInitializationFailedException);
-                System.out.println(e.getMessage());
-            }
-        }
-    }
-
 
     public void addProvider(final TxProvider txProvider) {
         this.txProvider = txProvider;
@@ -177,85 +83,46 @@ public class DistributedTxProviderTest {
         DTxProviderImpl provider = new DTxProviderImpl(txProvider);
     }
 
+    /**
+     * use three node sets to get new Dtx from the provider
+     * when use s3 to create the dtx from provider, node1, node3 and node5 are already in use so newTx will throw an exception
+     */
     @Test
     public void testNewTx()
     {
-
         dTxProvider = new DTxProviderImpl(new myTxProvider());
-        ExecutorService threadPool = Executors.newCachedThreadPool();
-        //in three independent threads we try to get dtx from the dtx provider
-        //some node may be in use and dtxprovider will throw an exception
-        threadPool.execute(new CreateNewTx1());
-        threadPool.execute(new CreateNewTx2());
-        threadPool.execute(new CreateNewTx3());
-        threadPool.shutdown();
-        try {
-            Thread.sleep(200);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        Set<InstanceIdentifier<?>> s1 = Sets.newSet(node1, node2, node3);
+        Set<InstanceIdentifier<?>> s2 = Sets.newSet(node4, node5);
+        Set<InstanceIdentifier<?>> s3 = Sets.newSet(node1, node3, node5);
+
+        try
+        {
+            DTx dTx1 = dTxProvider.newTx(s1);
+        }catch (Exception e)
+        {
+            fail("get unexpected exception");
         }
-    }
 
-    @Test
-    public void testCancel()
-    {
-        //test the concurrency in cancel
-        //when the dtx is canceled, the node should be released
-        //use multithread to test the data safety
+        try
+        {
+            DTx dTx2 = dTxProvider.newTx(s2);
+        }catch (Exception e)
+        {
+            fail("get unexpected exception");
+        }
 
-        Runnable createDtx1 = new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    Thread.sleep(20);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                try {
-                    DTx dTx = dTxProvider.newTx((Set<InstanceIdentifier<?>>)Sets.newSet(node1, node2, node3));
-                }catch (Exception e)
-                {
-//                    System.out.println(e.getMessage());
-                    return;
-                }
-                dTx1.cancel();
-
-            }
-        };
-
-        Runnable createDtx2 = new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                try {
-                    DTx dTx = dTxProvider.newTx((Set<InstanceIdentifier<?>>)Sets.newSet(node2, node3, node4));
-                }catch (Exception e)
-                {
-//                    System.out.println(e.getMessage());
-                    fail();
-                }
-            }
-        };
-
-        ExecutorService threadPool = Executors.newCachedThreadPool();
-        threadPool.execute(createDtx1);
-        threadPool.execute(createDtx2);
-
-        try {
-            Thread.sleep(300);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        try
+        {
+            DTx dTx3 = dTxProvider.newTx(s3);
+        }catch (Exception e)
+        {
+            Assert.assertTrue("type of exception is wrong", e instanceof DTxException.DTxInitializationFailedException);
         }
     }
 
     @Test
     public void testClose() throws Exception {
         DTxProviderImpl provider = new DTxProviderImpl(txProvider);
-
         // ensure no exceptions
         // currently this method is empty
         provider.close();
