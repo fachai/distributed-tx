@@ -1,36 +1,27 @@
 package org.opendaylight.distributed.tx.impl;
 
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.util.concurrent.CheckedFuture;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
 import org.junit.Before;
 import org.junit.Test;
-import org.opendaylight.controller.md.sal.binding.api.ReadWriteTransaction;
-import org.opendaylight.controller.md.sal.common.api.TransactionStatus;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
 import org.opendaylight.controller.md.sal.common.api.data.ReadFailedException;
-import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
 import org.opendaylight.distributed.tx.impl.spi.CachingReadWriteTx;
-import org.opendaylight.yangtools.yang.binding.DataContainer;
-import org.opendaylight.yangtools.yang.binding.DataObject;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
-import org.opendaylight.yangtools.yang.common.RpcResult;
 
-import javax.annotation.Nullable;
 import org.junit.Assert;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class CachingReadWriteTxTest {
     DTXTestTransaction testTx;
+    private final ExecutorService executorPoolPerCache = Executors.newCachedThreadPool();
 
     @Before
     public void testInit(){ this.testTx = new DTXTestTransaction(); }
     @Test
     public void testConstructor() {
-        new CachingReadWriteTx(new DTXTestTransaction());
+        new CachingReadWriteTx(new DTXTestTransaction(), executorPoolPerCache);
     }
 
     @Test
@@ -38,7 +29,7 @@ public class CachingReadWriteTxTest {
         /* FIXME The case should test right read after read in DTXTestTransaction is fixed. */
         // testTx.setReadException(true);
 
-        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(testTx);
+        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(testTx, executorPoolPerCache);
 
         int numberOfObjs = 10;
 
@@ -61,7 +52,7 @@ public class CachingReadWriteTxTest {
 
     @Test
     public void testAsyncMerge() throws InterruptedException {
-        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(new DTXTestTransaction());
+        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(new DTXTestTransaction(), executorPoolPerCache);
 
         int numberOfObjs = 10;
 
@@ -78,7 +69,7 @@ public class CachingReadWriteTxTest {
 
     @Test
     public  void testAsyncDelete() throws InterruptedException {
-        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(new DTXTestTransaction());
+        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(new DTXTestTransaction(), executorPoolPerCache);
 
         int numberOfObjs = 10;
 
@@ -99,7 +90,7 @@ public class CachingReadWriteTxTest {
 
     @Test
     public void testMerge(){
-        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(new DTXTestTransaction());
+        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(new DTXTestTransaction(), executorPoolPerCache);
 
         int numberOfObjs = 10;
 
@@ -110,7 +101,7 @@ public class CachingReadWriteTxTest {
     }
     @Test
     public void testPut(){
-        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(new DTXTestTransaction());
+        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(new DTXTestTransaction(), executorPoolPerCache);
 
         int numberOfObjs = 10;
 
@@ -121,7 +112,7 @@ public class CachingReadWriteTxTest {
 
     @Test
     public void testDelete(){
-        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(new DTXTestTransaction());
+        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(new DTXTestTransaction(), executorPoolPerCache);
 
         int numberOfObjs = 10;
 

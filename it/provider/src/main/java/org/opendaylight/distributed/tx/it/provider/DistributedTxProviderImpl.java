@@ -12,6 +12,7 @@ import java.util.concurrent.Future;
 import org.opendaylight.controller.md.sal.binding.api.*;
 import org.opendaylight.controller.md.sal.binding.api.DataChangeListener;
 import org.opendaylight.controller.md.sal.common.api.data.*;
+import org.opendaylight.distributed.tx.api.DTXLogicalTXProviderType;
 import org.opendaylight.distributed.tx.api.DTx;
 import org.opendaylight.distributed.tx.api.DTxProvider;
 import org.opendaylight.yang.gen.v1.http.cisco.com.ns.yang.cisco.ios.xr.ifmgr.cfg.rev150107.InterfaceActive;
@@ -174,6 +175,117 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
     }
 
     @Override
+    public Future<RpcResult<MixedNaiveTestOutput>> mixedNaiveTest(MixedNaiveTestInput input) {
+        List<NodeId> nodeIdList = new ArrayList(this.nodeIdSet);
+        boolean testRollback = false;
+        String name = input.getName();
+
+        if(name.length() > 5)
+            testRollback = true;
+
+        int number = new Random().nextInt(100);
+        int keyNumber = number;
+
+        InstanceIdentifier msNodeId = NETCONF_TOPO_IID.child(Node.class, new NodeKey(nodeIdList.get(0)));
+
+        Set<InstanceIdentifier<?>> txIidSet = new HashSet<>();
+        txIidSet.add(msNodeId);
+
+        InstanceIdentifier<InterfaceConfigurations> netconfIid = InstanceIdentifier.create(InterfaceConfigurations.class);
+
+        InterfaceName ifname = this.nodeIfList.get(0);
+
+        final KeyedInstanceIdentifier<InterfaceConfiguration, InterfaceConfigurationKey> specificInterfaceCfgIid
+                = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(new InterfaceActive("act"), ifname));
+
+        final InterfaceConfigurationBuilder interfaceConfigurationBuilder = new InterfaceConfigurationBuilder();
+        interfaceConfigurationBuilder.setInterfaceName(ifname);
+        interfaceConfigurationBuilder.setDescription("Test description" + "-" + input.getName() + "-" + Integer.toString(number));
+        interfaceConfigurationBuilder.setActive(new InterfaceActive("act"));
+
+        InterfaceConfiguration config = interfaceConfigurationBuilder.build();
+        LOG.info("dtx ifc {}", ifname.toString());
+
+        InstanceIdentifier<DsNaiveTestData> dataStoreNodeId = InstanceIdentifier.create(DsNaiveTestData.class);
+
+        Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> m = new HashMap<>();
+        m.put(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, txIidSet);
+        Set<InstanceIdentifier<?>> dataStoreSet = new HashSet<>();
+        dataStoreSet.add(dataStoreNodeId);
+        m.put(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, dataStoreSet);
+
+        DTx itDtx = this.dTxProvider.newTx(m);
+
+        CheckedFuture<Void, ReadFailedException> done = itDtx.putAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER,
+                LogicalDatastoreType.CONFIGURATION, specificInterfaceCfgIid, config, msNodeId);
+
+        while (!done.isDone()) {
+            Thread.yield();
+
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        boolean doSumbit = true;
+
+        try {
+            done.get();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            doSumbit = false;
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+            doSumbit = false;
+        }
+
+        LOG.info("now writing data store");
+
+        DsNaiveTestDataEntryBuilder testEntryBuilder = new DsNaiveTestDataEntryBuilder();
+
+        testEntryBuilder.setName(name + Integer.toString(number));
+
+        DsNaiveTestDataEntry data = testEntryBuilder.build();
+
+        if (testRollback) {
+            keyNumber = 101;
+        }
+        InstanceIdentifier<DsNaiveTestDataEntry> entryIid = InstanceIdentifier.create(DsNaiveTestData.class)
+                .child(DsNaiveTestDataEntry.class, new DsNaiveTestDataEntryKey(input.getName() + Integer.toString(keyNumber)));
+
+        CheckedFuture<Void, ReadFailedException> cf = itDtx.putAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER,
+                LogicalDatastoreType.CONFIGURATION, entryIid, data, dataStoreNodeId);
+
+        while(!cf.isDone()){Thread.yield();}
+
+        if(doSumbit) {
+            try {
+                done.get();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+                doSumbit = false;
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+                doSumbit = false;
+            }
+        }
+        if(!testRollback) {
+            if (doSumbit) {
+                CheckedFuture<Void, TransactionCommitFailedException> submitFuture = itDtx.submit();
+                LOG.info("submit done");
+            } else {
+                LOG.info("put failure. no submit");
+            }
+        }
+
+        MixedNaiveTestOutput output = new MixedNaiveTestOutputBuilder().setResult("Bingo").build();
+
+        return Futures.immediateFuture(RpcResultBuilder.success(output).build());
+    }
+
+    @Override
     public Future<RpcResult<NaiveTestOutput>> naiveTest(NaiveTestInput input) {
         List<NodeId> nodeIdList = new ArrayList(this.nodeIdSet);
         int numberOfInterfaces = 1;
@@ -268,7 +380,6 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
 
     public DistributedTxProviderImpl(DTxProvider provider, DataBroker db, MountPointService ms){
         this.dTxProvider = provider;
-        this.dTxProvider.test();
         this.dataBroker = db;
         this.mountService = ms;
         this.dclReg = dataBroker.registerDataChangeListener(

@@ -8,23 +8,30 @@
 package org.opendaylight.distributed.tx.impl;
 
 import org.junit.Test;
+import org.opendaylight.distributed.tx.api.DTXLogicalTXProviderType;
 import org.opendaylight.distributed.tx.impl.spi.DTxProviderImpl;
 import org.opendaylight.distributed.tx.spi.TxProvider;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class DistributedTxProviderTest {
     private TxProvider txProvider;
+    Map<DTXLogicalTXProviderType, TxProvider> m = new HashMap<>();
 
     public void addProvider(final TxProvider txProvider) {
         this.txProvider = txProvider;
     }
     @Test
     public void testOnSessionInitiated() {
-        DTxProviderImpl provider = new DTxProviderImpl(txProvider);
+        m.put(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, txProvider);
+        DTxProviderImpl provider = new DTxProviderImpl(m);
     }
 
     @Test
     public void testClose() throws Exception {
-        DTxProviderImpl provider = new DTxProviderImpl(txProvider);
+        m.put(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, txProvider);
+        DTxProviderImpl provider = new DTxProviderImpl(m);
 
         // ensure no exceptions
         // currently this method is empty

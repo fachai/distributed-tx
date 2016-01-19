@@ -24,7 +24,6 @@ import org.opendaylight.distributed.tx.api.DTxException;
 import org.opendaylight.distributed.tx.spi.CachedData;
 import org.opendaylight.distributed.tx.spi.DTXReadWriteTransaction;
 import org.opendaylight.distributed.tx.spi.TxCache;
-import org.opendaylight.distributed.tx.spi.TxException;
 import org.opendaylight.yangtools.yang.binding.DataObject;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.opendaylight.yangtools.yang.common.RpcResult;
@@ -39,10 +38,11 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
     private final ListeningExecutorService executorService;
     private final ExecutorService executorPoolPerCache;
 
-    public CachingReadWriteTx(@Nonnull final ReadWriteTransaction delegate) {
+    public CachingReadWriteTx(@Nonnull final ReadWriteTransaction delegate, ExecutorService executorPoolPerCache) {
         this.delegate = delegate;
+        // this.executorPoolPerCache = executorPoolPerCache;
         this.executorPoolPerCache = Executors.newCachedThreadPool();
-        this.executorService = MoreExecutors.listeningDecorator(executorPoolPerCache);
+        this.executorService = MoreExecutors.listeningDecorator(this.executorPoolPerCache);
     }
 
     @Override public Iterator<CachedData> iterator() {
@@ -212,14 +212,13 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
                 }
             };
             new Thread(readResult).start();
-        }else {
+        }else{
             final CheckedFuture<Optional<T>, ReadFailedException> read = delegate
                     .read(logicalDatastoreType, instanceIdentifier);
             Futures.addCallback(read, new FutureCallback<Optional<T>>() {
                 @Override
                 public void onSuccess(final Optional<T> result) {
                     cache.add(new CachedData(instanceIdentifier, result.orNull(), ModifyAction.REPLACE));
-                    LOG.info("asyncPut read successfully and add cache");
 
                     final ListenableFuture asyncPutFuture = executorService.submit(new Callable() {
                         @Override
@@ -234,12 +233,10 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
                         @Override
                         public void onSuccess(@Nullable Object result) {
                             retFuture.set(null);
-                            LOG.info("in asyncPut device put done and return ");
                         }
 
                         @Override
                         public void onFailure(Throwable t) {
-                            LOG.info("asyncPut device put exception");
                             retFuture.setException(t);
                         }
                     });
@@ -247,7 +244,6 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
 
                 @Override
                 public void onFailure(final Throwable t) {
-                    LOG.info("asyncPut read fail");
                     retFuture.setException(new DTxException.EditFailedException("failed to read from node in put action", t));
                 }
             });

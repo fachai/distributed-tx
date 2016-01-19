@@ -7,16 +7,17 @@ import com.google.common.util.concurrent.CheckedFuture;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Future;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import org.opendaylight.controller.md.sal.common.api.TransactionStatus;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
 import org.opendaylight.controller.md.sal.common.api.data.ReadFailedException;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
+import org.opendaylight.distributed.tx.api.DTXLogicalTXProviderType;
 import org.opendaylight.distributed.tx.api.DTx;
 import org.opendaylight.distributed.tx.api.DTxException;
 import org.opendaylight.distributed.tx.api.DTxProvider;
@@ -28,38 +29,36 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DTxProviderImpl implements DTxProvider, AutoCloseable {
-
     private static final Logger LOG = LoggerFactory.getLogger(DTxProviderImpl.class);
 
     private final Set<InstanceIdentifier<?>> devicesInUse = Sets.newHashSet();
     private final Map<Object, DtxReleaseWrapper> currentTxs = Maps.newHashMap();
-    private final TxProvider txProvider;
+    private final Map<DTXLogicalTXProviderType, TxProvider> txProviderMap;
 
-    public DTxProviderImpl(@Nonnull final TxProvider txProvider) {
-        this.txProvider = txProvider;
+    public DTxProviderImpl(@Nonnull final Map<DTXLogicalTXProviderType, TxProvider> txProviders){
+        txProviderMap = txProviders;
     }
 
     @Nonnull @Override public synchronized DTx newTx(@Nonnull final Set<InstanceIdentifier<?>> nodes)
         throws DTxException.DTxInitializationFailedException {
 
-        final Sets.SetView<InstanceIdentifier<?>> lockedDevices = Sets.intersection(devicesInUse, nodes);
-        if(false)
-        if(lockedDevices.isEmpty()) {
-            LOG.warn("Unable to lock nodes(in use): {}", lockedDevices);
-            throw new DTxException.DTxInitializationFailedException("Unable to lock nodes(in use): " + lockedDevices);
-        }
-
-        devicesInUse.addAll(nodes);
-        LOG.debug("Locking nodes for distributed transaction: {}", nodes);
-        final DtxReleaseWrapper dtxReleaseWrapper = new DtxReleaseWrapper(new DtxImpl(txProvider, nodes), nodes);
+        Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> m = new HashMap<>();
+        m.put(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, nodes);
+        final DtxReleaseWrapper dtxReleaseWrapper = new DtxReleaseWrapper(new DtxImpl(txProviderMap.get(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER), nodes), m);
         currentTxs.put(dtxReleaseWrapper.getIdentifier(), dtxReleaseWrapper);
         return dtxReleaseWrapper;
     }
 
     @Nonnull
     @Override
-    public void test() {
-        LOG.info("this is a test.");
+    public DTx newTx(@Nonnull Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap) throws DTxException.DTxInitializationFailedException {
+        for(DTXLogicalTXProviderType type : nodesMap.keySet()){
+            Preconditions.checkArgument(this.txProviderMap.containsKey(type), "Unknown node: %d. Not in transaction", type);
+        }
+
+        final DtxReleaseWrapper dtxReleaseWrapper = new DtxReleaseWrapper(new DtxImpl(txProviderMap, nodesMap), nodesMap);
+        currentTxs.put(dtxReleaseWrapper.getIdentifier(), dtxReleaseWrapper);
+        return dtxReleaseWrapper;
     }
 
     @Override public void close() throws Exception {
@@ -67,23 +66,21 @@ public class DTxProviderImpl implements DTxProvider, AutoCloseable {
             LOG.warn("Cancelling outstanding distributed transaction: {}", outstandingTx.getKey());
             outstandingTx.getValue().cancel();
         }
-
-        // TODO check if the collections are empty
     }
 
     private final class DtxReleaseWrapper implements DTx {
 
         private final DTx delegate;
-        private Set<InstanceIdentifier<?>> nodes;
+        private Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap;
 
-        private DtxReleaseWrapper(final DTx delegate, final Set<InstanceIdentifier<?>> nodes) {
+        private DtxReleaseWrapper(final DTx delegate, final Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodes) {
             this.delegate = delegate;
-            this.nodes = nodes;
+            this.nodesMap = nodes;
         }
 
         private void releaseNodes() {
             synchronized (DTxProviderImpl.this) {
-                devicesInUse.removeAll(nodes);
+                //devicesInUse.removeAll(nodes);
                 Preconditions.checkNotNull(currentTxs.remove(getIdentifier()), "Unable to cleanup distributed transaction");
             }
         }
@@ -208,6 +205,22 @@ public class DTxProviderImpl implements DTxProvider, AutoCloseable {
             return delegate.getIdentifier();
         }
         @Override
-        public CheckedFuture<Void, DTxException.RollbackFailedException> rollback(){return delegate.rollback();};
+        public CheckedFuture<Void, DTxException.RollbackFailedException> rollback(){return delegate.rollback();}
+
+        @Override
+        public <T extends DataObject> CheckedFuture<Void, ReadFailedException> mergeAndRollbackOnFailure(
+                DTXLogicalTXProviderType logicalTXProviderType, LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, InstanceIdentifier<?> nodeId) {
+            return delegate.mergeAndRollbackOnFailure(logicalTXProviderType, logicalDatastoreType, instanceIdentifier, t, nodeId);
+        }
+
+        @Override
+        public <T extends DataObject> CheckedFuture<Void, ReadFailedException> putAndRollbackOnFailure(DTXLogicalTXProviderType logicalTXProviderType, LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, InstanceIdentifier<?> nodeId) {
+            return delegate.putAndRollbackOnFailure(logicalTXProviderType, logicalDatastoreType, instanceIdentifier, t, nodeId);
+        }
+
+        @Override
+        public CheckedFuture<Void, ReadFailedException> deleteAndRollbackOnFailure(DTXLogicalTXProviderType logicalTXProviderType, LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<?> instanceIdentifier, InstanceIdentifier<?> nodeId) {
+            return deleteAndRollbackOnFailure(logicalTXProviderType, logicalDatastoreType, instanceIdentifier, nodeId);
+        }
     }
 }

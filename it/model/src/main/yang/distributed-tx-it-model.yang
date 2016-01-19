@@ -47,6 +47,24 @@ module distributed-tx-it-model{
                         }
                 }
         }
+
+        rpc mixed-naive-test {
+                input {
+                        leaf name {
+                                type string;
+                        }
+                        leaf rollback{
+                                type boolean;
+                                default false;
+                        }
+                }
+                output {
+                        leaf result{
+                                type string;
+                        }
+                }
+        }
+
 	    container ds-naive-test-data{
 		    list ds-naive-test-data-entry {
 			    key "name";

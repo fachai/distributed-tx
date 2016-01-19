@@ -14,7 +14,6 @@ import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
  * Reusing MD-SAL transaction API, adding node specific data modification operations.
  */
 public interface DTx extends WriteTransaction {
-
     /**
      * Delete piece of data for a specific node, that is encapsulated by this distributed transaction
      *
@@ -94,4 +93,21 @@ public interface DTx extends WriteTransaction {
             InstanceIdentifier<?> nodeId);
 
     CheckedFuture<Void, DTxException.RollbackFailedException> rollback();
+
+    /* APIs for mixed tx providers start from here. */
+    <T extends DataObject> CheckedFuture<Void, ReadFailedException> mergeAndRollbackOnFailure(
+            final DTXLogicalTXProviderType logicalTXProviderType,
+            final LogicalDatastoreType logicalDatastoreType,
+            final InstanceIdentifier<T> instanceIdentifier, final T t, final InstanceIdentifier<?> nodeId);
+
+    <T extends DataObject> CheckedFuture<Void, ReadFailedException> putAndRollbackOnFailure(
+            final DTXLogicalTXProviderType logicalTXProviderType,
+            final LogicalDatastoreType logicalDatastoreType,
+            final InstanceIdentifier<T> instanceIdentifier, final T t, final InstanceIdentifier<?> nodeId);
+
+    CheckedFuture<Void, ReadFailedException> deleteAndRollbackOnFailure(
+            final DTXLogicalTXProviderType logicalTXProviderType,
+            final LogicalDatastoreType logicalDatastoreType,
+            final InstanceIdentifier<?> instanceIdentifier,
+            InstanceIdentifier<?> nodeId);
 }
