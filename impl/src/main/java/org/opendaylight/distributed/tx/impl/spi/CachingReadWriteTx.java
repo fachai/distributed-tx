@@ -35,14 +35,11 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
     private static final Logger LOG = LoggerFactory.getLogger(CachingReadWriteTx.class);
     private final ReadWriteTransaction delegate;
     public final Deque<CachedData> cache = new ConcurrentLinkedDeque<>();
-    private final ListeningExecutorService executorService;
     private final ExecutorService executorPoolPerCache;
 
-    public CachingReadWriteTx(@Nonnull final ReadWriteTransaction delegate, ExecutorService executorPoolPerCache) {
+    public CachingReadWriteTx(@Nonnull final ReadWriteTransaction delegate) {
         this.delegate = delegate;
-        // this.executorPoolPerCache = executorPoolPerCache;
         this.executorPoolPerCache = Executors.newCachedThreadPool();
-        this.executorService = MoreExecutors.listeningDecorator(this.executorPoolPerCache);
     }
 
     @Override public Iterator<CachedData> iterator() {
@@ -79,6 +76,7 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
             @Override public void onSuccess(final Optional<DataObject> result) {
                 cache.add(new CachedData(instanceIdentifier, result.get(), ModifyAction.DELETE));
 
+                final ListeningExecutorService executorService = MoreExecutors.listeningDecorator(executorPoolPerCache);
                 final ListenableFuture asyncPutFuture = executorService.submit(new Callable() {
                     @Override
                     public Object call() throws Exception {
@@ -132,6 +130,7 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
             @Override public void onSuccess(final Optional<T> result) {
                 cache.add(new CachedData(instanceIdentifier, result.get(), ModifyAction.MERGE));
 
+                final ListeningExecutorService executorService = MoreExecutors.listeningDecorator(executorPoolPerCache);
                 final ListenableFuture asyncPutFuture = executorService.submit(new Callable() {
                     @Override
                     public Object call() throws Exception {
@@ -186,68 +185,41 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
                                                      final InstanceIdentifier<T> instanceIdentifier, final T t) {
         final SettableFuture<Void> retFuture = SettableFuture.create();
 
-        if(false){
-            final CheckedFuture<Optional<T>, ReadFailedException> read = delegate
-                    .read(logicalDatastoreType, instanceIdentifier);
+        final CheckedFuture<Optional<T>, ReadFailedException> read = delegate
+                .read(logicalDatastoreType, instanceIdentifier);
+        Futures.addCallback(read, new FutureCallback<Optional<T>>() {
+            @Override
+            public void onSuccess(final Optional<T> result) {
+                cache.add(new CachedData(instanceIdentifier, result.orNull(), ModifyAction.REPLACE));
 
-            while(!read.isDone()){Thread.yield();};
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+                final ListeningExecutorService executorService = MoreExecutors.listeningDecorator(executorPoolPerCache);
+                final ListenableFuture asyncPutFuture = executorService.submit(new Callable() {
+                    @Override
+                    public Object call() throws Exception {
+                        LOG.info("asyncPut put obj {}", Integer.toHexString(System.identityHashCode(t)));
+                        delegate.put(logicalDatastoreType, instanceIdentifier, t);
+                        return null;
+                    }
+                });
 
-            delegate.put(logicalDatastoreType, instanceIdentifier, t);
-
-            Runnable readResult = new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        Thread.sleep(500);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
+                Futures.addCallback(asyncPutFuture, new FutureCallback() {
+                    @Override
+                    public void onSuccess(@Nullable Object result) {
+                        retFuture.set(null);
                     }
 
-                    retFuture.set(null);
-                }
-            };
-            new Thread(readResult).start();
-        }else{
-            final CheckedFuture<Optional<T>, ReadFailedException> read = delegate
-                    .read(logicalDatastoreType, instanceIdentifier);
-            Futures.addCallback(read, new FutureCallback<Optional<T>>() {
-                @Override
-                public void onSuccess(final Optional<T> result) {
-                    cache.add(new CachedData(instanceIdentifier, result.orNull(), ModifyAction.REPLACE));
+                    @Override
+                    public void onFailure(Throwable t) {
+                        retFuture.setException(t);
+                    }
+                });
+            }
 
-                    final ListenableFuture asyncPutFuture = executorService.submit(new Callable() {
-                        @Override
-                        public Object call() throws Exception {
-                            LOG.info("asyncPut put obj {}", Integer.toHexString(System.identityHashCode(t)));
-                            delegate.put(logicalDatastoreType, instanceIdentifier, t);
-                            return null;
-                        }
-                    });
-
-                    Futures.addCallback(asyncPutFuture, new FutureCallback() {
-                        @Override
-                        public void onSuccess(@Nullable Object result) {
-                            retFuture.set(null);
-                        }
-
-                        @Override
-                        public void onFailure(Throwable t) {
-                            retFuture.setException(t);
-                        }
-                    });
-                }
-
-                @Override
-                public void onFailure(final Throwable t) {
-                    retFuture.setException(new DTxException.EditFailedException("failed to read from node in put action", t));
-                }
-            });
-        }
+            @Override
+            public void onFailure(final Throwable t) {
+                retFuture.setException(new DTxException.EditFailedException("failed to read from node in put action", t));
+            }
+        });
 
         return Futures.makeChecked(retFuture, new Function<Exception, ReadFailedException>() {
             @Nullable

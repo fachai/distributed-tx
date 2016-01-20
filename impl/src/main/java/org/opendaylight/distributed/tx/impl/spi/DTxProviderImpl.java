@@ -30,7 +30,6 @@ import org.slf4j.LoggerFactory;
 
 public class DTxProviderImpl implements DTxProvider, AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(DTxProviderImpl.class);
-
     private final Set<InstanceIdentifier<?>> devicesInUse = Sets.newHashSet();
     private final Map<Object, DtxReleaseWrapper> currentTxs = Maps.newHashMap();
     private final Map<DTXLogicalTXProviderType, TxProvider> txProviderMap;

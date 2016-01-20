@@ -21,7 +21,7 @@ public class CachingReadWriteTxTest {
     public void testInit(){ this.testTx = new DTXTestTransaction(); }
     @Test
     public void testConstructor() {
-        new CachingReadWriteTx(new DTXTestTransaction(), executorPoolPerCache);
+        new CachingReadWriteTx(new DTXTestTransaction());
     }
 
     @Test
@@ -29,7 +29,7 @@ public class CachingReadWriteTxTest {
         /* FIXME The case should test right read after read in DTXTestTransaction is fixed. */
         // testTx.setReadException(true);
 
-        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(testTx, executorPoolPerCache);
+        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(testTx);
 
         int numberOfObjs = 10;
 
@@ -52,7 +52,7 @@ public class CachingReadWriteTxTest {
 
     @Test
     public void testAsyncMerge() throws InterruptedException {
-        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(new DTXTestTransaction(), executorPoolPerCache);
+        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(new DTXTestTransaction());
 
         int numberOfObjs = 10;
 
@@ -69,7 +69,7 @@ public class CachingReadWriteTxTest {
 
     @Test
     public  void testAsyncDelete() throws InterruptedException {
-        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(new DTXTestTransaction(), executorPoolPerCache);
+        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(new DTXTestTransaction());
 
         int numberOfObjs = 10;
 
@@ -90,7 +90,7 @@ public class CachingReadWriteTxTest {
 
     @Test
     public void testMerge(){
-        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(new DTXTestTransaction(), executorPoolPerCache);
+        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(new DTXTestTransaction());
 
         int numberOfObjs = 10;
 
@@ -101,7 +101,7 @@ public class CachingReadWriteTxTest {
     }
     @Test
     public void testPut(){
-        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(new DTXTestTransaction(), executorPoolPerCache);
+        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(new DTXTestTransaction());
 
         int numberOfObjs = 10;
 
@@ -112,7 +112,7 @@ public class CachingReadWriteTxTest {
 
     @Test
     public void testDelete(){
-        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(new DTXTestTransaction(), executorPoolPerCache);
+        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(new DTXTestTransaction());
 
         int numberOfObjs = 10;
 
