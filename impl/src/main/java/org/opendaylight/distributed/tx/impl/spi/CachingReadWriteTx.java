@@ -74,7 +74,9 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
 
         Futures.addCallback(readFuture, new FutureCallback<Optional<DataObject>>() {
             @Override public void onSuccess(final Optional<DataObject> result) {
-                cache.add(new CachedData(instanceIdentifier, result.get(), ModifyAction.DELETE));
+                synchronized (this) {
+                    cache.add(new CachedData(instanceIdentifier, result.get(), ModifyAction.DELETE));
+                }
 
                 final ListeningExecutorService executorService = MoreExecutors.listeningDecorator(executorPoolPerCache);
                 final ListenableFuture asyncPutFuture = executorService.submit(new Callable() {
@@ -128,7 +130,9 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
 
         Futures.addCallback(readFuture, new FutureCallback<Optional<T>>() {
             @Override public void onSuccess(final Optional<T> result) {
-                cache.add(new CachedData(instanceIdentifier, result.get(), ModifyAction.MERGE));
+                synchronized (this) {
+                    cache.add(new CachedData(instanceIdentifier, result.get(), ModifyAction.MERGE));
+                }
 
                 final ListeningExecutorService executorService = MoreExecutors.listeningDecorator(executorPoolPerCache);
                 final ListenableFuture asyncPutFuture = executorService.submit(new Callable() {
@@ -190,7 +194,9 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
         Futures.addCallback(read, new FutureCallback<Optional<T>>() {
             @Override
             public void onSuccess(final Optional<T> result) {
-                cache.add(new CachedData(instanceIdentifier, result.orNull(), ModifyAction.REPLACE));
+                synchronized (this) {
+                    cache.add(new CachedData(instanceIdentifier, result.orNull(), ModifyAction.REPLACE));
+                }
 
                 final ListeningExecutorService executorService = MoreExecutors.listeningDecorator(executorPoolPerCache);
                 final ListenableFuture asyncPutFuture = executorService.submit(new Callable() {
@@ -251,6 +257,8 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
 
     @Override public void close() throws IOException {
         cancel();
-        cache.clear();
+        synchronized (this) {
+            cache.clear();
+        }
     }
 }

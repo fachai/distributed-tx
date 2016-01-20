@@ -293,33 +293,36 @@ public class DtxImpl implements DTx {
                 e.printStackTrace();
             }
 
-            if(true) {
-                LOG.trace("Per node tx({}/{}) executed successfully for: {}",
-                        commitStatus.size(), getNumberofNodes(), perNodeTx.getKey());
+            LOG.trace("Per node tx({}/{}) executed successfully for: {}",
+                    commitStatus.size(), getNumberofNodes(), perNodeTx.getKey());
 
-                final ExecutorService executor = Executors.newSingleThreadExecutor();
-                final ListeningExecutorService executorService = MoreExecutors.listeningDecorator(executor);
+            final ExecutorService executor = Executors.newSingleThreadExecutor();
+            final ListeningExecutorService executorService = MoreExecutors.listeningDecorator(executor);
 
-                final ListenableFuture txProviderFuture = executorService.submit(new Callable() {
-                    @Override
-                    public Object call() throws Exception {
-                        final ReadWriteTransaction readWriteTransaction = getTxProviderByLogicalType(logicalTxProviderType).newTx(perNodeTx.getKey());
-                        final PerNodeTxState status = PerNodeTxState.createSuccess(readWriteTransaction);
-                        commitStatus.put(perNodeTx.getKey(), status);
-                        checkTransactionStatus();
-                        return null;
-                    }
-                });
-            }else {
-                try {
+            final ListenableFuture txProviderFuture = executorService.submit(new Callable() {
+                @Override
+                public Object call() throws Exception {
                     final ReadWriteTransaction readWriteTransaction = getTxProviderByLogicalType(logicalTxProviderType).newTx(perNodeTx.getKey());
                     final PerNodeTxState status = PerNodeTxState.createSuccess(readWriteTransaction);
-                    commitStatus.put(perNodeTx.getKey(), status);
+                    synchronized (commitStatus) {
+                        commitStatus.put(perNodeTx.getKey(), status);
+                    }
                     checkTransactionStatus();
-                } catch (TxException.TxInitiatizationFailedException e) {
-                    handleRollbackTxCreationException(e);
+                    return null;
                 }
-            }
+            });
+
+            Futures.addCallback(txProviderFuture, new FutureCallback() {
+                @Override
+                public void onSuccess(@Nullable Object result) {
+                    LOG.trace("Per node new tx succefully");
+                }
+
+                @Override
+                public void onFailure(Throwable t) {
+                    LOG.trace("Per node error to relock the device. ignore");
+                }
+            });
         }
 
         /**
@@ -341,7 +344,9 @@ public class DtxImpl implements DTx {
             LOG.warn("Per node tx executed failed for: {}", perNodeTx.getKey(), t);
             try {
                 final ReadWriteTransaction readWriteTransaction = getTxProviderByLogicalType(logicalTxProviderType).newTx(perNodeTx.getKey());
-                commitStatus.put(perNodeTx.getKey(),  PerNodeTxState.createFailed(t, readWriteTransaction));
+                synchronized (commitStatus) {
+                    commitStatus.put(perNodeTx.getKey(), PerNodeTxState.createFailed(t, readWriteTransaction));
+                }
                 checkTransactionStatus();
 
             } catch (TxException.TxInitiatizationFailedException e) {
@@ -391,7 +396,12 @@ public class DtxImpl implements DTx {
          */
         private DistributedSubmitState validate(final Map<InstanceIdentifier<?>, PerNodeTxState> commitStatus,
             final Set<InstanceIdentifier<?>> instanceIdentifiers) throws DTxException.SubmitFailedException {
-            if(commitStatus.size() == instanceIdentifiers.size()) {
+            boolean submitDone = false;
+            synchronized (commitStatus) {
+                if (commitStatus.size() == instanceIdentifiers.size())
+                    submitDone = true;
+            }
+            if(submitDone){
                 LOG.debug("Distributed tx submit finished with status: {}", commitStatus);
                 final Map<InstanceIdentifier<?>, PerNodeTxState> failedSubmits = Maps
                     .filterEntries(commitStatus, new Predicate<Map.Entry<InstanceIdentifier<?>, PerNodeTxState>>() {
@@ -493,24 +503,8 @@ public class DtxImpl implements DTx {
             return this.deleteAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, logicalDatastoreType, instanceIdentifier, nodeId);
     }
 
-    /*
-    private int test(Map<DTXLogicalTXProviderType, ? extends TxCache> a){
-        return a.keySet().size();
-    }
-    */
-
     public CheckedFuture<Void, DTxException.RollbackFailedException>  rollback(){
         return this.rollbackUponOperationFailure();
-    }
-
-    /*
-    private int test(Set<? extends TxCache>a){
-        return a.size();
-    }
-    */
-
-    private int test(Map<DTXLogicalTXProviderType, Map<DTXLogicalTXProviderType, ? extends TxCache>>a){
-        return a.keySet().size();
     }
 
     @Override
