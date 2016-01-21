@@ -33,15 +33,18 @@ public class DtxImpl implements DTx {
     private static final Logger LOG = LoggerFactory.getLogger(DTxProviderImpl.class);
     private final Map<DTXLogicalTXProviderType, Map<InstanceIdentifier<?>, CachingReadWriteTx>> perNodeTransactionsbyLogicalType;
     private final Map<DTXLogicalTXProviderType, TxProvider>txProviderMap;
-    private final Map<InstanceIdentifier<?>, ReadWriteTransaction> readWriteTxMap= new HashMap<InstanceIdentifier<?>, ReadWriteTransaction>();
+    Map<InstanceIdentifier<?>, ReadWriteTransaction> readWriteTxMap= new HashMap<InstanceIdentifier<?>, ReadWriteTransaction>();
+    private final ExecutorService executorPoolPerCache;
 
     public DtxImpl(@Nonnull final TxProvider txProvider, @Nonnull final Set<InstanceIdentifier<?>> nodes) {
         Preconditions.checkArgument(!nodes.isEmpty(), "Cannot create distributed tx for 0 nodes");
+        Map<InstanceIdentifier<?>, CachingReadWriteTx> perNodeTransactions = initializeTransactions(txProvider, nodes);
+        this.perNodeTransactionsbyLogicalType = new HashMap<>();
+        this.perNodeTransactionsbyLogicalType.put(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, perNodeTransactions);
         txProviderMap = new HashMap<>();
         this.txProviderMap.put(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, txProvider);
-        Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> internalNodeMap = new HashMap<>(1);
-        internalNodeMap.put(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, nodes);
-        this.perNodeTransactionsbyLogicalType =  initializeTransactionsPerLogicalType(this.txProviderMap, internalNodeMap);
+        this.executorPoolPerCache = Executors.newCachedThreadPool();
+        LOG.info("FM: wrong constructor called");
     }
 
     public DtxImpl(@Nonnull final Map<DTXLogicalTXProviderType, TxProvider>providerMap,
@@ -49,10 +52,25 @@ public class DtxImpl implements DTx {
         Preconditions.checkArgument(!nodesMap.values().isEmpty(), "Cannot create distributed tx for 0 nodes");
         Preconditions.checkArgument(nodesMap.keySet().equals(providerMap.keySet()), "logicalType sets of txporider and nodes are different");
         this.txProviderMap = providerMap;
+        LOG.info("FM: in dtx impl constructor {} {}", this.txProviderMap, providerMap);
         perNodeTransactionsbyLogicalType = initializeTransactionsPerLogicalType(providerMap, nodesMap);
+        this.executorPoolPerCache = Executors.newCachedThreadPool();
+    }
+
+    private Map<InstanceIdentifier<?>, CachingReadWriteTx> initializeTransactions(final TxProvider txProvider,
+        final Set<InstanceIdentifier<?>> nodes) {
+
+        return Maps.toMap(nodes, new Function<InstanceIdentifier<?>, CachingReadWriteTx>() {
+            @Nullable @Override public CachingReadWriteTx apply(@Nullable final InstanceIdentifier<?> input) {
+                ReadWriteTransaction tx = txProvider.newTx(input);
+                readWriteTxMap.put(input, tx);
+                return new CachingReadWriteTx(tx, executorPoolPerCache);
+            }
+        });
     }
 
     private TxProvider getTxProviderByType(DTXLogicalTXProviderType type){
+        LOG.info("FM: type {} map {}", type, txProviderMap);
         return this.txProviderMap.get(type);
     }
 
@@ -67,7 +85,7 @@ public class DtxImpl implements DTx {
                 @Nullable @Override public CachingReadWriteTx apply(@Nullable final InstanceIdentifier<?> input) {
                     ReadWriteTransaction tx = getTxProviderByType(t).newTx(input);
                     readWriteTxMap.put(input, tx);
-                    return new CachingReadWriteTx(tx);
+                    return new CachingReadWriteTx(tx, executorPoolPerCache);
                 }
             });
             typeCacheMap.put(type, tmpMap);
@@ -210,12 +228,14 @@ public class DtxImpl implements DTx {
         Rollback rollback = new RollbackImpl();
         Map<InstanceIdentifier<?>, CachingReadWriteTx> perNodeCache = new HashMap<>();
 
+        LOG.info("FM:in rollbackUponOperationFailure {}", this.perNodeTransactionsbyLogicalType);
         for(DTXLogicalTXProviderType type : this.perNodeTransactionsbyLogicalType.keySet()) {
             Map<InstanceIdentifier<?>, CachingReadWriteTx> tmpMap = this.perNodeTransactionsbyLogicalType.get(type);
             perNodeCache.putAll(tmpMap);
             for (InstanceIdentifier<?> iid : tmpMap.keySet())
                 perNodeCache.put(iid, tmpMap.get(iid));
         }
+        LOG.info("FM:in rollbackUponOperationFailure 1 {}", perNodeCache);
 
         final ListenableFuture<Void> rollbackFuture= rollback.rollback(perNodeCache, this.readWriteTxMap);
 
@@ -242,11 +262,14 @@ public class DtxImpl implements DTx {
     private Set<InstanceIdentifier<?>>getIdetifierSet(){
         Set<InstanceIdentifier<?>> set = new HashSet<>();
 
+        LOG.info("FM: get log set {}", perNodeTransactionsbyLogicalType);
+
         for(DTXLogicalTXProviderType type : DTXLogicalTXProviderType.values()){
             if(this.perNodeTransactionsbyLogicalType.containsKey(type)){
                 set.addAll(this.perNodeTransactionsbyLogicalType.get(type).keySet());
             }
         }
+        LOG.info("FM: get 1 log set {}", set);
 
         return set;
     }
@@ -288,41 +311,38 @@ public class DtxImpl implements DTx {
          */
         @Override public void onSuccess(@Nullable final Void result) {
             try {
-                Thread.sleep(1000);
+                Thread.sleep(100);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
 
-            LOG.trace("Per node tx({}/{}) executed successfully for: {}",
-                    commitStatus.size(), getNumberofNodes(), perNodeTx.getKey());
+            if(true) {
+                LOG.trace("Per node tx({}/{}) executed successfully for: {}",
+                        commitStatus.size(), getNumberofNodes(), perNodeTx.getKey());
 
-            final ExecutorService executor = Executors.newSingleThreadExecutor();
-            final ListeningExecutorService executorService = MoreExecutors.listeningDecorator(executor);
+                final ExecutorService executor = Executors.newSingleThreadExecutor();
+                final ListeningExecutorService executorService = MoreExecutors.listeningDecorator(executor);
 
-            final ListenableFuture txProviderFuture = executorService.submit(new Callable() {
-                @Override
-                public Object call() throws Exception {
+                final ListenableFuture txProviderFuture = executorService.submit(new Callable() {
+                    @Override
+                    public Object call() throws Exception {
+                        final ReadWriteTransaction readWriteTransaction = getTxProviderByLogicalType(logicalTxProviderType).newTx(perNodeTx.getKey());
+                        final PerNodeTxState status = PerNodeTxState.createSuccess(readWriteTransaction);
+                        commitStatus.put(perNodeTx.getKey(), status);
+                        checkTransactionStatus();
+                        return null;
+                    }
+                });
+            }else {
+                try {
                     final ReadWriteTransaction readWriteTransaction = getTxProviderByLogicalType(logicalTxProviderType).newTx(perNodeTx.getKey());
                     final PerNodeTxState status = PerNodeTxState.createSuccess(readWriteTransaction);
-                    synchronized (commitStatus) {
-                        commitStatus.put(perNodeTx.getKey(), status);
-                    }
+                    commitStatus.put(perNodeTx.getKey(), status);
                     checkTransactionStatus();
-                    return null;
+                } catch (TxException.TxInitiatizationFailedException e) {
+                    handleRollbackTxCreationException(e);
                 }
-            });
-
-            Futures.addCallback(txProviderFuture, new FutureCallback() {
-                @Override
-                public void onSuccess(@Nullable Object result) {
-                    LOG.trace("Per node new tx succefully");
-                }
-
-                @Override
-                public void onFailure(Throwable t) {
-                    LOG.trace("Per node error to relock the device. ignore");
-                }
-            });
+            }
         }
 
         /**
@@ -344,9 +364,7 @@ public class DtxImpl implements DTx {
             LOG.warn("Per node tx executed failed for: {}", perNodeTx.getKey(), t);
             try {
                 final ReadWriteTransaction readWriteTransaction = getTxProviderByLogicalType(logicalTxProviderType).newTx(perNodeTx.getKey());
-                synchronized (commitStatus) {
-                    commitStatus.put(perNodeTx.getKey(), PerNodeTxState.createFailed(t, readWriteTransaction));
-                }
+                commitStatus.put(perNodeTx.getKey(),  PerNodeTxState.createFailed(t, readWriteTransaction));
                 checkTransactionStatus();
 
             } catch (TxException.TxInitiatizationFailedException e) {
@@ -396,12 +414,7 @@ public class DtxImpl implements DTx {
          */
         private DistributedSubmitState validate(final Map<InstanceIdentifier<?>, PerNodeTxState> commitStatus,
             final Set<InstanceIdentifier<?>> instanceIdentifiers) throws DTxException.SubmitFailedException {
-            boolean submitDone = false;
-            synchronized (commitStatus) {
-                if (commitStatus.size() == instanceIdentifiers.size())
-                    submitDone = true;
-            }
-            if(submitDone){
+            if(commitStatus.size() == instanceIdentifiers.size()) {
                 LOG.debug("Distributed tx submit finished with status: {}", commitStatus);
                 final Map<InstanceIdentifier<?>, PerNodeTxState> failedSubmits = Maps
                     .filterEntries(commitStatus, new Predicate<Map.Entry<InstanceIdentifier<?>, PerNodeTxState>>() {
@@ -479,9 +492,11 @@ public class DtxImpl implements DTx {
     private boolean containsIid(InstanceIdentifier<?> iid){
         for(DTXLogicalTXProviderType type: this.perNodeTransactionsbyLogicalType.keySet()) {
             if(this.perNodeTransactionsbyLogicalType.get(type).containsKey(iid)) {
+                LOG.info("FM: return true");
                 return true;
             }
         }
+        LOG.info("FM: return false");
         return false;
     }
 
@@ -503,8 +518,24 @@ public class DtxImpl implements DTx {
             return this.deleteAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, logicalDatastoreType, instanceIdentifier, nodeId);
     }
 
+    /*
+    private int test(Map<DTXLogicalTXProviderType, ? extends TxCache> a){
+        return a.keySet().size();
+    }
+    */
+
     public CheckedFuture<Void, DTxException.RollbackFailedException>  rollback(){
         return this.rollbackUponOperationFailure();
+    }
+
+    /*
+    private int test(Set<? extends TxCache>a){
+        return a.size();
+    }
+    */
+
+    private int test(Map<DTXLogicalTXProviderType, Map<DTXLogicalTXProviderType, ? extends TxCache>>a){
+        return a.keySet().size();
     }
 
     @Override
@@ -524,28 +555,22 @@ public class DtxImpl implements DTx {
                 retFuture.set(null);
             }
 
+
             @Override
             public void onFailure(Throwable throwable) {
+                CheckedFuture<Void, DTxException.RollbackFailedException> rollExcept = rollback();
 
-                Runnable runnable = new Runnable() {
+                Futures.addCallback(rollExcept, new FutureCallback<Void>() {
                     @Override
-                    public void run() {
-                        CheckedFuture<Void, DTxException.RollbackFailedException> rollExcept = rollback();
-                        Futures.addCallback(rollExcept, new FutureCallback<Void>() {
-                            @Override
-                            public void onSuccess(@Nullable Void aVoid) {
-                                retFuture.setException(new ReadFailedException("Failed to merge but succeed to rollback"));
-                            }
-
-                            @Override
-                            public void onFailure(Throwable throwable) {
-                                retFuture.setException(throwable);
-                            }
-                        });
+                    public void onSuccess(@Nullable Void aVoid) {
+                        retFuture.setException(new ReadFailedException("Failed to merge but succeed to rollback"));
                     }
-                };
 
-                new Thread(runnable).start();
+                    @Override
+                    public void onFailure(Throwable throwable) {
+                        retFuture.setException(throwable);
+                    }
+                });
             }
         });
 
@@ -561,11 +586,15 @@ public class DtxImpl implements DTx {
     @Override
     public <T extends DataObject> CheckedFuture<Void, ReadFailedException> putAndRollbackOnFailure(DTXLogicalTXProviderType logicalTXProviderType,
                 LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, InstanceIdentifier<?> nodeId) {
+        LOG.info("FM: put {} {} {}", logicalTXProviderType, logicalDatastoreType, containsIid(nodeId));
         Preconditions.checkArgument(containsIid(nodeId), "Unknown node: %s. Not in transaction", nodeId);
         final DTXReadWriteTransaction transaction = this.perNodeTransactionsbyLogicalType.get(logicalTXProviderType).get(nodeId);
+        LOG.info("FM: put 1 {}", transaction);
         Preconditions.checkArgument(containsIid(nodeId), "Unknown node: %s. Not in transaction", nodeId);
+        LOG.info("FM: to async put 1 {}", transaction);
         CheckedFuture<Void, ReadFailedException> putFuture = transaction.asyncPut(logicalDatastoreType, instanceIdentifier, t);
 
+        final ExecutorService executorService = MoreExecutors.listeningDecorator(this.executorPoolPerCache);
         final SettableFuture<Void> retFuture = SettableFuture.create();
 
         Futures.addCallback(putFuture, new FutureCallback<Void>() {
@@ -600,7 +629,8 @@ public class DtxImpl implements DTx {
                     }
                 };
 
-                new Thread(rolllbackRoutine).start();
+                Thread thread = new Thread(rolllbackRoutine);
+                thread.start();
             }
         });
 
@@ -631,26 +661,19 @@ public class DtxImpl implements DTx {
 
             @Override
             public void onFailure(Throwable throwable) {
-                Runnable runnable = new Runnable() {
+                CheckedFuture<Void, DTxException.RollbackFailedException> rollExcept = rollback();
+
+                Futures.addCallback(rollExcept, new FutureCallback<Void>() {
                     @Override
-                    public void run() {
-                        CheckedFuture<Void, DTxException.RollbackFailedException> rollExcept = rollback();
-
-                        Futures.addCallback(rollExcept, new FutureCallback<Void>() {
-                            @Override
-                            public void onSuccess(@Nullable Void aVoid) {
-                                retFuture.setException(new ReadFailedException("Failed to delete but succeed to rollback"));
-                            }
-
-                            @Override
-                            public void onFailure(Throwable throwable) {
-                                retFuture.setException(throwable);
-                            }
-                        });
-
+                    public void onSuccess(@Nullable Void aVoid) {
+                        retFuture.setException(new ReadFailedException("Failed to delete but succeed to rollback"));
                     }
-                };
-                new Thread(runnable).start();
+
+                    @Override
+                    public void onFailure(Throwable throwable) {
+                        retFuture.setException(throwable);
+                    }
+                });
             }
         });
 

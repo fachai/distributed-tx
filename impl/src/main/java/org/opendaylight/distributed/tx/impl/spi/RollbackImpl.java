@@ -35,6 +35,7 @@ public class RollbackImpl implements Rollback {
 
         final List<ListenableFuture<Void>> perNodeRollbackSubmitFutures = Lists.newArrayListWithCapacity(perNodeRollbackTxs.size());
 
+        LOG.info("FM: in rollback {} {}", perNodeCachesByType, perNodeRollbackTxs);
         // for (DTXLogicalTXProviderType type : perNodeCachesByType.keySet()) {
         //    Map<InstanceIdentifier<?>, ? extends TxCache> perNodeCaches = perNodeCachesByType.get(type);
             for (final Map.Entry<InstanceIdentifier<?>, ? extends TxCache> perNodeCacheEntry : perNodeCachesByType.entrySet()) {
@@ -52,6 +53,7 @@ public class RollbackImpl implements Rollback {
                     LOG.info("perNodeCache {}", revertAction);
                     switch (revertAction) {
                         case REPLACE: {
+                            LOG.info("FM: rollback replace");
                             try {
                                 perNodeRollbackTx.put(cachedData.getDsType(), dataId, cachedData.getData().get());
                                 break;
@@ -62,6 +64,7 @@ public class RollbackImpl implements Rollback {
                             }
                         }
                         case DELETE: {
+                            LOG.info("FM: rollback delete");
                             try {
                                 // FIXME doing this on a netconf device with candidate might result in a failure
                                 // (for the device where submit failed, the state was automatically rolledback)
@@ -75,9 +78,11 @@ public class RollbackImpl implements Rollback {
                             }
                         }
                         case NONE: {
+                            LOG.info("FM: rollback none");
                             break;
                         }
                         default: {
+                            LOG.info("FM: rollback default");
                             return Futures.immediateFailedCheckedFuture(new DTxException.RollbackFailedException(
                                     "Unable to handle rollback for node: " + perNodeCacheEntry.getKey() +
                                             ", revert action: " + revertAction + ". Unknown operation type"));
@@ -133,11 +138,11 @@ public class RollbackImpl implements Rollback {
         }
 
         @Override public void onSuccess(@Nullable final Void result) {
-            LOG.debug("Node: {} rolled back successfully", perNodeCacheEntry);
+            LOG.debug("FM: Node: {} rolled back successfully", perNodeCacheEntry);
         }
 
         @Override public void onFailure(final Throwable t) {
-            LOG.debug("Unable to rollback Node: {}. Rollback FAILED", perNodeCacheEntry, t);
+            LOG.debug("FM: Unable to rollback Node: {}. Rollback FAILED", perNodeCacheEntry, t);
         }
     }
 }

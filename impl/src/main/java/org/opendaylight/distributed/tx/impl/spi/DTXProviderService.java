@@ -33,12 +33,14 @@ public class DTXProviderService implements DTxProvider, AutoCloseable, BindingAw
     @Nonnull
     @Override
     public DTx newTx(@Nonnull Set<InstanceIdentifier<?>> nodes) throws DTxException.DTxInitializationFailedException {
+        LOG.info("FM: newTx single provier {}", nodes);
         return this.dtxProviderImpl.newTx(nodes);
     }
 
     @Nonnull
     @Override
     public DTx newTx(@Nonnull Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodes) throws DTxException.DTxInitializationFailedException {
+        LOG.info("FM: newTx multiple provier {}", nodes);
         return this.dtxProviderImpl.newTx(nodes);
     }
 
