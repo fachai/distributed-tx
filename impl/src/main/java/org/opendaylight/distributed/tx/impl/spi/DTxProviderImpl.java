@@ -91,13 +91,13 @@ public class DTxProviderImpl implements DTxProvider, AutoCloseable {
         }
 
         @Override
-        public <T extends DataObject> CheckedFuture<Void, ReadFailedException> mergeAndRollbackOnFailure(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, InstanceIdentifier<?> nodeId) throws DTxException.EditFailedException {
+        public <T extends DataObject> CheckedFuture<Void, DTxException> mergeAndRollbackOnFailure(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, InstanceIdentifier<?> nodeId) throws DTxException.EditFailedException {
             return delegate.mergeAndRollbackOnFailure(logicalDatastoreType, instanceIdentifier, t, nodeId);
         }
 
         @Override
-        public <T extends DataObject> CheckedFuture<Void, ReadFailedException> putAndRollbackOnFailure(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, InstanceIdentifier<?> nodeId) throws DTxException.EditFailedException {
-            CheckedFuture<Void, ReadFailedException> putFuture = delegate.putAndRollbackOnFailure(logicalDatastoreType, instanceIdentifier, t, nodeId);
+        public <T extends DataObject> CheckedFuture<Void, DTxException> putAndRollbackOnFailure(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, InstanceIdentifier<?> nodeId) throws DTxException.EditFailedException {
+            CheckedFuture<Void, DTxException> putFuture = delegate.putAndRollbackOnFailure(logicalDatastoreType, instanceIdentifier, t, nodeId);
 
             /*
             Futures.addCallback(putFuture, new FutureCallback<Void>() {
@@ -117,7 +117,7 @@ public class DTxProviderImpl implements DTxProvider, AutoCloseable {
         }
 
         @Override
-        public CheckedFuture<Void, ReadFailedException> deleteAndRollbackOnFailure(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<?> instanceIdentifier, InstanceIdentifier<?> nodeId) throws DTxException.EditFailedException, DTxException.RollbackFailedException {
+        public CheckedFuture<Void, DTxException> deleteAndRollbackOnFailure(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<?> instanceIdentifier, InstanceIdentifier<?> nodeId) throws DTxException.EditFailedException, DTxException.RollbackFailedException {
             return delegate.deleteAndRollbackOnFailure(logicalDatastoreType, instanceIdentifier, nodeId);
         }
 
@@ -207,18 +207,18 @@ public class DTxProviderImpl implements DTxProvider, AutoCloseable {
         public CheckedFuture<Void, DTxException.RollbackFailedException> rollback(){return delegate.rollback();}
 
         @Override
-        public <T extends DataObject> CheckedFuture<Void, ReadFailedException> mergeAndRollbackOnFailure(
+        public <T extends DataObject> CheckedFuture<Void, DTxException> mergeAndRollbackOnFailure(
                 DTXLogicalTXProviderType logicalTXProviderType, LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, InstanceIdentifier<?> nodeId) {
             return delegate.mergeAndRollbackOnFailure(logicalTXProviderType, logicalDatastoreType, instanceIdentifier, t, nodeId);
         }
 
         @Override
-        public <T extends DataObject> CheckedFuture<Void, ReadFailedException> putAndRollbackOnFailure(DTXLogicalTXProviderType logicalTXProviderType, LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, InstanceIdentifier<?> nodeId) {
+        public <T extends DataObject> CheckedFuture<Void, DTxException> putAndRollbackOnFailure(DTXLogicalTXProviderType logicalTXProviderType, LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, InstanceIdentifier<?> nodeId) {
             return delegate.putAndRollbackOnFailure(logicalTXProviderType, logicalDatastoreType, instanceIdentifier, t, nodeId);
         }
 
         @Override
-        public CheckedFuture<Void, ReadFailedException> deleteAndRollbackOnFailure(DTXLogicalTXProviderType logicalTXProviderType, LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<?> instanceIdentifier, InstanceIdentifier<?> nodeId) {
+        public CheckedFuture<Void, DTxException> deleteAndRollbackOnFailure(DTXLogicalTXProviderType logicalTXProviderType, LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<?> instanceIdentifier, InstanceIdentifier<?> nodeId) {
             return delegate.deleteAndRollbackOnFailure(logicalTXProviderType, logicalDatastoreType, instanceIdentifier, nodeId);
         }
     }

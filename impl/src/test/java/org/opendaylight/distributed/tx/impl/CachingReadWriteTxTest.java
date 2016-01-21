@@ -4,7 +4,7 @@ import com.google.common.util.concurrent.CheckedFuture;
 import org.junit.Before;
 import org.junit.Test;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
-import org.opendaylight.controller.md.sal.common.api.data.ReadFailedException;
+import org.opendaylight.distributed.tx.api.DTxException;
 import org.opendaylight.distributed.tx.impl.spi.CachingReadWriteTx;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 
@@ -34,7 +34,7 @@ public class CachingReadWriteTxTest {
         int numberOfObjs = 10;
 
         for(int i = 0; i < numberOfObjs; i++){
-            CheckedFuture<Void, ReadFailedException> cf =  cacheRWTx.asyncPut(LogicalDatastoreType.OPERATIONAL, InstanceIdentifier.create(DTXTestTransaction.myDataObj.class), new DTXTestTransaction.myDataObj());
+            CheckedFuture<Void, DTxException> cf =  cacheRWTx.asyncPut(LogicalDatastoreType.OPERATIONAL, InstanceIdentifier.create(DTXTestTransaction.myDataObj.class), new DTXTestTransaction.myDataObj());
 
             Thread.sleep(15);
             Assert.assertEquals(cf.isDone(), true);
@@ -57,7 +57,7 @@ public class CachingReadWriteTxTest {
         int numberOfObjs = 10;
 
         for(int i = 0; i < numberOfObjs; i++){
-            CheckedFuture<Void, ReadFailedException> cf =  cacheRWTx.asyncMerge(LogicalDatastoreType.OPERATIONAL, InstanceIdentifier.create(DTXTestTransaction.myDataObj.class), new DTXTestTransaction.myDataObj());
+            CheckedFuture<Void, DTxException> cf =  cacheRWTx.asyncMerge(LogicalDatastoreType.OPERATIONAL, InstanceIdentifier.create(DTXTestTransaction.myDataObj.class), new DTXTestTransaction.myDataObj());
 
             Thread.sleep(15);
             Assert.assertEquals(cf.isDone(), true);
@@ -74,13 +74,13 @@ public class CachingReadWriteTxTest {
         int numberOfObjs = 10;
 
         for(int i = 0; i < numberOfObjs; i++){
-            CheckedFuture<Void, ReadFailedException> cf =  cacheRWTx.asyncMerge(LogicalDatastoreType.OPERATIONAL, InstanceIdentifier.create(DTXTestTransaction.myDataObj.class), new DTXTestTransaction.myDataObj());
+            CheckedFuture<Void, DTxException> cf =  cacheRWTx.asyncMerge(LogicalDatastoreType.OPERATIONAL, InstanceIdentifier.create(DTXTestTransaction.myDataObj.class), new DTXTestTransaction.myDataObj());
         }
 
         int numberOfDeleted = 5;
 
         for(int i = 0; i < numberOfDeleted; i++){
-            CheckedFuture<Void, ReadFailedException> f = cacheRWTx.asyncDelete(LogicalDatastoreType.OPERATIONAL, InstanceIdentifier.create(DTXTestTransaction.myDataObj.class));
+            CheckedFuture<Void, DTxException> f = cacheRWTx.asyncDelete(LogicalDatastoreType.OPERATIONAL, InstanceIdentifier.create(DTXTestTransaction.myDataObj.class));
             Thread.sleep(15);
             Assert.assertEquals(f.isDone(), true);
         }
@@ -117,7 +117,7 @@ public class CachingReadWriteTxTest {
         int numberOfObjs = 10;
 
         for(int i = 0; i < numberOfObjs; i++){
-            CheckedFuture<Void, ReadFailedException> cf =  cacheRWTx.asyncMerge(LogicalDatastoreType.OPERATIONAL, InstanceIdentifier.create(DTXTestTransaction.myDataObj.class), new DTXTestTransaction.myDataObj());
+            CheckedFuture<Void, DTxException> cf =  cacheRWTx.asyncMerge(LogicalDatastoreType.OPERATIONAL, InstanceIdentifier.create(DTXTestTransaction.myDataObj.class), new DTXTestTransaction.myDataObj());
         }
 
         int numberOfDeleted = 5;

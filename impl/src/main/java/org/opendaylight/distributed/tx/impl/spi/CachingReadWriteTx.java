@@ -20,6 +20,7 @@ import org.opendaylight.controller.md.sal.common.api.TransactionStatus;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
 import org.opendaylight.controller.md.sal.common.api.data.ReadFailedException;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
+import org.opendaylight.distributed.tx.api.DTx;
 import org.opendaylight.distributed.tx.api.DTxException;
 import org.opendaylight.distributed.tx.spi.CachedData;
 import org.opendaylight.distributed.tx.spi.DTXReadWriteTransaction;
@@ -64,7 +65,7 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
         return this.cache.size();
     }
 
-    public CheckedFuture<Void, ReadFailedException> asyncDelete(final LogicalDatastoreType logicalDatastoreType,
+    public CheckedFuture<Void, DTxException> asyncDelete(final LogicalDatastoreType logicalDatastoreType,
                                       final InstanceIdentifier<?> instanceIdentifier) {
         @SuppressWarnings("unchecked")
         final CheckedFuture<Optional<DataObject>, ReadFailedException> readFuture = delegate
@@ -103,15 +104,15 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
             }
 
             @Override public void onFailure(final Throwable t) {
-                retFuture.setException(new DTxException.EditFailedException("failed to read from node in delete action", t));
+                retFuture.setException(new DTxException.ReadFailedException("failed to read from node in delete action", t));
             }
         });
 
-        return Futures.makeChecked(retFuture, new Function<Exception, ReadFailedException>() {
+        return Futures.makeChecked(retFuture, new Function<Exception, DTxException>() {
             @Nullable
             @Override
-            public ReadFailedException apply(@Nullable Exception e) {
-                return new ReadFailedException("Asynchronous delete from cache failed ", e);
+            public DTxException apply(@Nullable Exception e) {
+                return e instanceof DTxException ? (DTxException)e : new DTxException("delete operation failed ", e);
             }
         });
     }
@@ -121,7 +122,7 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
         this.asyncMerge(logicalDatastoreType, instanceIdentifier, t);
     }
 
-    public <T extends DataObject> CheckedFuture<Void, ReadFailedException>asyncMerge(final LogicalDatastoreType logicalDatastoreType,
+    public <T extends DataObject> CheckedFuture<Void, DTxException>asyncMerge(final LogicalDatastoreType logicalDatastoreType,
                                                        final InstanceIdentifier<T> instanceIdentifier, final T t) {
         final CheckedFuture<Optional<T>, ReadFailedException> readFuture = delegate
                 .read(logicalDatastoreType, instanceIdentifier);
@@ -159,15 +160,15 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
             }
 
             @Override public void onFailure(final Throwable t) {
-                retFuture.setException(new DTxException.EditFailedException("failed to read from node in merge action", t));
+                retFuture.setException(new DTxException.ReadFailedException("failed to read from node in merge action", t));
             }
         });
 
-        return Futures.makeChecked(retFuture, new Function<Exception, ReadFailedException>() {
+        return Futures.makeChecked(retFuture, new Function<Exception, DTxException>() {
             @Nullable
             @Override
-            public ReadFailedException apply(@Nullable Exception e) {
-                return new ReadFailedException("cache merge failure", e);
+            public DTxException apply(@Nullable Exception e) {
+                return e instanceof DTxException ? (DTxException)e : new DTxException("merge operation failed", e);
             }
         });
     }
@@ -185,7 +186,7 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
         this.asyncPut(logicalDatastoreType, instanceIdentifier, t);
     }
 
-    public <T extends DataObject> CheckedFuture<Void, ReadFailedException> asyncPut(final LogicalDatastoreType logicalDatastoreType,
+    public <T extends DataObject> CheckedFuture<Void, DTxException> asyncPut(final LogicalDatastoreType logicalDatastoreType,
                                                      final InstanceIdentifier<T> instanceIdentifier, final T t) {
         final SettableFuture<Void> retFuture = SettableFuture.create();
 
@@ -223,15 +224,15 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
 
             @Override
             public void onFailure(final Throwable t) {
-                retFuture.setException(new DTxException.EditFailedException("failed to read from node in put action", t));
+                retFuture.setException(new DTxException.ReadFailedException("failed to read from node in put action", t));
             }
         });
 
-        return Futures.makeChecked(retFuture, new Function<Exception, ReadFailedException>() {
+        return Futures.makeChecked(retFuture, new Function<Exception, DTxException>() {
             @Nullable
             @Override
-            public ReadFailedException apply(@Nullable Exception e) {
-                return new ReadFailedException("Cache put failed", e);
+            public DTxException apply(@Nullable Exception e) {
+                return e instanceof DTxException ? (DTxException)e : new DTxException("put operation failed", e);
             }
         });
     }

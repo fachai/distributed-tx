@@ -3,7 +3,6 @@ package org.opendaylight.distributed.tx.api;
 import com.google.common.util.concurrent.CheckedFuture;
 import org.opendaylight.controller.md.sal.binding.api.WriteTransaction;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
-import org.opendaylight.controller.md.sal.common.api.data.ReadFailedException;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
 import org.opendaylight.yangtools.yang.binding.DataObject;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
@@ -79,15 +78,15 @@ public interface DTx extends WriteTransaction {
     @Override boolean cancel()
         throws DTxException.RollbackFailedException;
 
-    <T extends DataObject> CheckedFuture<Void, ReadFailedException> mergeAndRollbackOnFailure(
+    <T extends DataObject> CheckedFuture<Void, DTxException> mergeAndRollbackOnFailure(
             final LogicalDatastoreType logicalDatastoreType,
             final InstanceIdentifier<T> instanceIdentifier, final T t, final InstanceIdentifier<?> nodeId);
 
-    <T extends DataObject> CheckedFuture<Void, ReadFailedException> putAndRollbackOnFailure(
+    <T extends DataObject> CheckedFuture<Void, DTxException> putAndRollbackOnFailure(
             final LogicalDatastoreType logicalDatastoreType,
             final InstanceIdentifier<T> instanceIdentifier, final T t, final InstanceIdentifier<?> nodeId);
 
-    CheckedFuture<Void, ReadFailedException> deleteAndRollbackOnFailure(
+    CheckedFuture<Void, DTxException> deleteAndRollbackOnFailure(
             final LogicalDatastoreType logicalDatastoreType,
             final InstanceIdentifier<?> instanceIdentifier,
             InstanceIdentifier<?> nodeId);
@@ -95,17 +94,17 @@ public interface DTx extends WriteTransaction {
     CheckedFuture<Void, DTxException.RollbackFailedException> rollback();
 
     /* APIs for mixed tx providers start from here. */
-    <T extends DataObject> CheckedFuture<Void, ReadFailedException> mergeAndRollbackOnFailure(
+    <T extends DataObject> CheckedFuture<Void, DTxException> mergeAndRollbackOnFailure(
             final DTXLogicalTXProviderType logicalTXProviderType,
             final LogicalDatastoreType logicalDatastoreType,
             final InstanceIdentifier<T> instanceIdentifier, final T t, final InstanceIdentifier<?> nodeId);
 
-    <T extends DataObject> CheckedFuture<Void, ReadFailedException> putAndRollbackOnFailure(
+    <T extends DataObject> CheckedFuture<Void, DTxException> putAndRollbackOnFailure(
             final DTXLogicalTXProviderType logicalTXProviderType,
             final LogicalDatastoreType logicalDatastoreType,
             final InstanceIdentifier<T> instanceIdentifier, final T t, final InstanceIdentifier<?> nodeId);
 
-    CheckedFuture<Void, ReadFailedException> deleteAndRollbackOnFailure(
+    CheckedFuture<Void, DTxException> deleteAndRollbackOnFailure(
             final DTXLogicalTXProviderType logicalTXProviderType,
             final LogicalDatastoreType logicalDatastoreType,
             final InstanceIdentifier<?> instanceIdentifier,

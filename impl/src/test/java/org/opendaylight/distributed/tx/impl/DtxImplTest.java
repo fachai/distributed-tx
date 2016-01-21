@@ -6,7 +6,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.opendaylight.controller.md.sal.binding.api.ReadWriteTransaction;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
-import org.opendaylight.controller.md.sal.common.api.data.ReadFailedException;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
 import org.opendaylight.distributed.tx.api.DTxException;
 import org.opendaylight.distributed.tx.impl.spi.DtxImpl;
@@ -75,21 +74,21 @@ public class DtxImplTest{
     public void testPutAndRollbackOnFailure(){
         Assert.assertNotNull(this.dtxImpl);
 
-        CheckedFuture<Void, ReadFailedException> f = this.dtxImpl.putAndRollbackOnFailure(LogicalDatastoreType.OPERATIONAL, n0, new TestClassNode(), n1);
+        CheckedFuture<Void, DTxException> f = this.dtxImpl.putAndRollbackOnFailure(LogicalDatastoreType.OPERATIONAL, n0, new TestClassNode(), n1);
     }
 
     @Test
     public void testMergeAndRollbackOnFailure(){
         Assert.assertNotNull(this.dtxImpl);
 
-        CheckedFuture<Void, ReadFailedException> f = this.dtxImpl.mergeAndRollbackOnFailure(LogicalDatastoreType.OPERATIONAL, n0, new TestClassNode(), n1);
+        CheckedFuture<Void, DTxException> f = this.dtxImpl.mergeAndRollbackOnFailure(LogicalDatastoreType.OPERATIONAL, n0, new TestClassNode(), n1);
     }
 
     @Test
     public void testDeleteAndRollbackOnFailure(){
         Assert.assertNotNull(this.dtxImpl);
 
-        CheckedFuture<Void, ReadFailedException> f = this.dtxImpl.deleteAndRollbackOnFailure(LogicalDatastoreType.OPERATIONAL, n0, n1);
+        CheckedFuture<Void, DTxException> f = this.dtxImpl.deleteAndRollbackOnFailure(LogicalDatastoreType.OPERATIONAL, n0, n1);
     }
 
     @Test public void testPut() {

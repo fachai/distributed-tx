@@ -14,6 +14,7 @@ import org.opendaylight.controller.md.sal.binding.api.DataChangeListener;
 import org.opendaylight.controller.md.sal.common.api.data.*;
 import org.opendaylight.distributed.tx.api.DTXLogicalTXProviderType;
 import org.opendaylight.distributed.tx.api.DTx;
+import org.opendaylight.distributed.tx.api.DTxException;
 import org.opendaylight.distributed.tx.api.DTxProvider;
 import org.opendaylight.yang.gen.v1.http.cisco.com.ns.yang.cisco.ios.xr.ifmgr.cfg.rev150107.InterfaceActive;
 import org.opendaylight.yang.gen.v1.http.cisco.com.ns.yang.cisco.ios.xr.ifmgr.cfg.rev150107.InterfaceConfigurations;
@@ -149,7 +150,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
             InstanceIdentifier<DsNaiveTestDataEntry> entryIid = InstanceIdentifier.create(DsNaiveTestData.class)
                     .child(DsNaiveTestDataEntry.class, new DsNaiveTestDataEntryKey(input.getName() + Integer.toString(i)));
 
-            CheckedFuture<Void, ReadFailedException> cf = itDtx.putAndRollbackOnFailure(LogicalDatastoreType.CONFIGURATION, entryIid, data, iid);
+            CheckedFuture<Void, DTxException> cf = itDtx.putAndRollbackOnFailure(LogicalDatastoreType.CONFIGURATION, entryIid, data, iid);
 
             while (!cf.isDone()) ;
         }
@@ -163,7 +164,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
             InstanceIdentifier<DsNaiveRollbackDataEntry> rollbackEntryIid = InstanceIdentifier.create(DsNaiveRollbackData.class)
                     .child(DsNaiveRollbackDataEntry.class, new DsNaiveRollbackDataEntryKey(input.getName()));
 
-            CheckedFuture<Void, ReadFailedException> cf = itDtx.putAndRollbackOnFailure(LogicalDatastoreType.CONFIGURATION, rollbackEntryIid, rolbackDataEntry, iid);
+            CheckedFuture<Void, DTxException> cf = itDtx.putAndRollbackOnFailure(LogicalDatastoreType.CONFIGURATION, rollbackEntryIid, rolbackDataEntry, iid);
         }
 
         if (!testRollback)
@@ -227,7 +228,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
             InterfaceConfiguration config = interfaceConfigurationBuilder.build();
             LOG.info("FM: writing to node {} ifc {} ", n.getValue(), ifname.getValue());
 
-            CheckedFuture<Void, ReadFailedException> done = null;
+            CheckedFuture<Void, DTxException> done = null;
                  done = itDtx.putAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER,
                         LogicalDatastoreType.CONFIGURATION, specificInterfaceCfgIid, config, msNodeId);
              /*
@@ -270,7 +271,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
         InstanceIdentifier<DsNaiveTestDataEntry> entryIid = InstanceIdentifier.create(DsNaiveTestData.class)
                 .child(DsNaiveTestDataEntry.class, new DsNaiveTestDataEntryKey(input.getName() + Integer.toString(keyNumber)));
 
-        CheckedFuture<Void, ReadFailedException> cf = itDtx.putAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER,
+        CheckedFuture<Void, DTxException> cf = itDtx.putAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER,
                 LogicalDatastoreType.CONFIGURATION, entryIid, data, dataStoreNodeId);
 
         while(!cf.isDone()){Thread.yield();}
@@ -358,7 +359,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
             } else {
                 DTx itDtx = this.dTxProvider.newTx(txIidSet);
 
-                CheckedFuture<Void, ReadFailedException> done = itDtx.putAndRollbackOnFailure(LogicalDatastoreType.CONFIGURATION, specificInterfaceCfgIid, config, msNodeId);
+                CheckedFuture<Void, DTxException> done = itDtx.putAndRollbackOnFailure(LogicalDatastoreType.CONFIGURATION, specificInterfaceCfgIid, config, msNodeId);
 
                 int cnt = 0;
 

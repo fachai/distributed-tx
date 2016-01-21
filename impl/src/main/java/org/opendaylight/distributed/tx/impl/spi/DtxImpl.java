@@ -76,7 +76,7 @@ public class DtxImpl implements DTx {
         return typeCacheMap;
     }
 
-    /*  Best effort delete */
+    @Deprecated
     @Override public void delete(final LogicalDatastoreType logicalDatastoreType,
         final InstanceIdentifier<?> instanceIdentifier, final InstanceIdentifier<?> nodeId)
         throws DTxException.EditFailedException {
@@ -87,28 +87,33 @@ public class DtxImpl implements DTx {
         transaction.delete(logicalDatastoreType, instanceIdentifier);
     }
 
+    @Deprecated
     @Override public void delete(final LogicalDatastoreType logicalDatastoreType,
         final InstanceIdentifier<?> instanceIdentifier) throws DTxException.EditFailedException {
         throw new UnsupportedOperationException("Unimplemented");
     }
 
+    @Deprecated
     @Override public <T extends DataObject> void merge(final LogicalDatastoreType logicalDatastoreType,
         final InstanceIdentifier<T> instanceIdentifier, final T t)
         throws DTxException.EditFailedException, DTxException.RollbackFailedException {
         throw new UnsupportedOperationException("Unimplemented");
     }
 
+    @Deprecated
     @Override public <T extends DataObject> void merge(final LogicalDatastoreType logicalDatastoreType,
         final InstanceIdentifier<T> instanceIdentifier, final T t, final boolean b)
         throws DTxException.EditFailedException {
         throw new UnsupportedOperationException("Unimplemented");
     }
 
+    @Deprecated
     @Override public <T extends DataObject> void put(final LogicalDatastoreType logicalDatastoreType,
         final InstanceIdentifier<T> instanceIdentifier, final T t) throws DTxException.EditFailedException {
         throw new UnsupportedOperationException("Unimplemented");
     }
 
+    @Deprecated
     @Override public <T extends DataObject> void put(final LogicalDatastoreType logicalDatastoreType,
         final InstanceIdentifier<T> instanceIdentifier, final T t, final boolean b)
         throws DTxException.EditFailedException {
@@ -116,6 +121,7 @@ public class DtxImpl implements DTx {
 
     }
 
+    @Deprecated
     @Override public <T extends DataObject> void merge(final LogicalDatastoreType logicalDatastoreType,
         final InstanceIdentifier<T> instanceIdentifier, final T t, final InstanceIdentifier<?> nodeId)
         throws DTxException.EditFailedException {
@@ -125,12 +131,14 @@ public class DtxImpl implements DTx {
             transaction.merge(logicalDatastoreType, instanceIdentifier, t);
     }
 
+    @Deprecated
     @Override public <T extends DataObject> void merge(final LogicalDatastoreType logicalDatastoreType,
         final InstanceIdentifier<T> instanceIdentifier, final T t, final boolean b, final InstanceIdentifier<?> nodeId)
         throws DTxException.EditFailedException {
 
     }
 
+    @Deprecated
     @Override public <T extends DataObject> void put(final LogicalDatastoreType logicalDatastoreType,
         final InstanceIdentifier<T> instanceIdentifier, final T t, final InstanceIdentifier<?> nodeId)
         throws DTxException.EditFailedException {
@@ -141,6 +149,7 @@ public class DtxImpl implements DTx {
         transaction.put(logicalDatastoreType, instanceIdentifier, t);
     }
 
+    @Deprecated
     @Override public <T extends DataObject> void put(final LogicalDatastoreType logicalDatastoreType,
         final InstanceIdentifier<T> instanceIdentifier, final T t, final boolean b, final InstanceIdentifier<?> nodeId)
         throws DTxException.EditFailedException {
@@ -188,9 +197,6 @@ public class DtxImpl implements DTx {
                 perNodeCache.put(iid, tmpMap.get(iid));
         }
 
-
-
-        // TODO Extract into a Rollback factory
         Rollback rollback = new RollbackImpl();
         final ListenableFuture<Void> rollbackFuture = rollback.rollback(perNodeCache,
             Maps.transformValues(commitStatus, new Function<PerNodeTxState, ReadWriteTransaction>() {
@@ -495,19 +501,19 @@ public class DtxImpl implements DTx {
     }
 
     @Override
-    public <T extends DataObject> CheckedFuture<Void, ReadFailedException> mergeAndRollbackOnFailure(
+    public <T extends DataObject> CheckedFuture<Void, DTxException> mergeAndRollbackOnFailure(
             final LogicalDatastoreType logicalDatastoreType,
             final InstanceIdentifier<T> instanceIdentifier, final T t, final InstanceIdentifier<?> nodeId){
         return mergeAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, logicalDatastoreType, instanceIdentifier, t, nodeId);
     }
 
-    public <T extends DataObject> CheckedFuture<Void, ReadFailedException> putAndRollbackOnFailure(
+    public <T extends DataObject> CheckedFuture<Void, DTxException> putAndRollbackOnFailure(
             final LogicalDatastoreType logicalDatastoreType,
             final InstanceIdentifier<T> instanceIdentifier, final T t, final InstanceIdentifier<?> nodeId){
         return putAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, logicalDatastoreType, instanceIdentifier, t, nodeId);
     }
 
-    public CheckedFuture<Void, ReadFailedException> deleteAndRollbackOnFailure(final LogicalDatastoreType logicalDatastoreType, final InstanceIdentifier<?> instanceIdentifier,
+    public CheckedFuture<Void, DTxException> deleteAndRollbackOnFailure(final LogicalDatastoreType logicalDatastoreType, final InstanceIdentifier<?> instanceIdentifier,
                                                                                InstanceIdentifier<?> nodeId){
             return this.deleteAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, logicalDatastoreType, instanceIdentifier, nodeId);
     }
@@ -517,13 +523,13 @@ public class DtxImpl implements DTx {
     }
 
     @Override
-    public <T extends DataObject> CheckedFuture<Void, ReadFailedException> mergeAndRollbackOnFailure(DTXLogicalTXProviderType logicalTXProviderType,
+    public <T extends DataObject> CheckedFuture<Void, DTxException> mergeAndRollbackOnFailure(DTXLogicalTXProviderType logicalTXProviderType,
                                                                                                      LogicalDatastoreType logicalDatastoreType,
                                                                                                      InstanceIdentifier<T> instanceIdentifier, T t, InstanceIdentifier<?> nodeId) {
         Preconditions.checkArgument(containsIid(nodeId), "Unknown node: %s. Not in transaction", nodeId);
         final DTXReadWriteTransaction transaction = this.perNodeTransactionsbyLogicalType.get(logicalTXProviderType).get(nodeId);
 
-        CheckedFuture<Void, ReadFailedException> mergeFuture = transaction.asyncMerge(logicalDatastoreType, instanceIdentifier, t);
+        CheckedFuture<Void, DTxException> mergeFuture = transaction.asyncMerge(logicalDatastoreType, instanceIdentifier, t);
 
         final SettableFuture<Void> retFuture = SettableFuture.create();
 
@@ -535,7 +541,6 @@ public class DtxImpl implements DTx {
 
             @Override
             public void onFailure(Throwable throwable) {
-
                 Runnable runnable = new Runnable() {
                     @Override
                     public void run() {
@@ -543,7 +548,7 @@ public class DtxImpl implements DTx {
                         Futures.addCallback(rollExcept, new FutureCallback<Void>() {
                             @Override
                             public void onSuccess(@Nullable Void aVoid) {
-                                retFuture.setException(new ReadFailedException("Failed to merge but succeed to rollback"));
+                                retFuture.setException(new DTxException.EditFailedException("Failed to merge but succeed to rollback"));
                             }
 
                             @Override
@@ -558,22 +563,22 @@ public class DtxImpl implements DTx {
             }
         });
 
-        return Futures.makeChecked(retFuture, new Function<Exception, ReadFailedException>() {
+        return Futures.makeChecked(retFuture, new Function<Exception, DTxException>() {
             @Nullable
             @Override
-            public ReadFailedException apply(@Nullable Exception e) {
-                return new ReadFailedException("Merge failed and rollback", e);
+            public DTxException apply(@Nullable Exception e) {
+                return e instanceof DTxException ? (DTxException)e : new DTxException("Merge failed and rollback failure", e);
             }
         });
     }
 
     @Override
-    public <T extends DataObject> CheckedFuture<Void, ReadFailedException> putAndRollbackOnFailure(DTXLogicalTXProviderType logicalTXProviderType,
+    public <T extends DataObject> CheckedFuture<Void, DTxException> putAndRollbackOnFailure(DTXLogicalTXProviderType logicalTXProviderType,
                 LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, InstanceIdentifier<?> nodeId) {
         Preconditions.checkArgument(containsIid(nodeId), "Unknown node: %s. Not in transaction", nodeId);
         final DTXReadWriteTransaction transaction = this.perNodeTransactionsbyLogicalType.get(logicalTXProviderType).get(nodeId);
         Preconditions.checkArgument(containsIid(nodeId), "Unknown node: %s. Not in transaction", nodeId);
-        CheckedFuture<Void, ReadFailedException> putFuture = transaction.asyncPut(logicalDatastoreType, instanceIdentifier, t);
+        CheckedFuture<Void, DTxException> putFuture = transaction.asyncPut(logicalDatastoreType, instanceIdentifier, t);
 
         final SettableFuture<Void> retFuture = SettableFuture.create();
 
@@ -597,7 +602,7 @@ public class DtxImpl implements DTx {
                             @Override
                             public void onSuccess(@Nullable Void result) {
                                 LOG.info("roll back succeed ");
-                                retFuture.setException(new ReadFailedException("Failed to put but succeed to rollback"));
+                                retFuture.setException(new DTxException.EditFailedException("Failed to put but succeed to rollback"));
                             }
 
                             @Override
@@ -613,22 +618,22 @@ public class DtxImpl implements DTx {
             }
         });
 
-        return Futures.makeChecked(retFuture, new Function<Exception, ReadFailedException>() {
+        return Futures.makeChecked(retFuture, new Function<Exception, DTxException>() {
             @Nullable
             @Override
-            public ReadFailedException apply(@Nullable Exception e) {
-                return new ReadFailedException("Put failed and rollback", e);
+            public DTxException apply(@Nullable Exception e) {
+                return e instanceof DTxException ? (DTxException)e : new DTxException("Put failed and rollback", e);
             }
         });
     }
 
     @Override
-    public CheckedFuture<Void, ReadFailedException> deleteAndRollbackOnFailure(DTXLogicalTXProviderType logicalTXProviderType,
+    public CheckedFuture<Void, DTxException> deleteAndRollbackOnFailure(DTXLogicalTXProviderType logicalTXProviderType,
                     LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<?> instanceIdentifier, InstanceIdentifier<?> nodeId) {
 
         Preconditions.checkArgument(containsIid(nodeId), "Unknown node: %s. Not in transaction", nodeId);
         final DTXReadWriteTransaction transaction = this.perNodeTransactionsbyLogicalType.get(logicalTXProviderType).get(nodeId);
-        CheckedFuture<Void, ReadFailedException> deleteFuture = transaction.asyncDelete(logicalDatastoreType, instanceIdentifier);
+        CheckedFuture<Void, DTxException> deleteFuture = transaction.asyncDelete(logicalDatastoreType, instanceIdentifier);
 
         final SettableFuture<Void> retFuture = SettableFuture.create();
 
@@ -648,7 +653,7 @@ public class DtxImpl implements DTx {
                         Futures.addCallback(rollExcept, new FutureCallback<Void>() {
                             @Override
                             public void onSuccess(@Nullable Void aVoid) {
-                                retFuture.setException(new ReadFailedException("Failed to delete but succeed to rollback"));
+                                retFuture.setException(new DTxException.EditFailedException("Failed to delete but succeed to rollback"));
                             }
 
                             @Override
@@ -663,11 +668,11 @@ public class DtxImpl implements DTx {
             }
         });
 
-        return Futures.makeChecked(retFuture, new Function<Exception, ReadFailedException>() {
+        return Futures.makeChecked(retFuture, new Function<Exception, DTxException>() {
             @Nullable
             @Override
-            public ReadFailedException apply(@Nullable Exception e) {
-                return new ReadFailedException("delete failed and rollback", e);
+            public DTxException apply(@Nullable Exception e) {
+                return e instanceof DTxException ? (DTxException)e : new DTxException("delete failed and rollback failure", e);
             }
         });
     }
