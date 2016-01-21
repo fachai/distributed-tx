@@ -30,7 +30,6 @@ import org.slf4j.LoggerFactory;
 
 public class DTxProviderImpl implements DTxProvider, AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(DTxProviderImpl.class);
-
     private final Set<InstanceIdentifier<?>> devicesInUse = Sets.newHashSet();
     private final Map<Object, DtxReleaseWrapper> currentTxs = Maps.newHashMap();
     private final Map<DTXLogicalTXProviderType, TxProvider> txProviderMap;
@@ -42,7 +41,6 @@ public class DTxProviderImpl implements DTxProvider, AutoCloseable {
     @Nonnull @Override public synchronized DTx newTx(@Nonnull final Set<InstanceIdentifier<?>> nodes)
         throws DTxException.DTxInitializationFailedException {
 
-        LOG.info("FM: Locking nodes for distributed transaction: {}", nodes);
         Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> m = new HashMap<>();
         m.put(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, nodes);
         final DtxReleaseWrapper dtxReleaseWrapper = new DtxReleaseWrapper(new DtxImpl(txProviderMap.get(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER), nodes), m);
@@ -53,7 +51,6 @@ public class DTxProviderImpl implements DTxProvider, AutoCloseable {
     @Nonnull
     @Override
     public DTx newTx(@Nonnull Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap) throws DTxException.DTxInitializationFailedException {
-        LOG.info("FM: Locking nodes for multi type distributed transaction: {} map {}", nodesMap, txProviderMap);
         for(DTXLogicalTXProviderType type : nodesMap.keySet()){
             Preconditions.checkArgument(this.txProviderMap.containsKey(type), "Unknown node: %d. Not in transaction", type);
         }
@@ -226,3 +223,4 @@ public class DTxProviderImpl implements DTxProvider, AutoCloseable {
         }
     }
 }
+
