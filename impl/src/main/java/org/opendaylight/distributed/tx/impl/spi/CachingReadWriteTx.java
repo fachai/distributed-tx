@@ -75,11 +75,11 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
         Futures.addCallback(readFuture, new FutureCallback<Optional<DataObject>>() {
             @Override public void onSuccess(final Optional<DataObject> result) {
                 synchronized (this) {
-                    cache.add(new CachedData(instanceIdentifier, result.get(), ModifyAction.DELETE));
+                    cache.add(new CachedData(instanceIdentifier, result.orNull(), ModifyAction.DELETE));
                 }
 
                 final ListeningExecutorService executorService = MoreExecutors.listeningDecorator(executorPoolPerCache);
-                final ListenableFuture asyncPutFuture = executorService.submit(new Callable() {
+                final ListenableFuture asyncDeleteFuture = executorService.submit(new Callable() {
                     @Override
                     public Object call() throws Exception {
                         delegate.delete(logicalDatastoreType, instanceIdentifier);
@@ -87,16 +87,16 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
                     }
                 });
 
-                Futures.addCallback(asyncPutFuture, new FutureCallback() {
+                Futures.addCallback(asyncDeleteFuture, new FutureCallback() {
                     @Override
                     public void onSuccess(@Nullable Object result) {
                         retFuture.set(null);
-                        LOG.info("asyncPut put done and return !!!!");
+                        LOG.info("async delete done and return !!!!");
                     }
 
                     @Override
                     public void onFailure(Throwable t) {
-                        LOG.info("asyncPut put exception");
+                        LOG.info("async delete exception");
                         retFuture.setException(t);
                     }
                 });
@@ -131,11 +131,11 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
         Futures.addCallback(readFuture, new FutureCallback<Optional<T>>() {
             @Override public void onSuccess(final Optional<T> result) {
                 synchronized (this) {
-                    cache.add(new CachedData(instanceIdentifier, result.get(), ModifyAction.MERGE));
+                    cache.add(new CachedData(instanceIdentifier, result.orNull(), ModifyAction.MERGE));
                 }
 
                 final ListeningExecutorService executorService = MoreExecutors.listeningDecorator(executorPoolPerCache);
-                final ListenableFuture asyncPutFuture = executorService.submit(new Callable() {
+                final ListenableFuture asyncMergeFuture = executorService.submit(new Callable() {
                     @Override
                     public Object call() throws Exception {
                         delegate.merge(logicalDatastoreType, instanceIdentifier, t);
@@ -143,16 +143,16 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
                     }
                 });
 
-                Futures.addCallback(asyncPutFuture, new FutureCallback() {
+                Futures.addCallback(asyncMergeFuture, new FutureCallback() {
                     @Override
                     public void onSuccess(@Nullable Object result) {
                         retFuture.set(null);
-                        LOG.info("asyncPut device put done and return");
+                        LOG.info("async merge device merge done and return");
                     }
 
                     @Override
                     public void onFailure(Throwable t) {
-                        LOG.info("asyncPut device put exception");
+                        LOG.info("async merge device exception");
                         retFuture.setException(t);
                     }
                 });

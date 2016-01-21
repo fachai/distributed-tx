@@ -219,7 +219,7 @@ public class DTxProviderImpl implements DTxProvider, AutoCloseable {
 
         @Override
         public CheckedFuture<Void, ReadFailedException> deleteAndRollbackOnFailure(DTXLogicalTXProviderType logicalTXProviderType, LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<?> instanceIdentifier, InstanceIdentifier<?> nodeId) {
-            return deleteAndRollbackOnFailure(logicalTXProviderType, logicalDatastoreType, instanceIdentifier, nodeId);
+            return delegate.deleteAndRollbackOnFailure(logicalTXProviderType, logicalDatastoreType, instanceIdentifier, nodeId);
         }
     }
 }

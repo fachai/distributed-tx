@@ -63,8 +63,8 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
     private MountPointService mountService;
     Set<NodeId> nodeIdSet = new HashSet<>();
     Map<NodeId, List<InterfaceName>> nodeIfList = new HashMap<>();
-    // List<InterfaceName> nodeIfList = new ArrayList<>();
     private DataBroker xrNodeBroker = null;
+    private int couter = 0;
 
     public static final InstanceIdentifier<Topology> NETCONF_TOPO_IID = InstanceIdentifier
             .create(NetworkTopology.class).child(
@@ -227,8 +227,18 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
             InterfaceConfiguration config = interfaceConfigurationBuilder.build();
             LOG.info("FM: writing to node {} ifc {} ", n.getValue(), ifname.getValue());
 
-            CheckedFuture<Void, ReadFailedException> done = itDtx.putAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER,
-                    LogicalDatastoreType.CONFIGURATION, specificInterfaceCfgIid, config, msNodeId);
+            CheckedFuture<Void, ReadFailedException> done = null;
+                 done = itDtx.putAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER,
+                        LogicalDatastoreType.CONFIGURATION, specificInterfaceCfgIid, config, msNodeId);
+             /*
+            else if(this.couter % 3 == 1) {
+                done = itDtx.mergeAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER,
+                        LogicalDatastoreType.CONFIGURATION, specificInterfaceCfgIid, config, msNodeId);
+            }else{
+                 done = itDtx.deleteAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER,
+                        LogicalDatastoreType.CONFIGURATION, specificInterfaceCfgIid, msNodeId);
+            }
+            */
 
             while (!done.isDone()) {
                 Thread.yield();
@@ -244,6 +254,8 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                 doSumbit = false;
             }
         }
+
+        this.couter++;
 
         // Write to data store
         LOG.info("FM: now writing to data store");
