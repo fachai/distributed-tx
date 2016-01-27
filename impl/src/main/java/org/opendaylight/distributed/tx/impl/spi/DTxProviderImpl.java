@@ -2,7 +2,6 @@ package org.opendaylight.distributed.tx.impl.spi;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.CheckedFuture;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -15,12 +14,12 @@ import javax.annotation.Nonnull;
 
 import org.opendaylight.controller.md.sal.common.api.TransactionStatus;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
-import org.opendaylight.controller.md.sal.common.api.data.ReadFailedException;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
 import org.opendaylight.distributed.tx.api.DTXLogicalTXProviderType;
 import org.opendaylight.distributed.tx.api.DTx;
 import org.opendaylight.distributed.tx.api.DTxException;
 import org.opendaylight.distributed.tx.api.DTxProvider;
+import org.opendaylight.distributed.tx.spi.TransactionLock;
 import org.opendaylight.distributed.tx.spi.TxProvider;
 import org.opendaylight.yangtools.yang.binding.DataObject;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
@@ -30,9 +29,9 @@ import org.slf4j.LoggerFactory;
 
 public class DTxProviderImpl implements DTxProvider, AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(DTxProviderImpl.class);
-    private final Set<InstanceIdentifier<?>> devicesInUse = Sets.newHashSet();
     private final Map<Object, DtxReleaseWrapper> currentTxs = Maps.newHashMap();
     private final Map<DTXLogicalTXProviderType, TxProvider> txProviderMap;
+    private final TransactionLock dtxLock = new DTxTransactionLockImpl();
 
     public DTxProviderImpl(@Nonnull final Map<DTXLogicalTXProviderType, TxProvider> txProviders){
         txProviderMap = txProviders;
@@ -40,22 +39,34 @@ public class DTxProviderImpl implements DTxProvider, AutoCloseable {
 
     @Nonnull @Override public synchronized DTx newTx(@Nonnull final Set<InstanceIdentifier<?>> nodes)
         throws DTxException.DTxInitializationFailedException {
+        boolean lockSucceed = dtxLock.lockDevices(nodes);
+
+        if(!lockSucceed) {
+            throw new DTxException.DTxInitializationFailedException("Failed to lock devices");
+        }
 
         Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> m = new HashMap<>();
         m.put(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, nodes);
-        final DtxReleaseWrapper dtxReleaseWrapper = new DtxReleaseWrapper(new DtxImpl(txProviderMap.get(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER), nodes), m);
+        final DtxReleaseWrapper dtxReleaseWrapper = new DtxReleaseWrapper(new DtxImpl(txProviderMap.get(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER), nodes, dtxLock), m);
         currentTxs.put(dtxReleaseWrapper.getIdentifier(), dtxReleaseWrapper);
+
         return dtxReleaseWrapper;
     }
 
     @Nonnull
     @Override
     public DTx newTx(@Nonnull Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap) throws DTxException.DTxInitializationFailedException {
+        boolean lockSucceed = this.dtxLock.lockDevices(nodesMap);
+
+        if(!lockSucceed) {
+            throw new DTxException.DTxInitializationFailedException("Failed to lock devices");
+        }
+
         for(DTXLogicalTXProviderType type : nodesMap.keySet()){
             Preconditions.checkArgument(this.txProviderMap.containsKey(type), "Unknown node: %d. Not in transaction", type);
         }
 
-        final DtxReleaseWrapper dtxReleaseWrapper = new DtxReleaseWrapper(new DtxImpl(txProviderMap, nodesMap), nodesMap);
+        final DtxReleaseWrapper dtxReleaseWrapper = new DtxReleaseWrapper(new DtxImpl(txProviderMap, nodesMap, dtxLock), nodesMap);
         currentTxs.put(dtxReleaseWrapper.getIdentifier(), dtxReleaseWrapper);
         return dtxReleaseWrapper;
     }

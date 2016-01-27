@@ -17,7 +17,6 @@ import com.google.common.util.concurrent.*;
 import org.opendaylight.controller.md.sal.binding.api.ReadWriteTransaction;
 import org.opendaylight.controller.md.sal.common.api.TransactionStatus;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
-import org.opendaylight.controller.md.sal.common.api.data.ReadFailedException;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
 import org.opendaylight.distributed.tx.api.DTXLogicalTXProviderType;
 import org.opendaylight.distributed.tx.api.DTx;
@@ -34,22 +33,25 @@ public class DtxImpl implements DTx {
     private final Map<DTXLogicalTXProviderType, Map<InstanceIdentifier<?>, CachingReadWriteTx>> perNodeTransactionsbyLogicalType;
     private final Map<DTXLogicalTXProviderType, TxProvider>txProviderMap;
     private final Map<InstanceIdentifier<?>, ReadWriteTransaction> readWriteTxMap= new HashMap<InstanceIdentifier<?>, ReadWriteTransaction>();
+    private final TransactionLock deviceLock;
 
-    public DtxImpl(@Nonnull final TxProvider txProvider, @Nonnull final Set<InstanceIdentifier<?>> nodes) {
+    public DtxImpl(@Nonnull final TxProvider txProvider, @Nonnull final Set<InstanceIdentifier<?>> nodes, TransactionLock lock) {
         Preconditions.checkArgument(!nodes.isEmpty(), "Cannot create distributed tx for 0 nodes");
         txProviderMap = new HashMap<>();
         this.txProviderMap.put(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, txProvider);
         Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> internalNodeMap = new HashMap<>(1);
         internalNodeMap.put(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, nodes);
         this.perNodeTransactionsbyLogicalType =  initializeTransactionsPerLogicalType(this.txProviderMap, internalNodeMap);
+        this.deviceLock = lock;
     }
 
-    public DtxImpl(@Nonnull final Map<DTXLogicalTXProviderType, TxProvider>providerMap,
-                   @Nonnull final Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap) {
+    public DtxImpl(@Nonnull final Map<DTXLogicalTXProviderType, TxProvider> providerMap,
+                   @Nonnull final Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap, TransactionLock lock) {
         Preconditions.checkArgument(!nodesMap.values().isEmpty(), "Cannot create distributed tx for 0 nodes");
         Preconditions.checkArgument(nodesMap.keySet().equals(providerMap.keySet()), "logicalType sets of txporider and nodes are different");
         this.txProviderMap = providerMap;
         perNodeTransactionsbyLogicalType = initializeTransactionsPerLogicalType(providerMap, nodesMap);
+        this.deviceLock = lock;
     }
 
     private TxProvider getTxProviderByType(DTXLogicalTXProviderType type){
@@ -180,8 +182,6 @@ public class DtxImpl implements DTx {
         });
     }
 
-    // TODO extract all the anonymous Functions/Callbacks into static classes (maybe constants) if possible
-
     /**
      * Perform submit rollback with the caches and empty rollback transactions for every node
      */
@@ -230,6 +230,17 @@ public class DtxImpl implements DTx {
                 return new DTxException.RollbackFailedException(input);
             }
         });
+    }
+
+    private void dtxReleaseDevices(){
+        Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> devices = Maps.transformValues(perNodeTransactionsbyLogicalType, new Function<Map<InstanceIdentifier<?>, CachingReadWriteTx>, Set<InstanceIdentifier<?>>>() {
+            @Nullable
+            @Override
+            public Set<InstanceIdentifier<?>> apply(@Nullable Map<InstanceIdentifier<?>, CachingReadWriteTx> input) {
+                return input.keySet();
+            }
+        });
+        deviceLock.releaseDevices(devices);
     }
 
     @Deprecated
@@ -383,6 +394,7 @@ public class DtxImpl implements DTx {
                     case SUCCESS: {
                         distributedSubmitFuture.set(null);
                         this.releaseTx();
+                        deviceLock.releaseDevices(this.commitStatus.keySet());
                         return;
                     }
                     default: {
@@ -395,12 +407,14 @@ public class DtxImpl implements DTx {
                     @Override public void onSuccess(@Nullable final Void result) {
                         LOG.info("Distributed tx failed for {}. Rollback was successful", perNodeTx.getKey());
                         distributedSubmitFuture.setException(e);
+                        deviceLock.releaseDevices(commitStatus.keySet());
                     }
 
                     @Override public void onFailure(final Throwable t) {
                         LOG.warn("Distributed tx filed. Rollback FAILED. Device(s) state is unknown", t);
                         // t should be rollback failed EX
                         distributedSubmitFuture.setException(t);
+                        deviceLock.releaseDevices(commitStatus.keySet());
                     }
                 });
             }
@@ -548,11 +562,13 @@ public class DtxImpl implements DTx {
                         Futures.addCallback(rollExcept, new FutureCallback<Void>() {
                             @Override
                             public void onSuccess(@Nullable Void aVoid) {
+                                dtxReleaseDevices();
                                 retFuture.setException(new DTxException.EditFailedException("Failed to merge but succeed to rollback"));
                             }
 
                             @Override
                             public void onFailure(Throwable throwable) {
+                                dtxReleaseDevices();
                                 retFuture.setException(throwable);
                             }
                         });
@@ -602,6 +618,7 @@ public class DtxImpl implements DTx {
                             @Override
                             public void onSuccess(@Nullable Void result) {
                                 LOG.info("roll back succeed ");
+                                dtxReleaseDevices();
                                 retFuture.setException(new DTxException.EditFailedException("Failed to put but succeed to rollback"));
                             }
 
@@ -609,6 +626,7 @@ public class DtxImpl implements DTx {
                             public void onFailure(Throwable t) {
                                 LOG.info("roll back failed ");
                                 retFuture.setException(t);
+                                dtxReleaseDevices();
                             }
                         });
                     }
@@ -653,11 +671,13 @@ public class DtxImpl implements DTx {
                         Futures.addCallback(rollExcept, new FutureCallback<Void>() {
                             @Override
                             public void onSuccess(@Nullable Void aVoid) {
+                                dtxReleaseDevices();
                                 retFuture.setException(new DTxException.EditFailedException("Failed to delete but succeed to rollback"));
                             }
 
                             @Override
                             public void onFailure(Throwable throwable) {
+                                dtxReleaseDevices();
                                 retFuture.setException(throwable);
                             }
                         });

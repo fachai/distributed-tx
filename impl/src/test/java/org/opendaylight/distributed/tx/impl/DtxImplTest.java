@@ -6,7 +6,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.opendaylight.controller.md.sal.binding.api.ReadWriteTransaction;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
-import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
 import org.opendaylight.distributed.tx.api.DTxException;
 import org.opendaylight.distributed.tx.impl.spi.DtxImpl;
 import org.opendaylight.distributed.tx.spi.TxException;
@@ -15,7 +14,6 @@ import org.opendaylight.yangtools.yang.binding.DataContainer;
 import org.opendaylight.yangtools.yang.binding.DataObject;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 
-import javax.annotation.Nonnull;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -62,7 +60,7 @@ public class DtxImplTest{
         s.add(n2);
         this.n0 = InstanceIdentifier.create(TestClassNode.class);
 
-        dtxImpl = new DtxImpl(new myTxProvider(), s);
+        // dtxImpl = new DtxImpl(new myTxProvider(), s, new );
     }
 
     @Before

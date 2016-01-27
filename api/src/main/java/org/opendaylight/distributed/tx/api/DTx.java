@@ -23,6 +23,7 @@ public interface DTx extends WriteTransaction {
      * @throws DTxException.EditFailedException thrown when delete fails, but rollback was successful
      * @throws DTxException.RollbackFailedException  thrown when delete fails and rollback fails as well
      */
+    @Deprecated
     void delete(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<?> instanceIdentifier,
         InstanceIdentifier<?> nodeId) throws DTxException.EditFailedException, DTxException.RollbackFailedException;
     ;
@@ -35,6 +36,7 @@ public interface DTx extends WriteTransaction {
      *
      * {@inheritDoc}
      */
+    @Deprecated
     @Override void delete(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<?> instanceIdentifier)
         throws DTxException.EditFailedException;
 
@@ -46,27 +48,34 @@ public interface DTx extends WriteTransaction {
 
     // TODO Document and add Rollback failed to declaration
 
+    @Deprecated
     @Override <T extends DataObject> void merge(LogicalDatastoreType logicalDatastoreType,
         InstanceIdentifier<T> instanceIdentifier, T t, boolean b) throws DTxException.EditFailedException;
 
+    @Deprecated
     @Override <T extends DataObject> void put(LogicalDatastoreType logicalDatastoreType,
         InstanceIdentifier<T> instanceIdentifier, T t) throws DTxException.EditFailedException;
 
+    @Deprecated
     @Override <T extends DataObject> void put(LogicalDatastoreType logicalDatastoreType,
         InstanceIdentifier<T> instanceIdentifier, T t, boolean b) throws DTxException.EditFailedException;
 
+    @Deprecated
     <T extends DataObject> void merge(LogicalDatastoreType logicalDatastoreType,
         InstanceIdentifier<T> instanceIdentifier, T t, InstanceIdentifier<?> nodeId) throws
         DTxException.EditFailedException;
 
+    @Deprecated
     <T extends DataObject> void merge(LogicalDatastoreType logicalDatastoreType,
         InstanceIdentifier<T> instanceIdentifier, T t, boolean b, InstanceIdentifier<?> nodeId) throws
         DTxException.EditFailedException;
 
+    @Deprecated
     <T extends DataObject> void put(LogicalDatastoreType logicalDatastoreType,
         InstanceIdentifier<T> instanceIdentifier, T t, InstanceIdentifier<?> nodeId) throws
         DTxException.EditFailedException;
 
+    @Deprecated
     <T extends DataObject> void put(LogicalDatastoreType logicalDatastoreType,
         InstanceIdentifier<T> instanceIdentifier, T t, boolean b, InstanceIdentifier<?> nodeId) throws
         DTxException.EditFailedException;
