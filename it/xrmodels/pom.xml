@@ -8,9 +8,9 @@ and is available at http://www.eclipse.org/legal/epl-v10.html
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
-        <groupId>org.opendaylight.yangtools</groupId>
+        <groupId>org.opendaylight.mdsal</groupId>
         <artifactId>binding-parent</artifactId>
-        <version>0.7.2-Lithium-SR2</version>
+        <version>0.8.0-Beryllium-RC0</version>
         <relativePath/>
     </parent>
 
@@ -19,12 +19,6 @@ and is available at http://www.eclipse.org/legal/epl-v10.html
     <artifactId>distributed-tx-it-xrmodel</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>bundle</packaging>
-
-  <properties>
-    <mdsal.version>1.2.2-Lithium-SR2</mdsal.version>
-  </properties>
-
-
 
 
 </project>
