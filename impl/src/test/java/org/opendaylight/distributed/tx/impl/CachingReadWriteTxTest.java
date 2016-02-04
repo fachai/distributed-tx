@@ -1,10 +1,12 @@
 package org.opendaylight.distributed.tx.impl;
 
+import com.google.common.base.Optional;
 import com.google.common.util.concurrent.CheckedFuture;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
+import org.opendaylight.controller.md.sal.common.api.data.ReadFailedException;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
 import org.opendaylight.distributed.tx.api.DTxException;
 import org.opendaylight.distributed.tx.impl.spi.CachingReadWriteTx;
@@ -25,6 +27,48 @@ public class CachingReadWriteTxTest {
     @Test
     public void testConstructor() {
        new CachingReadWriteTx(testTx);
+    }
+
+    /**
+     * test data exist in n0, successfully read the data
+     */
+    @Test
+    public void testReadWithObjEx()
+    {
+        testTx.createObjForIdentifier(n0);
+        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(testTx);
+        Optional<DTXTestTransaction.myDataObj> readData = Optional.absent();
+
+        CheckedFuture<Optional<DTXTestTransaction.myDataObj>, ReadFailedException> readResult = cacheRWTx.read(LogicalDatastoreType.OPERATIONAL, n0);
+        try{
+            readData = readResult.checkedGet();
+        }catch (Exception e)
+        {
+            fail("get the unexpected exception from the read method");
+        }
+
+        Assert.assertTrue("Can't read from the transaction", readData.isPresent());
+    }
+
+    /**
+     * test data exist in n0, when read the data, exception occur
+     */
+    @Test
+    public void testReadFailWithObjEx()
+    {
+        testTx.createObjForIdentifier(n0);
+        CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(testTx);
+        testTx.setReadException(n0, true);
+        Optional<DTXTestTransaction.myDataObj> readData = Optional.absent();
+
+        CheckedFuture<Optional<DTXTestTransaction.myDataObj>, ReadFailedException> readResult = cacheRWTx.read(LogicalDatastoreType.OPERATIONAL, n0);
+        try{
+            readData = readResult.checkedGet();
+            fail("can't get the exception from the transaction");
+        }catch (Exception e)
+        {
+            Assert.assertTrue("type of exception is wrong", e instanceof ReadFailedException);
+        }
     }
 
     /**
@@ -231,17 +275,10 @@ public class CachingReadWriteTxTest {
         CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(testTx);
 
         CheckedFuture<Void, DTxException> f1 =  cacheRWTx.asyncPut(LogicalDatastoreType.OPERATIONAL, n0, new DTXTestTransaction.myDataObj());
-        try
-        {
-            f1.checkedGet();
-        }catch (Exception e)
-        {
-            fail("get the unexpected exception the test fail");
-        }
-
         CheckedFuture<Void, DTxException> f2 = cacheRWTx.asyncDelete(LogicalDatastoreType.OPERATIONAL, n0);
         try
         {
+             f1.checkedGet();
              f2.checkedGet();
         }catch (Exception e)
         {

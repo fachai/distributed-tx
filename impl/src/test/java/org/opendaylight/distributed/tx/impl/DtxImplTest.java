@@ -34,22 +34,22 @@ public class DtxImplTest{
     InstanceIdentifier<TestClassNode2> netConfNode2; //netconf nodeId2
     InstanceIdentifier<TestClassNode3> dataStoreNode1; //dataStore nodeId1
     InstanceIdentifier<TestClassNode4> dataStoreNode2; //dataStore nodeId2
-    InstanceIdentifier<TestClassNode> n0, n1, n2, n3, n4, n5, n6, n7, n8, n9; //different identifiers in the same node
+    InstanceIdentifier<TestClassNode> n0, n1, n2, n3, n4, n5, n6, n7, n8, n9; //different data identifiers
 
-    DTXTestTransaction internalDtxNetconfTestTx1; //transaction for node1 of the Netconf tx provider
-    DTXTestTransaction internalDtxNetconfTestTx2; //transaction for node2  of the Netconf tx provider
-    DTXTestTransaction internalDtxDataStoreTestTx1; //transaction for node1 of the Datastore tx provider
-    DTXTestTransaction internalDtxDataStoreTestTx2; //transaction for node2 of the Datastore tx provider
+    DTXTestTransaction internalDtxNetconfTestTx1; //transaction for node1 of the Netconf txProvider
+    DTXTestTransaction internalDtxNetconfTestTx2; //transaction for node2  of the Netconf txProvider
+    DTXTestTransaction internalDtxDataStoreTestTx1; //transaction for node1 of the Datastore txProvider
+    DTXTestTransaction internalDtxDataStoreTestTx2; //transaction for node2 of the Datastore txProvider
 
     Set<InstanceIdentifier<?>> netconfNodes; //netconf nodeId set
     Set<InstanceIdentifier<?>> dataStoreNodes; //datastore nodeId set
     List<InstanceIdentifier<TestClassNode>> identifiers; //identifier list
-    DtxImpl dtxImpl1; //dtx for netconf nodes
-    DtxImpl dtxImpl2; //dtx for both netconf and datastore nodes
+    DtxImpl dtxImpl1; //dtx instance for netconf nodes
+    DtxImpl dtxImpl2; //dtx instance for both netconf and datastore nodes
     ExecutorService threadPool; //use for multithread testing
 
     private class myNetconfTxProvider implements TxProvider{
-        private boolean createTxException = false;
+        private boolean createTxException = false; //when it is true creating the transaction will throw an exception
         @Override
         public ReadWriteTransaction newTx(InstanceIdentifier<?> nodeId) throws TxException.TxInitiatizationFailedException {
             if(!createTxException)
@@ -112,8 +112,8 @@ public class DtxImplTest{
 
     /**
      * test two different constructors of the DtxImpl
-     * first one create a dtx only for netconf nodes
-     * second one create a dtx for both netconf and datastore nodes
+     * first one create a dtx instance only for netconf nodes
+     * second one create a dtx instance for both netconf and datastore nodes
      */
     private void testInit(){
         netconfNodes = new HashSet<>();
@@ -167,24 +167,17 @@ public class DtxImplTest{
     }
 
     /**
-     *simulate the case no data exist in all the nodes of the dtxImpl1, successfully put data in them
+     *simulate the case no data exist in all the nodes of the dtxImpl1, successfully put data into them
      */
     @Test
     public void testPutAndRollbackOnFailureInDtxImpl1() {
         int numberOfObjs = (int)(Math.random()*10) + 1;
         for (int i = 0; i < numberOfObjs ; i++) {
             CheckedFuture<Void, DTxException> f1 = dtxImpl1.putAndRollbackOnFailure(LogicalDatastoreType.OPERATIONAL, n0, new TestClassNode(), netConfNode1);
-            try
-            {
-                f1.checkedGet();
-            }catch (Exception e)
-            {
-                fail("get unexpected exception from the putAndRollbackOnFailure method");
-            }
-
             CheckedFuture<Void, DTxException> f2 = dtxImpl1.putAndRollbackOnFailure(LogicalDatastoreType.OPERATIONAL, n0, new TestClassNode(), netConfNode2);
             try
             {
+                f1.checkedGet();
                 f2.checkedGet();
             }catch (Exception e)
             {
@@ -194,7 +187,7 @@ public class DtxImplTest{
 
         int expectedDataSizeInTx1 = 1, expectedDataSizeInTx2 = 1;
         Assert.assertEquals("size of netConfNode1 data is wrong", expectedDataSizeInTx1, internalDtxNetconfTestTx1.getTxDataSize(n0));
-        Assert.assertEquals("size of netConfNode2 data is wrong", expectedDataSizeInTx2, internalDtxNetconfTestTx1.getTxDataSize(n0));
+        Assert.assertEquals("size of netConfNode2 data is wrong", expectedDataSizeInTx2, internalDtxNetconfTestTx2.getTxDataSize(n0));
     }
 
     /**
@@ -223,14 +216,14 @@ public class DtxImplTest{
 
         int expectedDataSizeInNetconfTx1 = 1, expectedDataSizeInNetconfTx2 = 1, expectedDataSizeInDataStoreTx1 = 1, expecteddataSizeInDataStoreTx2 = 1;
         Assert.assertEquals("size of netConfNode1 data is wrong", expectedDataSizeInNetconfTx1, internalDtxNetconfTestTx1.getTxDataSize(n0));
-        Assert.assertEquals("size of netConfNode2 data is wrong", expectedDataSizeInNetconfTx2, internalDtxNetconfTestTx1.getTxDataSize(n0));
+        Assert.assertEquals("size of netConfNode2 data is wrong", expectedDataSizeInNetconfTx2, internalDtxNetconfTestTx2.getTxDataSize(n0));
         Assert.assertEquals("size of dataStoreNode1 data is wrong", expectedDataSizeInDataStoreTx1, internalDtxDataStoreTestTx1.getTxDataSize(n0));
         Assert.assertEquals("size of dataStoreNode2 data is wrong", expecteddataSizeInDataStoreTx2, internalDtxDataStoreTestTx2.getTxDataSize(n0));
     }
 
     /**
      *simulate the case no data in both netConfNode1 and netConfNode2 of the dtxImpl1
-     *then try to put data in the two nodes
+     *then try to put data into the two nodes
      *after successfully put data in netConfNode1, netConfNode2 hit error the transaction fail but rollback succeed
      *at last no data in both netConfNode1 and netConfNode2
      */
@@ -263,8 +256,8 @@ public class DtxImplTest{
 
     /**
      *simulate the case no data in all the nodes of the dtxImpl2
-     *then try to put data in the all the nodes
-     *after successfully put data in netConfNode1, netConfNode2 and dataStoreNode1, dataStoreNode2 hit error the transaction fail but rollback succeed
+     *then try to put data into all the nodes
+     *after successfully put data into netConfNode1, netConfNode2 and dataStoreNode1, dataStoreNode2 hit error the transaction fail but rollback succeed
      *at last no data in all the nodes
      */
     @Test
@@ -296,7 +289,7 @@ public class DtxImplTest{
         int expectedDataSizeInNetconfTx1 = 0, expectedDataSizeInNetconfTx2 = 0, expectedDataSizeInDataStoreTx1 = 0, expectedDataSizeInDataStoreTx2 = 0;
         Assert.assertEquals("Size of the identifier n0's data in netConfNode1 is wrong", expectedDataSizeInNetconfTx1, internalDtxNetconfTestTx1.getTxDataSize(n0));
         Assert.assertEquals("Size of the identifier n0's data in netConfNode2 is wrong", expectedDataSizeInNetconfTx2, internalDtxNetconfTestTx2.getTxDataSize(n0));
-        Assert.assertEquals("Size of the identifier n0's data in dataStoreNode1 is wrong", expectedDataSizeInDataStoreTx1, internalDtxDataStoreTestTx2.getTxDataSize(n0));
+        Assert.assertEquals("Size of the identifier n0's data in dataStoreNode1 is wrong", expectedDataSizeInDataStoreTx1, internalDtxDataStoreTestTx1.getTxDataSize(n0));
         Assert.assertEquals("Size of the identifier n0's data in dataStoreNode2 is wrong", expectedDataSizeInDataStoreTx2, internalDtxDataStoreTestTx2.getTxDataSize(n0));
     }
 
@@ -327,7 +320,7 @@ public class DtxImplTest{
 
     /**
      * simulate the case data exist in netConfNode1 and netConfNode2 of the dtxImpl2
-     * try to put data in the dataStoreNode1 and dataStoreNode2
+     * try to put data into the dataStoreNode1 and dataStoreNode2
      * the operation on dataStoreNode2 hit error and rollback succeed
      */
     @Test
@@ -356,14 +349,14 @@ public class DtxImplTest{
         int expectedDataSizeInNetconfTx1 = 1, expectedDataSizeInNetconfTx2 = 1, expectedDataSizeInDataStoreTx1 = 0, expectedDataSizeInDataStoreTx2 = 0;
         Assert.assertEquals("Size of the identifier n0's data in netConfNode1 is wrong", expectedDataSizeInNetconfTx1, internalDtxNetconfTestTx1.getTxDataSize(n0));
         Assert.assertEquals("Size of the identifier n0's data in netConfNode2 is wrong", expectedDataSizeInNetconfTx2, internalDtxNetconfTestTx2.getTxDataSize(n0));
-        Assert.assertEquals("Size of the identifier n0's data in dataStoreNode1 is wrong", expectedDataSizeInDataStoreTx1, internalDtxDataStoreTestTx2.getTxDataSize(n0));
+        Assert.assertEquals("Size of the identifier n0's data in dataStoreNode1 is wrong", expectedDataSizeInDataStoreTx1, internalDtxDataStoreTestTx1.getTxDataSize(n0));
         Assert.assertEquals("Size of the identifier n0's data in dataStoreNode2 is wrong", expectedDataSizeInDataStoreTx2, internalDtxDataStoreTestTx2.getTxDataSize(n0));
     }
 
     /**
      *simulate the case in which no data in netConfNode1 and netConfNode2 of dtxImpl1 at the beginning,
      *successfully put the data in netConfNode1
-     *then try to put data in netConfNode2, but an exception occur and begin to rollback
+     *then try to put data into netConfNode2, but an exception occur and begin to rollback
      *when roll back in netConfNode2, submit exception occur and the rollback fail
      */
     @Test
@@ -391,7 +384,7 @@ public class DtxImplTest{
     }
 
     /**
-     * simulate the case in which try to put data in dataStoreNode2, operation fail and rollback fail
+     * simulate the case in which try to put data into dataStoreNode2, operation fail and rollback fail
      */
     @Test
     public void testPutAndRollbackOnFailureWithoutObjExRollbackFailInDtxImpl2() {
@@ -408,7 +401,7 @@ public class DtxImplTest{
     }
 
     /**
-     * test the case multi threads try to put data in different identifiers in the same transaction
+     * test the case multi threads try to put data into different identifiers in the same transaction
      */
     @Test
     public void testConcurrentPutAndRollbackOnFailureWithoutObjExInDtxImpl1(){
@@ -444,7 +437,7 @@ public class DtxImplTest{
     }
     /**
      *simulate the case no data exist in netConfNode1 and netConfNode2 at the beginning
-     *we successfully merge data in netConfNode1 and netConfNode2
+     *we successfully merge data into netConfNode1 and netConfNode2
      */
     @Test
     public void testMergeAndRollbackOnFailureInDtxImpl1()  {
@@ -464,12 +457,12 @@ public class DtxImplTest{
 
         int expectedDataSizeInTx1 = 1, expectedDataSizeInTx2 = 1;
         Assert.assertEquals("size of netConfNode1 data is wrong", expectedDataSizeInTx1, internalDtxNetconfTestTx1.getTxDataSize(n0));
-        Assert.assertEquals("size of netConfNode2 data is wrong", expectedDataSizeInTx2, internalDtxNetconfTestTx1.getTxDataSize(n0));
+        Assert.assertEquals("size of netConfNode2 data is wrong", expectedDataSizeInTx2, internalDtxNetconfTestTx2.getTxDataSize(n0));
     }
 
     /**
      * simulate the case no data in all the nodes of dtxImpl2
-     * put data in all of the nodes
+     * put data into all of the nodes
      */
     @Test
     public void testMergeAndRollbackOnFailureInDtxImpl2()  {
@@ -494,15 +487,15 @@ public class DtxImplTest{
 
         int expectedDataSizeInNetConfTx1 = 1, expectedDataSizeInNetConfTx2 = 1, expectedDataSizeInDataStoreTx1 = 1, expectedDataSizeInDataStoreTx2 = 1;
         Assert.assertEquals("size of netConfNode1 data is wrong", expectedDataSizeInNetConfTx1, internalDtxNetconfTestTx1.getTxDataSize(n0));
-        Assert.assertEquals("size of netConfNode2 data is wrong", expectedDataSizeInNetConfTx2, internalDtxNetconfTestTx1.getTxDataSize(n0));
+        Assert.assertEquals("size of netConfNode2 data is wrong", expectedDataSizeInNetConfTx2, internalDtxNetconfTestTx2.getTxDataSize(n0));
         Assert.assertEquals("size of dataStoreNode1 data is wrong", expectedDataSizeInDataStoreTx1, internalDtxDataStoreTestTx1.getTxDataSize(n0));
         Assert.assertEquals("size of dataStoreNode2 data is wrong", expectedDataSizeInDataStoreTx2, internalDtxDataStoreTestTx2.getTxDataSize(n0));
     }
 
     /**
      *test the case in which no data exist in netConfNode1 and netConfNode2
-     *successfully merge data in netConfNode1
-     *when try to merge data in netConfNode2 hit error
+     *successfully merge data into netConfNode1
+     *when try to merge data into netConfNode2 hit error
      *rollback succeed and at last no data exist in netConfNode1 and netConfNode2
      */
     @Test
@@ -533,7 +526,7 @@ public class DtxImplTest{
 
     /**
      * test the case no data exist in all the nodes of the dtxImpl2
-     * try to put data in them, when manipulate the data in dataStoreNode2, exception occur
+     * try to put data into them, when manipulate the data in dataStoreNode2, exception occur
      * rollback succeed
      */
     @Test
@@ -565,14 +558,14 @@ public class DtxImplTest{
 
         int expectedDataSizeInNetConfTx1 = 0, expectedDataSizeInNetConfTx2 = 0, expectedDataSizeInDataStoreTx1 = 0, expectedDataSizeInDataStoreTx2 = 0;
         Assert.assertEquals("size of netConfNode1 data is wrong", expectedDataSizeInNetConfTx1, internalDtxNetconfTestTx1.getTxDataSize(n0));
-        Assert.assertEquals("size of netConfNode2 data is wrong", expectedDataSizeInNetConfTx2, internalDtxNetconfTestTx1.getTxDataSize(n0));
+        Assert.assertEquals("size of netConfNode2 data is wrong", expectedDataSizeInNetConfTx2, internalDtxNetconfTestTx2.getTxDataSize(n0));
         Assert.assertEquals("size of dataStoreNode1 data is wrong", expectedDataSizeInDataStoreTx1, internalDtxDataStoreTestTx1.getTxDataSize(n0));
         Assert.assertEquals("size of dataStoreNode2 data is wrong", expectedDataSizeInDataStoreTx2, internalDtxDataStoreTestTx2.getTxDataSize(n0));
     }
 
     /**
      *test the case in which data exist in netConfNode1, but no data in netConfNode2
-     *when try to merge data in netConfNode2, it hit error
+     *when try to merge data into netConfNode2, it hit error
      *rollback succeed and at last original data is back to netConfNode1 and no data in netConfNode2
      */
     @Test
@@ -596,7 +589,7 @@ public class DtxImplTest{
 
     /**
      * test the case in which data exist in netConfNode1, netConfNode2
-     * try to put data in dataStoreNode1 and Node2, operation on Node2 fail
+     * try to put data into dataStoreNode1 and Node2, operation on Node2 fail
      * rollback succeed
      */
     @Test
@@ -623,14 +616,14 @@ public class DtxImplTest{
 
         int expectedDataSizeInNetConfTx1 = 1, expectedDataSizeInNetConfTx2 = 1, expectedDataSizeInDataStoreTx1 = 0, expectedDataSizeInDataStoreTx2 = 0;
         Assert.assertEquals("size of netConfNode1 data is wrong", expectedDataSizeInNetConfTx1, internalDtxNetconfTestTx1.getTxDataSize(n0));
-        Assert.assertEquals("size of netConfNode2 data is wrong", expectedDataSizeInNetConfTx2, internalDtxNetconfTestTx1.getTxDataSize(n0));
+        Assert.assertEquals("size of netConfNode2 data is wrong", expectedDataSizeInNetConfTx2, internalDtxNetconfTestTx2.getTxDataSize(n0));
         Assert.assertEquals("size of dataStoreNode1 data is wrong", expectedDataSizeInDataStoreTx1, internalDtxDataStoreTestTx1.getTxDataSize(n0));
         Assert.assertEquals("size of dataStoreNode2 data is wrong", expectedDataSizeInDataStoreTx2, internalDtxDataStoreTestTx2.getTxDataSize(n0));
     }
 
     /**
      *simulate the case no data exist in both netConfNode1 and netConfNode2
-     * successfully merge data in netConfNode1, but hit error when merge data in netConfNode2
+     * successfully merge data into netConfNode1, but hit error when merge data in netConfNode2
      * rollback meet submit error in transaction2, rollback fail too
      */
     @Test
@@ -657,7 +650,7 @@ public class DtxImplTest{
 
     /**
      * simulate the case no data exist in  all the nodes
-     * try to merge data in dataStoreNode2
+     * try to merge data into dataStoreNode2
      * error occur and rollback fail
      */
     @Test
@@ -760,7 +753,7 @@ public class DtxImplTest{
 
         int expectedDataSizeInNetConfTx1 = 0, expectedDataSizeInNetConfTx2 = 0, expectedDataSizeInDataStoreTx1 = 0, expectedDataSizeInDataStoreTx2 = 0;
         Assert.assertEquals("size of netConfNode1 data is wrong", expectedDataSizeInNetConfTx1, internalDtxNetconfTestTx1.getTxDataSize(n0));
-        Assert.assertEquals("size of netConfNode2 data is wrong", expectedDataSizeInNetConfTx2, internalDtxNetconfTestTx1.getTxDataSize(n0));
+        Assert.assertEquals("size of netConfNode2 data is wrong", expectedDataSizeInNetConfTx2, internalDtxNetconfTestTx2.getTxDataSize(n0));
         Assert.assertEquals("size of dataStoreNode1 data is wrong", expectedDataSizeInDataStoreTx1, internalDtxDataStoreTestTx1.getTxDataSize(n0));
         Assert.assertEquals("size of dataStoreNode2 data is wrong", expectedDataSizeInDataStoreTx2, internalDtxDataStoreTestTx2.getTxDataSize(n0));
     }
@@ -836,7 +829,7 @@ public class DtxImplTest{
 
         int expectedDataSizeInNetConfTx1 = 1, expectedDataSizeInNetConfTx2 = 1, expectedDataSizeInDataStoreTx1 = 1, expectedDataSizeInDataStoreTx2 = 1;
         Assert.assertEquals("size of netConfNode1 data is wrong", expectedDataSizeInNetConfTx1, internalDtxNetconfTestTx1.getTxDataSize(n0));
-        Assert.assertEquals("size of netConfNode2 data is wrong", expectedDataSizeInNetConfTx2, internalDtxNetconfTestTx1.getTxDataSize(n0));
+        Assert.assertEquals("size of netConfNode2 data is wrong", expectedDataSizeInNetConfTx2, internalDtxNetconfTestTx2.getTxDataSize(n0));
         Assert.assertEquals("size of dataStoreNode1 data is wrong", expectedDataSizeInDataStoreTx1, internalDtxDataStoreTestTx1.getTxDataSize(n0));
         Assert.assertEquals("size of dataStoreNode2 data is wrong", expectedDataSizeInDataStoreTx2, internalDtxDataStoreTestTx2.getTxDataSize(n0));
     }
@@ -1038,7 +1031,7 @@ public class DtxImplTest{
     }
 
     /**
-     * put data in all the nodes in dtxImpl2
+     * put data into all the nodes in dtxImpl2
      * rollback successfully
      * no data exist in all the nodes
      */
@@ -1068,13 +1061,13 @@ public class DtxImplTest{
         }
         int expectedDataSizeInNetConfTx1 = 0, expectedDataSizeInNetConfTx2 = 0, expectedDataSizeInDataStoreTx1 = 0, expectedDataSizeInDataStoreTx2 = 0;
         Assert.assertEquals("size of netConfNode1 data is wrong", expectedDataSizeInNetConfTx1, internalDtxNetconfTestTx1.getTxDataSize(n0));
-        Assert.assertEquals("size of netConfNode2 data is wrong", expectedDataSizeInNetConfTx2, internalDtxNetconfTestTx1.getTxDataSize(n0));
+        Assert.assertEquals("size of netConfNode2 data is wrong", expectedDataSizeInNetConfTx2, internalDtxNetconfTestTx2.getTxDataSize(n0));
         Assert.assertEquals("size of dataStoreNode1 data is wrong", expectedDataSizeInDataStoreTx1, internalDtxDataStoreTestTx1.getTxDataSize(n0));
         Assert.assertEquals("size of dataStoreNode2 data is wrong", expectedDataSizeInDataStoreTx2, internalDtxDataStoreTestTx2.getTxDataSize(n0));
     }
 
     /**
-     *put data in netConfNode1 and netConfNode2
+     *put data into netConfNode1 and netConfNode2
      *invoke rollback
      *when rollback netConfNode2 transaction, submit exception occur
      *rollback fail
@@ -1230,7 +1223,7 @@ public class DtxImplTest{
        }
         int expectedDataSizeInNetConfTx1 = 0, expectedDataSizeInNetConfTx2 = 0, expectedDataSizeInDataStoreTx1 = 0, expectedDataSizeInDataStoreTx2 = 0;
         Assert.assertEquals("size of netConfNode1 data is wrong", expectedDataSizeInNetConfTx1, internalDtxNetconfTestTx1.getTxDataSize(n0));
-        Assert.assertEquals("size of netConfNode2 data is wrong", expectedDataSizeInNetConfTx2, internalDtxNetconfTestTx1.getTxDataSize(n0));
+        Assert.assertEquals("size of netConfNode2 data is wrong", expectedDataSizeInNetConfTx2, internalDtxNetconfTestTx2.getTxDataSize(n0));
         Assert.assertEquals("size of dataStoreNode1 data is wrong", expectedDataSizeInDataStoreTx1, internalDtxDataStoreTestTx1.getTxDataSize(n0));
         Assert.assertEquals("size of dataStoreNode2 data is wrong", expectedDataSizeInDataStoreTx2, internalDtxDataStoreTestTx2.getTxDataSize(n0));
     }
@@ -1276,7 +1269,7 @@ public class DtxImplTest{
 
     /**
      * simulate the case data exist in netConfNode1, netConfNode2 and dataStoreNode1, no data exist in dataStoreNode2
-     * successfully delete all the data in netConfNode1, netCOnfNode2 and dataStoreNode1, and put data in dataStoreNode2
+     * successfully delete all the data in netConfNode1, netCOnfNode2 and dataStoreNode1, and put data into dataStoreNode2
      * when try to submit the change, exception occur but rollback succeed
      */
     @Test
@@ -1312,13 +1305,13 @@ public class DtxImplTest{
 
         int expectedDataSizeInNetConfTx1 = 1, expectedDataSizeInNetConfTx2 = 1, expectedDataSizeInDataStoreTx1 = 1, expectedDataSizeInDataStoreTx2 = 0;
         Assert.assertEquals("size of netConfNode1 data is wrong", expectedDataSizeInNetConfTx1, internalDtxNetconfTestTx1.getTxDataSize(n0));
-        Assert.assertEquals("size of netConfNode2 data is wrong", expectedDataSizeInNetConfTx2, internalDtxNetconfTestTx1.getTxDataSize(n0));
+        Assert.assertEquals("size of netConfNode2 data is wrong", expectedDataSizeInNetConfTx2, internalDtxNetconfTestTx2.getTxDataSize(n0));
         Assert.assertEquals("size of dataStoreNode1 data is wrong", expectedDataSizeInDataStoreTx1, internalDtxDataStoreTestTx1.getTxDataSize(n0));
         Assert.assertEquals("size of dataStoreNode2 data is wrong", expectedDataSizeInDataStoreTx2, internalDtxDataStoreTestTx2.getTxDataSize(n0));
     }
 
     /**
-     *put data in netConfNode1 and netConfNode2
+     *put data into netConfNode1 and netConfNode2
      *netConfNode2 submit fail and rollback but rollback hit delete exception and rollback fail
      */
     @Test

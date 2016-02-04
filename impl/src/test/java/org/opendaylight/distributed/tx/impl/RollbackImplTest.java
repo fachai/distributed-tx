@@ -8,7 +8,6 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.opendaylight.controller.md.sal.binding.api.ReadWriteTransaction;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
-import org.opendaylight.controller.md.sal.common.api.data.ReadFailedException;
 import org.opendaylight.distributed.tx.api.DTxException;
 import org.opendaylight.distributed.tx.impl.spi.CachingReadWriteTx;
 import org.opendaylight.distributed.tx.impl.spi.RollbackImpl;
@@ -62,8 +61,8 @@ public class RollbackImplTest {
      */
     @Test
     public void testRollBack() {
-        DTXTestTransaction testTransaction1 = new DTXTestTransaction();
-        DTXTestTransaction testTransaction2 = new DTXTestTransaction();
+        final DTXTestTransaction testTransaction1 = new DTXTestTransaction();
+        final DTXTestTransaction testTransaction2 = new DTXTestTransaction();
 
         final CachingReadWriteTx cachingReadWriteTx1 = new CachingReadWriteTx(testTransaction1); //nodeId1 caching transaction
         final CachingReadWriteTx cachingReadWriteTx2 = new CachingReadWriteTx(testTransaction2); //nodeId2 caching transaction
@@ -81,18 +80,18 @@ public class RollbackImplTest {
             f4.checkedGet();
 
             //check if all the data has been put into the transactions
-            Assert.assertEquals(1,testTransaction1.getTxDataSize(identifier1));
-            Assert.assertEquals(1,testTransaction1.getTxDataSize(identifier2));
-            Assert.assertEquals(1,testTransaction2.getTxDataSize(identifier1));
-            Assert.assertEquals(1,testTransaction2.getTxDataSize(identifier2));
+            Assert.assertEquals("can't put the data into the identifier1 of testTransaction1", 1,testTransaction1.getTxDataSize(identifier1));
+            Assert.assertEquals("can't put the data into the identifier2 of testTransaction1", 1,testTransaction1.getTxDataSize(identifier2));
+            Assert.assertEquals("can't put the data into the identifier1 of testTransaction2", 1,testTransaction2.getTxDataSize(identifier1));
+            Assert.assertEquals("can't put the data into the identifier2 of testTransaction2", 1,testTransaction2.getTxDataSize(identifier2));
         }catch (Exception e)
         {
             fail("get the unexpected exception from the asyncPut");
         }
 
-        Set<InstanceIdentifier<?>> s = Sets.newHashSet(node1, node2);
-        Map<InstanceIdentifier<?>, ? extends CachingReadWriteTx> perNodeTransactions; //this map store every node transaction
-        perNodeTransactions = Maps.toMap(s, new Function<InstanceIdentifier<?>, CachingReadWriteTx>() {
+        Set<InstanceIdentifier<?>> s = Sets.newHashSet(node1, node2); //set of test nodes
+        Map<InstanceIdentifier<?>, ? extends CachingReadWriteTx> perNodeCaches; //this map store every node cached data
+        perNodeCaches = Maps.toMap(s, new Function<InstanceIdentifier<?>, CachingReadWriteTx>() {
             @Nullable
             @Override
             public CachingReadWriteTx apply(@Nullable InstanceIdentifier<?> instanceIdentifier) {
@@ -100,8 +99,17 @@ public class RollbackImplTest {
             }
         });
 
+        Map<InstanceIdentifier<?>, ReadWriteTransaction> perNodeRollbackTxs; //this map store every node rollback transaction
+        perNodeRollbackTxs = Maps.toMap(s, new Function<InstanceIdentifier<?>, ReadWriteTransaction>() {
+            @Nullable
+            @Override
+            public ReadWriteTransaction apply(@Nullable InstanceIdentifier<?> instanceIdentifier) {
+                return instanceIdentifier == node1 ? testTransaction1 : testTransaction2;
+            }
+        });
+
         RollbackImpl testRollBack = new RollbackImpl();
-        CheckedFuture<Void, DTxException.RollbackFailedException> rollBackFut = testRollBack.rollback(perNodeTransactions, perNodeTransactions);
+        CheckedFuture<Void, DTxException.RollbackFailedException> rollBackFut = testRollBack.rollback(perNodeCaches, perNodeRollbackTxs);
 
         try
         {
@@ -132,21 +140,21 @@ public class RollbackImplTest {
         try
         {
             f.checkedGet();
-            Assert.assertEquals(1, testTransaction.getTxDataSize(identifier1));
+            Assert.assertEquals("can't put the data into the test transaction", 1, testTransaction.getTxDataSize(identifier1));
         }catch (Exception e)
         {
             fail("get unexpected exception from the AsyncPut");
         }
 
-        //perNodeCaches a map store every node caching data
+        //perNodeCaches a map store every node cached data
         Map<InstanceIdentifier<?>, CachingReadWriteTx> perNodeCaches = Maps.newHashMap();
         perNodeCaches.put(node1, cachingReadWriteTx);
 
-        //delete exception rollback will fail
+        //delete exception occur rollback fail
         testTransaction.setDeleteException(identifier1,true);
 
         Map<InstanceIdentifier<?>, ReadWriteTransaction> perNodeRollbackTxs = Maps.newHashMap();
-        perNodeRollbackTxs.put(node1, testTransaction); // perNodeRollbackTx store each node transaction for rollback
+        perNodeRollbackTxs.put(node1, testTransaction); // perNodeRollbackTxs store each rollback transaction
 
         RollbackImpl testRollback = new RollbackImpl();
         CheckedFuture<Void, DTxException.RollbackFailedException> rollbackFuture =  testRollback.rollback(perNodeCaches,perNodeRollbackTxs);
@@ -157,7 +165,6 @@ public class RollbackImplTest {
         }catch (Exception e)
         {
             Assert.assertTrue("type of exception is wrong", e instanceof DTxException.RollbackFailedException);
-            System.out.println(e.getMessage());
         }
     }
 
@@ -168,58 +175,38 @@ public class RollbackImplTest {
      */
     @Test
     public void testRollbackFailWithSubmitException() {
-        DTXTestTransaction testTransaction1 = new DTXTestTransaction(); //node1 delegate transaction
-        DTXTestTransaction testTransaction2 = new DTXTestTransaction(); //node2 delegate transaction
+        DTXTestTransaction testTransaction = new DTXTestTransaction();
+        CachingReadWriteTx cachingReadWriteTx = new CachingReadWriteTx(testTransaction); // node1 caching transaction
 
-        final CachingReadWriteTx cachingReadWriteTx1 = new CachingReadWriteTx(testTransaction1); //nodeId1 caching transaction
-        final CachingReadWriteTx cachingReadWriteTx2 = new CachingReadWriteTx(testTransaction2); //nodeId2 caching transaction
-
-        CheckedFuture<Void, DTxException> f1 = cachingReadWriteTx1.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
-        CheckedFuture<Void, DTxException> f2 = cachingReadWriteTx1.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier2, new TestData2());
-        CheckedFuture<Void, DTxException> f3 = cachingReadWriteTx2.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
-        CheckedFuture<Void, DTxException> f4 = cachingReadWriteTx2.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier2, new TestData2());
-
+        CheckedFuture<Void, DTxException> f = cachingReadWriteTx.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
         try
         {
-            f1.checkedGet();
-            f2.checkedGet();
-            f3.checkedGet();
-            f4.checkedGet();
-
-            //check if all the data has been put into the transactions
-            Assert.assertEquals(1,testTransaction1.getTxDataSize(identifier1));
-            Assert.assertEquals(1,testTransaction1.getTxDataSize(identifier2));
-            Assert.assertEquals(1,testTransaction2.getTxDataSize(identifier1));
-            Assert.assertEquals(1,testTransaction2.getTxDataSize(identifier2));
+            f.checkedGet();
+            Assert.assertEquals("can't put the data into the test transaction", 1, testTransaction.getTxDataSize(identifier1));
         }catch (Exception e)
         {
-            fail("get the unexpected exception from the asyncPut");
+            fail("get unexpected exception from the AsyncPut");
         }
 
-        //nodes set
-        Set<InstanceIdentifier<?>> s = Sets.newHashSet(node1, node2);
-        //map store every node transaction and the caching data
-        Map<InstanceIdentifier<?>, ? extends CachingReadWriteTx> perNodeTransactions;
+        //perNodeCaches a map store every node cached data
+        Map<InstanceIdentifier<?>, CachingReadWriteTx> perNodeCaches = Maps.newHashMap();
+        perNodeCaches.put(node1, cachingReadWriteTx);
 
-        perNodeTransactions = Maps.toMap(s, new Function<InstanceIdentifier<?>, CachingReadWriteTx>() {
-            @Nullable
-            @Override
-            public CachingReadWriteTx apply(@Nullable InstanceIdentifier<?> instanceIdentifier) {
-                return instanceIdentifier == node1? cachingReadWriteTx1:cachingReadWriteTx2;
-            }
-        });
+        //submit exception occur rollback fail
+        testTransaction.setSubmitException(true);
 
-        testTransaction2.setSubmitException(true);
-        RollbackImpl testRollBack = new RollbackImpl();
-        CheckedFuture<Void, DTxException.RollbackFailedException> rollBackFut = testRollBack.rollback(perNodeTransactions, perNodeTransactions);
+        Map<InstanceIdentifier<?>, ReadWriteTransaction> perNodeRollbackTxs = Maps.newHashMap();
+        perNodeRollbackTxs.put(node1, testTransaction); // perNodeRollbackTxs store each rollback transaction
 
-        try
-        {
-            rollBackFut.checkedGet();
-            fail("can't get the exception from the rollback");
+        RollbackImpl testRollback = new RollbackImpl();
+        CheckedFuture<Void, DTxException.RollbackFailedException> rollbackFuture =  testRollback.rollback(perNodeCaches,perNodeRollbackTxs);
+
+        try{
+            rollbackFuture.checkedGet();
+            fail("can't get the exception from the failed rollback");
         }catch (Exception e)
         {
-            Assert.assertTrue("type of exception from the rollback is wrong", e instanceof DTxException.RollbackFailedException);
+            Assert.assertTrue("type of exception is wrong", e instanceof DTxException.RollbackFailedException);
         }
     }
 }
