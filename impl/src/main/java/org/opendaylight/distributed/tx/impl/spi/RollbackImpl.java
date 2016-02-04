@@ -13,6 +13,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.opendaylight.controller.md.sal.binding.api.ReadWriteTransaction;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
+import org.opendaylight.distributed.tx.api.DTXLogicalTXProviderType;
 import org.opendaylight.distributed.tx.api.DTxException;
 import org.opendaylight.distributed.tx.spi.CachedData;
 import org.opendaylight.distributed.tx.spi.Rollback;
@@ -28,63 +29,66 @@ public class RollbackImpl implements Rollback {
     private static final Logger LOG = LoggerFactory.getLogger(RollbackImpl.class);
 
     @Override public CheckedFuture<Void, DTxException.RollbackFailedException> rollback(
-        @Nonnull final Map<InstanceIdentifier<?>, ? extends TxCache> perNodeCaches,
-        @Nonnull final Map<InstanceIdentifier<?>, ? extends ReadWriteTransaction> perNodeRollbackTxs) {
+            @Nonnull final Map<InstanceIdentifier<?>, ? extends TxCache> perNodeCachesByType,
+            // @Nonnull final Map<DTXLogicalTXProviderType, Map<InstanceIdentifier<?>, ? extends TxCache>> perNodeCachesByType,
+            @Nonnull final Map<InstanceIdentifier<?>, ? extends ReadWriteTransaction> perNodeRollbackTxs) {
 
         final List<ListenableFuture<Void>> perNodeRollbackSubmitFutures = Lists.newArrayListWithCapacity(perNodeRollbackTxs.size());
 
-        for (final Map.Entry<InstanceIdentifier<?>, ? extends TxCache> perNodeCacheEntry : perNodeCaches.entrySet()) {
-            InstanceIdentifier<?> nodeId = perNodeCacheEntry.getKey();
-            TxCache perNodeCache = perNodeCacheEntry.getValue();
+        // for (DTXLogicalTXProviderType type : perNodeCachesByType.keySet()) {
+        //    Map<InstanceIdentifier<?>, ? extends TxCache> perNodeCaches = perNodeCachesByType.get(type);
+            for (final Map.Entry<InstanceIdentifier<?>, ? extends TxCache> perNodeCacheEntry : perNodeCachesByType.entrySet()) {
+                InstanceIdentifier<?> nodeId = perNodeCacheEntry.getKey();
+                TxCache perNodeCache = perNodeCacheEntry.getValue();
 
-            final ReadWriteTransaction perNodeRollbackTx = perNodeRollbackTxs.get(nodeId);
-            for (CachedData cachedData : perNodeCache) {
+                final ReadWriteTransaction perNodeRollbackTx = perNodeRollbackTxs.get(nodeId);
+                for (CachedData cachedData : perNodeCache) {
 
-                // FIXME how to fix the incorrect capture types for IID and DataObject in the put call below ??
-                final InstanceIdentifier<DataObject> dataId = (InstanceIdentifier<DataObject>) cachedData.getId();
+                    // FIXME how to fix the incorrect capture types for IID and DataObject in the put call below ??
+                    final InstanceIdentifier<DataObject> dataId = (InstanceIdentifier<DataObject>) cachedData.getId();
 
-                ModifyAction revertAction = getRevertAction(cachedData.getOperation(), cachedData.getData());
+                    ModifyAction revertAction = getRevertAction(cachedData.getOperation(), cachedData.getData());
 
-                switch (revertAction) {
-                case REPLACE: {
-                    try {
-                        perNodeRollbackTx.put(cachedData.getDsType(), dataId, cachedData.getData().get());
-                        break;
-                    } catch (Exception e) {
-                        return Futures.immediateFailedCheckedFuture(new DTxException.RollbackFailedException(String
-                            .format("Unable to rollback change for node: %s, %s data: %s. Node in unknown state.",
-                                perNodeCacheEntry.getKey(), revertAction, dataId), e));
+                    LOG.info("perNodeCache {}", revertAction);
+                    switch (revertAction) {
+                        case REPLACE: {
+                            try {
+                                perNodeRollbackTx.put(cachedData.getDsType(), dataId, cachedData.getData().get());
+                                break;
+                            } catch (Exception e) {
+                                return Futures.immediateFailedCheckedFuture(new DTxException.RollbackFailedException(String
+                                        .format("Unable to rollback change for node: %s, %s data: %s. Node in unknown state.",
+                                                perNodeCacheEntry.getKey(), revertAction, dataId), e));
+                            }
+                        }
+                        case DELETE: {
+                            try {
+                                // FIXME doing this on a netconf device with candidate might result in a failure
+                                // (for the device where submit failed, the state was automatically rolledback)
+                                // So we should read the data first if we really need to roll back
+                                perNodeRollbackTx.delete(cachedData.getDsType(), dataId);
+                                break;
+                            } catch (Exception e) {
+                                return Futures.immediateFailedCheckedFuture(new DTxException.RollbackFailedException(String
+                                        .format("Unable to rollback change for node: %s, %s data: %s. Node in unknown state.",
+                                                perNodeCacheEntry.getKey(), revertAction, dataId), e));
+                            }
+                        }
+                        case NONE: {
+                            break;
+                        }
+                        default: {
+                            return Futures.immediateFailedCheckedFuture(new DTxException.RollbackFailedException(
+                                    "Unable to handle rollback for node: " + perNodeCacheEntry.getKey() +
+                                            ", revert action: " + revertAction + ". Unknown operation type"));
+                        }
                     }
                 }
-                case DELETE: {
-                    try {
-                        // FIXME doing this on a netconf device with candidate might result in a failure
-                        // (for the device where submit failed, the state was automatically rolledback)
-                        // So we should read the data first if we really need to roll back
-                        perNodeRollbackTx.delete(cachedData.getDsType(), dataId);
-                        break;
-                    } catch (Exception e) {
-                        return Futures.immediateFailedCheckedFuture(new DTxException.RollbackFailedException(String
-                            .format("Unable to rollback change for node: %s, %s data: %s. Node in unknown state.",
-                                perNodeCacheEntry.getKey(), revertAction, dataId), e));
-                    }
-
-                }
-                case NONE: {
-                    break;
-                }
-                default: {
-                    return Futures.immediateFailedCheckedFuture(new DTxException.RollbackFailedException(
-                        "Unable to handle rollback for node: " + perNodeCacheEntry.getKey() +
-                            ", revert action: " + revertAction + ". Unknown operation type"));
-                }
-                }
+                final CheckedFuture<Void, TransactionCommitFailedException> perNodeRollbackSumitFuture = perNodeRollbackTx.submit();
+                perNodeRollbackSubmitFutures.add(perNodeRollbackSumitFuture);
+                Futures.addCallback(perNodeRollbackSumitFuture, new LoggingRollbackCallback(perNodeCacheEntry.getKey()));
             }
-
-            final CheckedFuture<Void, TransactionCommitFailedException> perNodeRollbackSumitFuture = perNodeRollbackTx.submit();
-            perNodeRollbackSubmitFutures.add(perNodeRollbackSumitFuture);
-            Futures.addCallback(perNodeRollbackSumitFuture, new LoggingRollbackCallback(perNodeCacheEntry.getKey()));
-        }
+        //}
 
         return aggregateRollbackFutures(perNodeRollbackSubmitFutures);
     }

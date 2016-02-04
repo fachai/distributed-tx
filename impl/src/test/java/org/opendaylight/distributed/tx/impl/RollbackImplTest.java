@@ -68,10 +68,10 @@ public class RollbackImplTest {
         final CachingReadWriteTx cachingReadWriteTx1 = new CachingReadWriteTx(testTransaction1); //nodeId1 caching transaction
         final CachingReadWriteTx cachingReadWriteTx2 = new CachingReadWriteTx(testTransaction2); //nodeId2 caching transaction
 
-        CheckedFuture<Void, ReadFailedException> f1 = cachingReadWriteTx1.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
-        CheckedFuture<Void, ReadFailedException> f2 = cachingReadWriteTx1.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier2, new TestData2());
-        CheckedFuture<Void, ReadFailedException> f3 = cachingReadWriteTx2.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
-        CheckedFuture<Void, ReadFailedException> f4 = cachingReadWriteTx2.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier2, new TestData2());
+        CheckedFuture<Void, DTxException> f1 = cachingReadWriteTx1.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
+        CheckedFuture<Void, DTxException> f2 = cachingReadWriteTx1.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier2, new TestData2());
+        CheckedFuture<Void, DTxException> f3 = cachingReadWriteTx2.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
+        CheckedFuture<Void, DTxException> f4 = cachingReadWriteTx2.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier2, new TestData2());
 
         try
         {
@@ -128,7 +128,7 @@ public class RollbackImplTest {
         DTXTestTransaction testTransaction = new DTXTestTransaction();
         CachingReadWriteTx cachingReadWriteTx = new CachingReadWriteTx(testTransaction); // node1 caching transaction
 
-        CheckedFuture<Void, ReadFailedException> f = cachingReadWriteTx.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1,new TestData1());
+        CheckedFuture<Void, DTxException> f = cachingReadWriteTx.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1,new TestData1());
         try
         {
             f.checkedGet();
@@ -143,7 +143,7 @@ public class RollbackImplTest {
         perNodeCaches.put(node1, cachingReadWriteTx);
 
         //delete exception rollback will fail
-        testTransaction.setDeleteException(true);
+        testTransaction.setDeleteException(identifier1,true);
 
         Map<InstanceIdentifier<?>, ReadWriteTransaction> perNodeRollbackTxs = Maps.newHashMap();
         perNodeRollbackTxs.put(node1, testTransaction); // perNodeRollbackTx store each node transaction for rollback
@@ -174,10 +174,10 @@ public class RollbackImplTest {
         final CachingReadWriteTx cachingReadWriteTx1 = new CachingReadWriteTx(testTransaction1); //nodeId1 caching transaction
         final CachingReadWriteTx cachingReadWriteTx2 = new CachingReadWriteTx(testTransaction2); //nodeId2 caching transaction
 
-        CheckedFuture<Void, ReadFailedException> f1 = cachingReadWriteTx1.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
-        CheckedFuture<Void, ReadFailedException> f2 = cachingReadWriteTx1.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier2, new TestData2());
-        CheckedFuture<Void, ReadFailedException> f3 = cachingReadWriteTx2.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
-        CheckedFuture<Void, ReadFailedException> f4 = cachingReadWriteTx2.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier2, new TestData2());
+        CheckedFuture<Void, DTxException> f1 = cachingReadWriteTx1.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
+        CheckedFuture<Void, DTxException> f2 = cachingReadWriteTx1.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier2, new TestData2());
+        CheckedFuture<Void, DTxException> f3 = cachingReadWriteTx2.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
+        CheckedFuture<Void, DTxException> f4 = cachingReadWriteTx2.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier2, new TestData2());
 
         try
         {

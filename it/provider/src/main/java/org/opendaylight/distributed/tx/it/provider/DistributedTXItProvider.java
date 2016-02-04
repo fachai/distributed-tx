@@ -1,5 +1,7 @@
 package org.opendaylight.distributed.tx.it.provider;
 
+import org.opendaylight.controller.md.sal.binding.api.DataBroker;
+import org.opendaylight.controller.md.sal.binding.api.MountPointService;
 import org.opendaylight.controller.sal.binding.api.BindingAwareBroker;
 import org.opendaylight.controller.sal.binding.api.BindingAwareProvider;
 import org.opendaylight.distributed.tx.api.DTxProvider;
@@ -11,10 +13,11 @@ public class DistributedTXItProvider implements BindingAwareProvider, AutoClosea
     private final org.slf4j.Logger log = LoggerFactory.getLogger(DistributedTXItProvider.class);
     private BindingAwareBroker.RpcRegistration<DistributedTxItModelService> dtxItModelService;
     DTxProvider dTxProvider;
+    private DataBroker dataBroker;
+    private MountPointService mountService;
 
     public  DistributedTXItProvider(DTxProvider provider){
         this.dTxProvider = provider;
-        log.info("FM: constructing DistributedTXItProvider");
     }
     @Override
     public void close() throws Exception {
@@ -23,8 +26,9 @@ public class DistributedTXItProvider implements BindingAwareProvider, AutoClosea
 
     @Override
     public void onSessionInitiated(BindingAwareBroker.ProviderContext session) {
-        this.dtxItModelService = session.addRpcImplementation(DistributedTxItModelService.class, new DistributedTxProviderImpl(this.dTxProvider));
-        log.info("FM: Service Distributed tx IT provider statred");
+        this.dataBroker = session.getSALService(DataBroker.class);
+        this.mountService = session.getSALService(MountPointService.class);
+        this.dtxItModelService = session.addRpcImplementation(DistributedTxItModelService.class, new DistributedTxProviderImpl(this.dTxProvider, this.dataBroker, this.mountService));
     }
 }
 

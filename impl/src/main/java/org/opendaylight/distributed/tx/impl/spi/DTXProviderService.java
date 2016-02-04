@@ -2,6 +2,7 @@ package org.opendaylight.distributed.tx.impl.spi;
 
 import org.opendaylight.controller.sal.binding.api.BindingAwareBroker;
 import org.opendaylight.controller.sal.binding.api.BindingAwareConsumer;
+import org.opendaylight.distributed.tx.api.DTXLogicalTXProviderType;
 import org.opendaylight.distributed.tx.api.DTx;
 import org.opendaylight.distributed.tx.api.DTxException;
 import org.opendaylight.distributed.tx.api.DTxProvider;
@@ -10,41 +11,46 @@ import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
-import java.util.logging.Logger;
 
 public class DTXProviderService implements DTxProvider, AutoCloseable, BindingAwareConsumer{
     private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(DTXProviderService.class);
-    DTxProviderImpl dtxProvider;
     TxProvider mountServiceProvider;
+    TxProvider dataStoreServiceProvider;
+    DTxProviderImpl dtxProviderImpl;
+    final private Map<DTXLogicalTXProviderType, TxProvider> txProviderMap = new HashMap<>();
 
-    public DTXProviderService(TxProvider msProvider) {
+    public DTXProviderService(TxProvider msProvider, TxProvider dsProvider) {
         this.mountServiceProvider = msProvider;
-        this.dtxProvider = new DTxProviderImpl(this.mountServiceProvider);
-        LOG.info("FM: constructing dtx provider.");
+        this.dataStoreServiceProvider = dsProvider;
+        this.txProviderMap.put(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, this.dataStoreServiceProvider);
+        this.txProviderMap.put(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, this.mountServiceProvider);
+        this.dtxProviderImpl = new DTxProviderImpl(this.txProviderMap);
     }
 
     @Nonnull
     @Override
     public DTx newTx(@Nonnull Set<InstanceIdentifier<?>> nodes) throws DTxException.DTxInitializationFailedException {
-        LOG.info("FM: DTXPrividerService new dtx.");
-        return this.dtxProvider.newTx(nodes);
+        return this.dtxProviderImpl.newTx(nodes);
     }
 
     @Nonnull
     @Override
-    public void test() {
-        this.dtxProvider.test();
+    public DTx newTx(@Nonnull Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodes) throws DTxException.DTxInitializationFailedException {
+        return this.dtxProviderImpl.newTx(nodes);
     }
 
     @Override
     public void close() throws Exception {
-        this.dtxProvider = null;
         this.mountServiceProvider= null;
+        this.dataStoreServiceProvider= null;
     }
 
     @Override
     public void onSessionInitialized(BindingAwareBroker.ConsumerContext session){
-        LOG.info("FM: DTXPrividerService started.");
+        LOG.info("DTXPrividerService started.");
     }
 }
+

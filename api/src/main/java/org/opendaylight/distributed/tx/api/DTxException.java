@@ -73,4 +73,13 @@ public class DTxException extends RuntimeException {
             return failedSubmits;
         }
     }
+
+    public static class ReadFailedException extends  DTxException{
+        public ReadFailedException(String s, Throwable e) {
+            super(s, e);
+        }
+        public ReadFailedException(String s) {
+            super(s);
+        }
+    }
 }

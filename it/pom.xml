@@ -21,6 +21,7 @@ and is available at http://www.eclipse.org/legal/epl-v10.html
     <modules>
         <module>model</module>
         <module>provider</module>
+	    <module>xrmodels</module>
     </modules>
 
 </project>

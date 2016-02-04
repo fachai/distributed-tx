@@ -32,6 +32,15 @@ module distributed-tx-impl {
                     }
                 }
             }
+
+            container data-store-tx-provider {
+                uses config:service-ref {
+                    refine type {
+                        mandatory true;
+                        config:required-identity distributed-tx-spi:tx-provider;
+                    }
+                }
+            }
         }
     }
 }

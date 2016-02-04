@@ -5,6 +5,7 @@ import org.opendaylight.controller.md.sal.binding.api.ReadWriteTransaction;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
 import org.opendaylight.controller.md.sal.common.api.data.ReadFailedException;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
+import org.opendaylight.distributed.tx.api.DTxException;
 import org.opendaylight.yangtools.yang.binding.DataObject;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 
@@ -13,11 +14,11 @@ import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
  */
 public interface  DTXReadWriteTransaction extends  ReadWriteTransaction{
 
-    <T extends DataObject> CheckedFuture<Void, ReadFailedException> asyncPut(final LogicalDatastoreType logicalDatastoreType,
-                                                                                    final InstanceIdentifier<T> instanceIdentifier, final T t) ;
-    <T extends DataObject> CheckedFuture<Void, ReadFailedException>asyncMerge(final LogicalDatastoreType logicalDatastoreType,
+    <T extends DataObject> CheckedFuture<Void, DTxException> asyncPut(final LogicalDatastoreType logicalDatastoreType,
+                                                                      final InstanceIdentifier<T> instanceIdentifier, final T t) ;
+    <T extends DataObject> CheckedFuture<Void, DTxException>asyncMerge(final LogicalDatastoreType logicalDatastoreType,
                                                                                      final InstanceIdentifier<T> instanceIdentifier, final T t) ;
-    CheckedFuture<Void, ReadFailedException> asyncDelete(final LogicalDatastoreType logicalDatastoreType,
+    CheckedFuture<Void, DTxException> asyncDelete(final LogicalDatastoreType logicalDatastoreType,
                                                                 final InstanceIdentifier<?> instanceIdentifier) ;
     @Override void delete(final LogicalDatastoreType logicalDatastoreType,
                                  final InstanceIdentifier<?> instanceIdentifier) ;

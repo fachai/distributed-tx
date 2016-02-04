@@ -1,5 +1,6 @@
 package org.opendaylight.distributed.tx.api;
 
+import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nonnull;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
@@ -33,6 +34,5 @@ public interface DTxProvider {
      * TODO maybe break down the initialization ex
      */
     @Nonnull DTx newTx(@Nonnull Set<InstanceIdentifier<?>> nodes) throws DTxException.DTxInitializationFailedException;
-    @Nonnull void test ();
-
+    @Nonnull DTx newTx(@Nonnull Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodes) throws DTxException.DTxInitializationFailedException;
 }

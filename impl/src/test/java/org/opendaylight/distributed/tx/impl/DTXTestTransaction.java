@@ -22,21 +22,33 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class DTXTestTransaction implements ReadWriteTransaction {
-    boolean readException = false;
-    boolean putException = false;
-    boolean mergeException = false;
-    boolean deleteException = false;
+    Map<InstanceIdentifier<?>, Boolean> readExceptionMap = new HashMap<>();
+    Map<InstanceIdentifier<?>, Boolean> putExceptionMap = new HashMap<>();
+    Map<InstanceIdentifier<?>, Boolean> mergeExceptionMap = new HashMap<>();
+    Map<InstanceIdentifier<?>, Boolean> deleteExceptionMap = new HashMap<>();
     boolean submitException = false;
 
     private Map<InstanceIdentifier<?>,ArrayList<DataObject>> txDataMap = new HashMap<>();
 
-    public void setReadException(boolean ept){
-        this.readException = ept;
+    public void setReadException(InstanceIdentifier<?> instanceIdentifier, boolean ept){
+        this.readExceptionMap.put(instanceIdentifier, ept);
     }
-    public void setPutException(boolean ept) {this.putException = ept;}
-    public void setMergeException(boolean ept) {this.mergeException = ept;}
-    public void setDeleteException(boolean ept) {this.deleteException = ept;}
-    public void setSubmitException(boolean ept) { this.submitException = ept;}
+    public void setPutException(InstanceIdentifier<?> instanceIdentifier, boolean ept)
+    {
+        this.putExceptionMap.put(instanceIdentifier, ept);
+    }
+    public void setMergeException(InstanceIdentifier<?> instanceIdentifier, boolean ept)
+    {
+        this.mergeExceptionMap.put(instanceIdentifier, ept);
+    }
+    public void setDeleteException(InstanceIdentifier<?> instanceIdentifier, boolean ept)
+    {
+        this.deleteExceptionMap.put(instanceIdentifier, ept);
+    }
+    public void setSubmitException( boolean ept)
+    {
+        this.submitException = ept;
+    }
 
     /**
      * this method is used to get the data size of the specific instanceIdentifier
@@ -64,6 +76,9 @@ public class DTXTestTransaction implements ReadWriteTransaction {
         if(txDataMap.containsKey(instanceIdentifier) && txDataMap.get(instanceIdentifier).size() > 0)
             obj = (T)txDataMap.get(instanceIdentifier).get(0);
 
+        if(!readExceptionMap.containsKey(instanceIdentifier))
+            readExceptionMap.put(instanceIdentifier, false);
+
         final Optional<T> retOpt = Optional.fromNullable(obj);
 
         final SettableFuture<Optional<T>> retFuture = SettableFuture.create();
@@ -76,11 +91,10 @@ public class DTXTestTransaction implements ReadWriteTransaction {
                     e.printStackTrace();
                 }
 
-                if (!readException){
-                    //fixme should set the instance of T
+                if (!readExceptionMap.get(instanceIdentifier)){
                     retFuture.set(retOpt);
                 }else {
-                    setReadException(false); //it ensure all the exception will occur once
+                    setReadException(instanceIdentifier,false); //it ensure all the exception will occur once
                     retFuture.setException(new Throwable("simulated error"));
                 }
                 retFuture.notifyAll();
@@ -105,12 +119,15 @@ public class DTXTestTransaction implements ReadWriteTransaction {
        if(!txDataMap.containsKey(instanceIdentifier))
            txDataMap.put(instanceIdentifier, new ArrayList<DataObject>());
 
-       if(!putException) {
+       if(!putExceptionMap.containsKey(instanceIdentifier))
+           putExceptionMap.put(instanceIdentifier,false);
+
+       if(!putExceptionMap.get(instanceIdentifier)) {
            txDataMap.get(instanceIdentifier).clear();
            txDataMap.get(instanceIdentifier).add(t);
        }
         else {
-           setPutException(false);
+           setPutException(instanceIdentifier, false);
            throw new RuntimeException(" put exception");
        }
     }
@@ -120,13 +137,16 @@ public class DTXTestTransaction implements ReadWriteTransaction {
         if(!txDataMap.containsKey(instanceIdentifier))
             txDataMap.put(instanceIdentifier, new ArrayList<DataObject>());
 
-        if(!putException)
+        if(!putExceptionMap.containsKey(instanceIdentifier))
+            putExceptionMap.put(instanceIdentifier,false);
+
+        if(!putExceptionMap.get(instanceIdentifier))
         {
             txDataMap.get(instanceIdentifier).clear();
             txDataMap.get(instanceIdentifier).add(t);
         }
         else {
-            setPutException(false);
+            setPutException(instanceIdentifier,false);
             throw new RuntimeException("put exception");
         }
     }
@@ -136,12 +156,15 @@ public class DTXTestTransaction implements ReadWriteTransaction {
         if(!txDataMap.containsKey(instanceIdentifier))
             txDataMap.put(instanceIdentifier, new ArrayList<DataObject>());
 
-        if(!mergeException) {
+        if(!mergeExceptionMap.containsKey(instanceIdentifier))
+            mergeExceptionMap.put(instanceIdentifier, false);
+
+        if(!mergeExceptionMap.get(instanceIdentifier)) {
             txDataMap.get(instanceIdentifier).clear();
             txDataMap.get(instanceIdentifier).add(t);
         }
         else {
-            setMergeException(false);
+            setMergeException(instanceIdentifier,false);
             throw new RuntimeException(" merge exception");
         }
     }
@@ -151,12 +174,15 @@ public class DTXTestTransaction implements ReadWriteTransaction {
         if(!txDataMap.containsKey(instanceIdentifier))
             txDataMap.put(instanceIdentifier, new ArrayList<DataObject>());
 
-        if(!mergeException) {
+        if(!mergeExceptionMap.containsKey(instanceIdentifier))
+            mergeExceptionMap.put(instanceIdentifier, false);
+
+        if(!mergeExceptionMap.get(instanceIdentifier)) {
             txDataMap.get(instanceIdentifier).clear();
             txDataMap.get(instanceIdentifier).add(t);
         }
         else {
-            setMergeException(false);
+            setMergeException(instanceIdentifier,false);
             throw new RuntimeException("merge exception");
         }
     }
@@ -171,15 +197,18 @@ public class DTXTestTransaction implements ReadWriteTransaction {
         if(!txDataMap.containsKey(instanceIdentifier))
             return;
 
-        if(!deleteException)
+        if(!deleteExceptionMap.containsKey(instanceIdentifier))
+            deleteExceptionMap.put(instanceIdentifier, false);
+
+        if(!deleteExceptionMap.get(instanceIdentifier))
             if(txDataMap.get(instanceIdentifier).size()>0)
                 txDataMap.get(instanceIdentifier).clear();
             else {
-                setDeleteException(false);
-                throw new RuntimeException("no data in the DTXTestTransaction Data store");
+                setDeleteException(instanceIdentifier,false);
+                return;
             }
         else {
-            setDeleteException(false);
+            setDeleteException(instanceIdentifier,false);
             throw new RuntimeException(" delete exception");
         }
     }
@@ -188,7 +217,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     public CheckedFuture<Void, TransactionCommitFailedException> submit() {
         final SettableFuture<Void> retFuture = SettableFuture.create();
 
-        Runnable submitResult = new Runnable() {
+        final Runnable submitResult = new Runnable() {
             @Override
             public void run() {
                 try {

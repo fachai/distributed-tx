@@ -11,6 +11,14 @@ module distributed-tx-it-model{
                         leaf name {
                                 type string;
                         }
+                        leaf rollback{
+                                type boolean;
+                                default false;
+                        }
+                        leaf numberofinterfaces{
+                                type int32;
+                                default 1;
+                        }
                 }
                 output {
                         leaf result{
@@ -18,4 +26,65 @@ module distributed-tx-it-model{
                         }
                 }
         }
+
+        rpc ds-naive-test {
+                input {
+                        leaf name {
+                                type string;
+                        }
+                        leaf rollback{
+                                type boolean;
+                                default false;
+                        }
+                        leaf numberofinterfaces{
+                                type int32;
+                                default 1;
+                        }
+                }
+                output {
+                        leaf result{
+                                type string;
+                        }
+                }
+        }
+
+        rpc mixed-naive-test {
+                input {
+                        leaf name {
+                                type string;
+                        }
+                        leaf rollback{
+                                type boolean;
+                                default false;
+                        }
+                }
+                output {
+                        leaf result{
+                                type string;
+                        }
+                }
+        }
+
+	    container ds-naive-test-data{
+		    list ds-naive-test-data-entry {
+			    key "name";
+			    leaf name {
+				    type string;
+			    }
+			    leaf value{
+				    type string;
+			    }
+		    }
+	    }
+
+	    container ds-naive-rollback-data{
+		    list ds-naive-rollback-data-entry {
+			    key "name";
+			    leaf name {
+				    type string;
+			    }
+		    }
+	    }
 }
+
+

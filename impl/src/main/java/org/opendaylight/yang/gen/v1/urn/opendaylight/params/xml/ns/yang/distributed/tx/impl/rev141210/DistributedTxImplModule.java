@@ -18,7 +18,6 @@ public class DistributedTxImplModule extends org.opendaylight.yang.gen.v1.urn.op
 
     @Override
     public java.lang.AutoCloseable createInstance() {
-        return new DTXProviderService(getTxProviderDependency());
+        return new DTXProviderService(getTxProviderDependency(), getDataStoreTxProviderDependency());
     }
-
 }
