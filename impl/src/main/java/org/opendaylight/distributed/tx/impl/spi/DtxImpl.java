@@ -78,6 +78,20 @@ public class DtxImpl implements DTx {
         return typeCacheMap;
     }
 
+    //following methods is used to do the concurrent test for DtxImpl
+    public int getSizeofCacheByNodeId(InstanceIdentifier<?> nodeId)
+    {
+        Preconditions.checkArgument(perNodeTransactionsbyLogicalType.get(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER).containsKey(nodeId),
+                "Unknown node: %s. Not in transaction", nodeId);
+        return getSizeofCacheByNodeIdAndType(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, nodeId);
+    }
+
+    public int getSizeofCacheByNodeIdAndType(DTXLogicalTXProviderType type, InstanceIdentifier<?> nodeId)
+    {
+        Preconditions.checkArgument(containsIid(nodeId), "Unknown node: %s. Not in transaction", nodeId);
+        return perNodeTransactionsbyLogicalType.get(type).get(nodeId).getSizeOfCache();
+    }
+
     @Deprecated
     @Override public void delete(final LogicalDatastoreType logicalDatastoreType,
         final InstanceIdentifier<?> instanceIdentifier, final InstanceIdentifier<?> nodeId)
@@ -193,8 +207,6 @@ public class DtxImpl implements DTx {
         for(DTXLogicalTXProviderType type : this.perNodeTransactionsbyLogicalType.keySet()) {
             Map<InstanceIdentifier<?>, CachingReadWriteTx> tmpMap = this.perNodeTransactionsbyLogicalType.get(type);
             perNodeCache.putAll(tmpMap);
-            for(InstanceIdentifier <?> iid : tmpMap.keySet())
-                perNodeCache.put(iid, tmpMap.get(iid));
         }
 
         Rollback rollback = new RollbackImpl();
@@ -219,8 +231,6 @@ public class DtxImpl implements DTx {
         for(DTXLogicalTXProviderType type : this.perNodeTransactionsbyLogicalType.keySet()) {
             Map<InstanceIdentifier<?>, CachingReadWriteTx> tmpMap = this.perNodeTransactionsbyLogicalType.get(type);
             perNodeCache.putAll(tmpMap);
-            for (InstanceIdentifier<?> iid : tmpMap.keySet())
-                perNodeCache.put(iid, tmpMap.get(iid));
         }
 
         final ListenableFuture<Void> rollbackFuture= rollback.rollback(perNodeCache, this.readWriteTxMap);
@@ -249,14 +259,15 @@ public class DtxImpl implements DTx {
     }
 
     @Override public boolean cancel() throws DTxException.RollbackFailedException {
+        //not supported in the first version
         return false;
     }
 
     @Override public Object getIdentifier() {
-        return getIdetifierSet();
+        return getIdentifierSet();
     }
 
-    private Set<InstanceIdentifier<?>>getIdetifierSet(){
+    private Set<InstanceIdentifier<?>> getIdentifierSet(){
         Set<InstanceIdentifier<?>> set = new HashSet<>();
 
         for(DTXLogicalTXProviderType type : DTXLogicalTXProviderType.values()){
@@ -385,7 +396,7 @@ public class DtxImpl implements DTx {
          */
         private void checkTransactionStatus() {
             try {
-                final DistributedSubmitState txState = validate(commitStatus, getIdetifierSet());
+                final DistributedSubmitState txState = validate(commitStatus, getIdentifierSet());
 
                 switch (txState) {
                     case WAITING: {
@@ -583,6 +594,7 @@ public class DtxImpl implements DTx {
             @Nullable
             @Override
             public DTxException apply(@Nullable Exception e) {
+                e = (Exception)e.getCause();
                 return e instanceof DTxException ? (DTxException)e : new DTxException("Merge failed and rollback failure", e);
             }
         });
@@ -640,7 +652,8 @@ public class DtxImpl implements DTx {
             @Nullable
             @Override
             public DTxException apply(@Nullable Exception e) {
-                return e instanceof DTxException ? (DTxException)e : new DTxException("Put failed and rollback", e);
+                e = (Exception)e.getCause();
+                return e instanceof DTxException ? (DTxException)e : new DTxException("Put failed and rollback failure", e);
             }
         });
     }
@@ -663,6 +676,7 @@ public class DtxImpl implements DTx {
 
             @Override
             public void onFailure(Throwable throwable) {
+
                 Runnable runnable = new Runnable() {
                     @Override
                     public void run() {
@@ -692,6 +706,7 @@ public class DtxImpl implements DTx {
             @Nullable
             @Override
             public DTxException apply(@Nullable Exception e) {
+                e = (Exception) e.getCause();
                 return e instanceof DTxException ? (DTxException)e : new DTxException("delete failed and rollback failure", e);
             }
         });

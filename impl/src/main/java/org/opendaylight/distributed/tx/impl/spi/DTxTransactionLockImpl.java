@@ -17,7 +17,7 @@ public class DTxTransactionLockImpl implements TransactionLock {
     }
 
     @Override
-    public synchronized  boolean lockDevice(InstanceIdentifier<?> device) {
+    public boolean lockDevice(InstanceIdentifier<?> device) {
         boolean ret = true;
         synchronized (DTxTransactionLockImpl.this) {
             if (lockSet.contains(device)) {
@@ -31,7 +31,7 @@ public class DTxTransactionLockImpl implements TransactionLock {
     }
 
     @Override
-    public synchronized boolean isLocked(InstanceIdentifier<?> device) {
+    public boolean isLocked(InstanceIdentifier<?> device) {
         boolean ret ;
         synchronized (DTxTransactionLockImpl.this) {
             ret = lockSet.contains(device);
@@ -41,7 +41,7 @@ public class DTxTransactionLockImpl implements TransactionLock {
     }
 
     @Override
-    public synchronized void releaseDevice(InstanceIdentifier<?> device) {
+    public void releaseDevice(InstanceIdentifier<?> device) {
         synchronized (DTxTransactionLockImpl.this) {
             lockSet.remove(device);
         }
