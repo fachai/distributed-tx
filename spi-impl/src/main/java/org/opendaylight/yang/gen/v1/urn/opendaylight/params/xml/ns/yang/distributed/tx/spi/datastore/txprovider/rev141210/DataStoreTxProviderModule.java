@@ -1,5 +1,4 @@
 package org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.spi.datastore.txprovider.rev141210;
-import org.opendaylight.controller.config.yang.md.sal.dom.impl.Data;
 import org.opendaylight.distributed.tx.spiimpl.DataStoreTxProvider;
 
 public class DataStoreTxProviderModule extends org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.spi.datastore.txprovider.rev141210.AbstractDataStoreTxProviderModule {

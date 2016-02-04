@@ -12,7 +12,7 @@ and is available at http://www.eclipse.org/legal/epl-v10.html
   <parent>
     <groupId>org.opendaylight.controller</groupId>
     <artifactId>config-parent</artifactId>
-    <version>0.3.2-Lithium-SR2</version>
+    <version>0.4.0-Beryllium-RC0</version>
     <relativePath/>
   </parent>
 
@@ -22,7 +22,7 @@ and is available at http://www.eclipse.org/legal/epl-v10.html
   <version>1.0-SNAPSHOT</version>
 
   <properties>
-    <mdsal.version>1.2.2-Lithium-SR2</mdsal.version>
+    <mdsal.version>1.3.0-Beryllium-RC0</mdsal.version>
   </properties>
 
   <packaging>bundle</packaging>
@@ -73,20 +73,21 @@ and is available at http://www.eclipse.org/legal/epl-v10.html
       <version>1.0-SNAPSHOT</version>
     </dependency>
     <dependency>
-      <groupId>org.opendaylight.yangtools.model</groupId>
-      <artifactId>ietf-topology</artifactId>
-      <version>2013.10.21.7.2-Lithium-SR2</version>
-    </dependency>
-    <dependency>
-      <groupId>org.opendaylight.controller</groupId>
+      <groupId>org.opendaylight.netconf</groupId>
       <artifactId>sal-netconf-connector</artifactId>
-      <version>1.2.2-Lithium-SR2</version>
+      <version>${mdsal.version}</version>
     </dependency>
     <dependency>
       <groupId>org.opendaylight.controller.model</groupId>
       <artifactId>model-inventory</artifactId>
       <version>${mdsal.version}</version>
     </dependency>
+    <dependency>
+      <groupId>org.opendaylight.mdsal.model</groupId>
+      <artifactId>ietf-topology</artifactId>
+      <version>2013.10.21.8-Beryllium-RC0</version>
+    </dependency>
+
   </dependencies>
 
   <build>
