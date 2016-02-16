@@ -55,7 +55,7 @@ public class DTxProviderImpl implements DTxProvider, AutoCloseable {
 
     @Nonnull
     @Override
-    public DTx newTx(@Nonnull Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap) throws DTxException.DTxInitializationFailedException {
+    public synchronized DTx newTx(@Nonnull Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap) throws DTxException.DTxInitializationFailedException {
         boolean lockSucceed = this.dtxLock.lockDevices(nodesMap);
 
         if(!lockSucceed) {
@@ -90,11 +90,12 @@ public class DTxProviderImpl implements DTxProvider, AutoCloseable {
 
         private void releaseNodes() {
             synchronized (DTxProviderImpl.this) {
-                //devicesInUse.removeAll(nodes);
                 Preconditions.checkNotNull(currentTxs.remove(getIdentifier()), "Unable to cleanup distributed transaction");
+                dtxLock.releaseDevices(nodesMap);
             }
         }
 
+        @Deprecated
         @Override public boolean cancel() throws DTxException.RollbackFailedException {
             final boolean cancel = delegate.cancel();
             releaseNodes();
