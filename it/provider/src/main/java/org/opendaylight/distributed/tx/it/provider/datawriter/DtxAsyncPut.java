@@ -1,5 +1,7 @@
 package org.opendaylight.distributed.tx.it.provider.datawriter;
 
+import com.google.common.base.Function;
+import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.*;
 import org.opendaylight.controller.md.sal.common.api.data.AsyncTransaction;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
@@ -18,21 +20,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Created by sunny on 16-2-25.
  */
-public class DtxSyncPut extends AbstractDataStoreWriter {
+public class DtxAsyncPut extends AbstractDataStoreWriter {
     private DTx dtx;
-    private static final Logger LOG = LoggerFactory.getLogger(DtxSyncPut.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DtxAsyncPut.class);
 
-    public DtxSyncPut(BenchmarkTestInput input, DTx dTx, int outerElements, int innerElements)
+    public DtxAsyncPut(BenchmarkTestInput input, DTx dtx, int outerElements, int innerElements)
     {
-        super(input, outerElements, innerElements);
-        this.dtx = dTx;
+        super(input,outerElements,innerElements);
+        this.dtx = dtx;
     }
-
     @Override
     public ListenableFuture<Void> writeData() {
         final SettableFuture<Void> setFuture = SettableFuture.create();
@@ -40,6 +42,8 @@ public class DtxSyncPut extends AbstractDataStoreWriter {
 
         List<List<InnerList>> innerLists = buildInnerList();
         InstanceIdentifier<DatastoreTestData> nodeId = InstanceIdentifier.create(DatastoreTestData.class);
+        //store all the put futures
+        List<ListenableFuture<Void>> putFutures = new ArrayList<ListenableFuture<Void>>((int) putsPerTx);
         startTime = System.nanoTime();
 
         int counter = 0;
@@ -50,43 +54,70 @@ public class DtxSyncPut extends AbstractDataStoreWriter {
                         .child(InnerList.class, innerList.getKey());
 
                 CheckedFuture<Void, DTxException> tx = dtx.putAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION, innerIid, innerList, nodeId);
+                putFutures.add(tx);
                 counter++;
-
-                try{
-                    tx.checkedGet();
-                }catch (Exception e)
-                {
-                    setFuture.setException(e);
-                    return null; //end the rest of test
-                }
 
                 if (counter == putsPerTx)
                 {
-                    CheckedFuture<Void, TransactionCommitFailedException> submitFuture = dtx.submit();
-                    Futures.addCallback(submitFuture, new FutureCallback<Void>() {
+                    ListenableFuture<Void> aggregatePutFuture = Futures.transform(Futures.allAsList(putFutures), new Function<List<Void>, Void>() {
+                        @Nullable
+                        @Override
+                        public Void apply(@Nullable List<Void> voids) {
+                            return null;
+                        }
+                    });
+
+                    Futures.addCallback(aggregatePutFuture, new FutureCallback<Void>() {
                         @Override
                         public void onSuccess(@Nullable Void aVoid) {
-                            LOG.info("Submit successfully");
+                            CheckedFuture<Void, TransactionCommitFailedException> submitFuture = dtx.submit();
+                            Futures.addCallback(submitFuture, new FutureCallback<Void>() {
+                                @Override
+                                public void onSuccess(@Nullable Void aVoid) {
+
+                                }
+
+                                @Override
+                                public void onFailure(Throwable throwable) {
+                                     setFuture.setException(throwable);
+                                }
+                            });
                         }
 
                         @Override
                         public void onFailure(Throwable throwable) {
-                            setFuture.setException(throwable);
+                              setFuture.setException(throwable);
                         }
                     });
                     counter = 0;
+                    putFutures = new ArrayList<ListenableFuture<Void>>((int) putsPerTx);
                 }
             }
         }
+        ListenableFuture<Void> aggregatePutFuture = Futures.transform(Futures.allAsList(putFutures), new Function<List<Void>, Void>() {
+            @Nullable
+            @Override
+            public Void apply(@Nullable List<Void> voids) {
+                return null;
+            }
+        });
 
-        CheckedFuture<Void, TransactionCommitFailedException> restSubmitFuture = dtx.submit();
-
-        Futures.addCallback(restSubmitFuture, new FutureCallback<Void>() {
+        Futures.addCallback(aggregatePutFuture, new FutureCallback<Void>() {
             @Override
             public void onSuccess(@Nullable Void aVoid) {
-                setFuture.set(null);
-                endTime = System.nanoTime();
-                LOG.info("DTX successfully synchronously put");
+                Futures.addCallback(dtx.submit(), new FutureCallback<Void>() {
+                    @Override
+                    public void onSuccess(@Nullable Void aVoid) {
+                        LOG.info("Successfully asyncput all the data via the dtx");
+                        endTime = System.nanoTime();
+                        setFuture.set(null);
+                    }
+
+                    @Override
+                    public void onFailure(Throwable throwable) {
+                           setFuture.setException(throwable);
+                    }
+                });
             }
 
             @Override
@@ -94,6 +125,7 @@ public class DtxSyncPut extends AbstractDataStoreWriter {
                 setFuture.setException(throwable);
             }
         });
+
         return setFuture;
     }
 

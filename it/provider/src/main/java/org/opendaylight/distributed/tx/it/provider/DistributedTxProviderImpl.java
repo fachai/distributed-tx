@@ -1,9 +1,9 @@
 package org.opendaylight.distributed.tx.it.provider;
 
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
-import com.google.common.util.concurrent.CheckedFuture;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
+import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.*;
 
 import java.util.*;
 import java.util.concurrent.ExecutionException;
@@ -31,6 +31,12 @@ import org.opendaylight.yang.gen.v1.http.cisco.com.ns.yang.cisco.xr.types.rev150
 import org.opendaylight.yang.gen.v1.urn.opendaylight.netconf.node.topology.rev150114.NetconfNode;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.netconf.node.topology.rev150114.network.topology.topology.topology.types.TopologyNetconf;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.*;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterList;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterListBuilder;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterListKey;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.outer.list.InnerList;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.outer.list.InnerListBuilder;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.outer.list.InnerListKey;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.ds.naive.rollback.data.DsNaiveRollbackDataEntry;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.ds.naive.rollback.data.DsNaiveRollbackDataEntryBuilder;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.ds.naive.rollback.data.DsNaiveRollbackDataEntryKey;
@@ -481,6 +487,88 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
             }
         }
     }
+
+    /**
+     * this method is used to create the data structure for the benchmark test
+     * @return
+     */
+    public void initializeDataStoreForBenchmark(final int outerElements)
+    {
+        LOG.info("initialize the datastore data tree for benchmark");
+        InstanceIdentifier<DatastoreTestData> iid = InstanceIdentifier.create(DatastoreTestData.class);
+
+        if(this.dataBroker != null )
+        {
+            dataBroker.registerDataChangeListener(LogicalDatastoreType.CONFIGURATION,
+                    iid, new DsDataChangeListener(),
+                    AsyncDataBroker.DataChangeScope.SUBTREE);
+        }
+
+        final WriteTransaction transaction = this.dataBroker.newWriteOnlyTransaction();
+        DatastoreTestData datastoreTestData = new DatastoreTestDataBuilder().build();
+        transaction.put(LogicalDatastoreType.CONFIGURATION, iid, datastoreTestData);
+        CheckedFuture<Void, TransactionCommitFailedException> cf = transaction.submit();
+
+        Futures.addCallback(cf, new FutureCallback<Void>() {
+            @Override
+            public void onSuccess(@Nullable Void aVoid) {
+                LOG.info("successfully build the test data tree");
+                List<OuterList> outerLists = buildOuterList(outerElements);
+                //this listenableFuture list store all the submitted futures
+                List<ListenableFuture<Void>> OuterListSubmitFutures = Lists.newArrayListWithCapacity(outerElements);
+                for (int i = 0; i < outerElements ; i++) {
+                    InstanceIdentifier<OuterList> outerIid = InstanceIdentifier.create(DatastoreTestData.class)
+                            .child(OuterList.class, new OuterListKey(i));
+
+                    transaction.put(LogicalDatastoreType.CONFIGURATION, outerIid, outerLists.get(i));
+                    CheckedFuture<Void, TransactionCommitFailedException> cf = transaction.submit();
+                    OuterListSubmitFutures.add(cf);
+                }
+
+                ListenableFuture<Void> aggregateSubmitFuture = Futures.transform(Futures.allAsList(OuterListSubmitFutures), new Function<List<Void>, Void>() {
+                    @Nullable
+                    @Override
+                    public Void apply(@Nullable List<Void> voids) {
+                        return null;
+                    }
+                });
+
+                Futures.addCallback(aggregateSubmitFuture, new FutureCallback<Void>() {
+                    @Override
+                    public void onSuccess(@Nullable Void aVoid) {
+                        LOG.info("Successfully build the outerLists");
+                    }
+
+                    @Override
+                    public void onFailure(Throwable throwable) {
+                        LOG.info("Failed to build the outerLists");
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+                LOG.info("Fail to initialize the test data tree");
+            }
+        });
+    }
+
+    /*
+    this method create the specific number of empty outerList
+     */
+    private List<OuterList> buildOuterList(int outerElements) {
+        List<OuterList> outerList = new ArrayList<OuterList>(outerElements);
+        for (int j = 0; j < outerElements; j++) {
+            outerList.add(new OuterListBuilder()
+                    .setId( j )
+                    .setInnerList(Collections.<InnerList>emptyList())
+                    .setKey(new OuterListKey( j ))
+                    .build());
+        }
+
+        return outerList;
+    }
+
 
     @Override
     public Future<RpcResult<BenchmarkTestOutput>> benchmarkTest(BenchmarkTestInput input) {
