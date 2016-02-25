@@ -1,6 +1,7 @@
 package org.opendaylight.distributed.tx.it.provider.datawriter;
 
 import com.google.common.util.concurrent.CheckedFuture;
+import com.google.common.util.concurrent.ListenableFuture;
 import org.opendaylight.distributed.tx.api.DTx;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.BenchmarkTestInput;
 
@@ -9,16 +10,14 @@ import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distribu
  */
 public abstract class AbstractDataWriter {
     long startTime, endTime;
-    DTx dtx;
     BenchmarkTestInput input;
 
-    public AbstractDataWriter(BenchmarkTestInput input, DTx dtx)
+    public AbstractDataWriter(BenchmarkTestInput input)
     {
-        this.dtx = dtx;
         this.input = input;
     }
 
-    public abstract CheckedFuture<Void, Exception> writeData();
+    public abstract ListenableFuture<Void> writeData();
 
     public long getExecTime()
     {
