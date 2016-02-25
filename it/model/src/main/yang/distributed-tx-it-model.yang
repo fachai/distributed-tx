@@ -85,6 +85,126 @@ module distributed-tx-it-model{
 			    }
 		    }
 	    }
+
+        container datastore-test-data {
+            config true;
+            list outer-list {
+                key id;
+                leaf id {
+                   type int32;
+                }
+                list inner-list {
+                   key name;
+                   leaf name {
+                      type int32;
+                   }
+                   leaf value {
+                      type string;
+                   }
+                }
+            }
+        }
+
+        container test-status {
+                leaf execStatus {
+                    type enumeration {
+                        enum "idle" {
+                            value 1;
+                        }
+                        enum "executing" {
+                            value 2;
+                        }
+                    }
+                    config false;
+                    mandatory true;
+                    description
+                        "Indicates whether a test run is in progress; only one test can run at a time";
+                }
+        }
+
+	    rpc benchmark-test {
+                  input {
+                      leaf logicalTxType {
+                         mandatory true;
+                         type enumeration {
+                            enum "DATASTORE" {
+                                 value 1;
+                                 description
+                                    "operations on datastore nodes";
+                            }
+                            enum "NETCONF" {
+                                 value 2;
+                                 description
+                                    "operations on netconf nodes";
+                            }
+                         }
+                      }
+                      leaf operation {
+                           type enumeration {
+                              enum "PUT" {
+                                 value 1;
+                                 description
+                                    "The put operation";
+                              }
+                              enum "MERGE" {
+                                 value 2;
+                                 description
+                                    "The merge operation";
+                              }
+                              enum "DELETE" {
+                                 value 3;
+                                 description
+                                    "delete the item stored in the datastore";
+                              }
+                           }
+                           description
+                               "Type of the transaction operation to benchmark";
+                      }
+                      leaf putsPerTx {
+                           type uint32;
+                           default 1;
+                           description
+                                "Number of write operations (PUT, MERGE, or DELETE) per transaction submit";
+                      }
+                  }
+                  output {
+                      leaf status {
+                           mandatory true;
+                           type enumeration {
+                              enum "OK" {
+                                  value 1;
+                              }
+                              enum "FAILED" {
+                                  value 2;
+                              }
+                              enum "TEST-IN-PROGRESS" {
+                                  value 3;
+                              }
+                           }
+                           description
+                               "Indicates whether the test finished successfully";
+                      }
+                      leaf execTime {
+                           type uint32;
+                           default 1;
+                           description
+                              "The time it took to execute all the transaction via databroker or netconf";
+                      }
+                      leaf dtxSyncExecTime {
+                           type uint32;
+                           default 1;
+                           description
+                              "The time it took to synchronously execute all the transaction via dtx";
+                      }
+                      leaf dtxAsyncExecTime {
+                           type uint32;
+                           default 1;
+                           description
+                              "The time it took to asynchronously execute all the transaction via dtx";
+                      }
+
+                  }
+          }
 }
 
 

@@ -8,6 +8,7 @@ import com.google.common.util.concurrent.Futures;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.opendaylight.controller.md.sal.binding.api.*;
 import org.opendaylight.controller.md.sal.binding.api.DataChangeListener;
@@ -66,6 +67,10 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
     Map<NodeId, List<InterfaceName>> nodeIfList = new HashMap<>();
     private DataBroker xrNodeBroker = null;
     private int couter = 0;
+    //mark the status of the datastore test
+    private final AtomicReference<TestStatus.ExecStatus> dsExecStatus = new AtomicReference<TestStatus.ExecStatus>( TestStatus.ExecStatus.Idle );
+    //mark the status of the netconf test
+    private final AtomicReference<TestStatus.ExecStatus> netconfExecStatus = new AtomicReference<TestStatus.ExecStatus>( TestStatus.ExecStatus.Idle );
 
     public static final InstanceIdentifier<Topology> NETCONF_TOPO_IID = InstanceIdentifier
             .create(NetworkTopology.class).child(
@@ -477,6 +482,23 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
         }
     }
 
+    @Override
+    public Future<RpcResult<BenchmarkTestOutput>> benchmarkTest(BenchmarkTestInput input) {
+        if (input.getLogicalTxType() == BenchmarkTestInput.LogicalTxType.DATASTORE)
+            return dsBenchmarkTest(input);
+        else
+            return netconfBenchmarkTest(input);
+    }
+
+    public Future<RpcResult<BenchmarkTestOutput>> dsBenchmarkTest(BenchmarkTestInput input) {
+        //datastore test
+        return null;
+    }
+
+    public Future<RpcResult<BenchmarkTestOutput>> netconfBenchmarkTest (BenchmarkTestInput input) {
+        //netconf test
+        return null;
+    }
     private class DsDataChangeListener implements DataChangeListener{
         @Override
         public void onDataChanged(AsyncDataChangeEvent<InstanceIdentifier<?>, DataObject> asyncDataChangeEvent) {
