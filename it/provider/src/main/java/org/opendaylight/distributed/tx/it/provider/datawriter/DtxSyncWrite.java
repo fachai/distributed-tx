@@ -1,9 +1,12 @@
 package org.opendaylight.distributed.tx.it.provider.datawriter;
 
-import com.google.common.util.concurrent.*;
-import org.opendaylight.controller.md.sal.common.api.data.AsyncTransaction;
+import com.google.common.base.Function;
+import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.CheckedFuture;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
-import org.opendaylight.controller.md.sal.common.api.data.TransactionChain;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
 import org.opendaylight.distributed.tx.api.DTXLogicalTXProviderType;
 import org.opendaylight.distributed.tx.api.DTx;
@@ -26,6 +29,7 @@ import java.util.List;
 public class DtxSyncWrite extends AbstractDataStoreWriter {
     private DTx dtx;
     private static final Logger LOG = LoggerFactory.getLogger(DtxSyncWrite.class);
+    private List<ListenableFuture<Void>> submitFutures = Lists.newArrayList();
 
     public DtxSyncWrite(BenchmarkTestInput input, DTx dTx, int outerElements, int innerElements)
     {
@@ -84,27 +88,23 @@ public class DtxSyncWrite extends AbstractDataStoreWriter {
                 if (counter == putsPerTx)
                 {
                     CheckedFuture<Void, TransactionCommitFailedException> submitFuture = dtx.submit();
-                    Futures.addCallback(submitFuture, new perSubmitFutureCallback(setFuture));
+                    submitFutures.add(submitFuture);
                     counter = 0;
                 }
             }
         }
 
         CheckedFuture<Void, TransactionCommitFailedException> restSubmitFuture = dtx.submit();
-
-        Futures.addCallback(restSubmitFuture, new FutureCallback<Void>() {
+        submitFutures.add(restSubmitFuture);
+        ListenableFuture<Void> resultFuture = Futures.transform(Futures.allAsList(submitFutures), new Function<List<Void>, Void>() {
+            @Nullable
             @Override
-            public void onSuccess(@Nullable Void aVoid) {
-                endTime = System.nanoTime();
-                setFuture.set(null);
-                LOG.info("Transactions: submitted {}, completed {}", doSubmit, (txOk + txError));
-            }
-
-            @Override
-            public void onFailure(Throwable throwable) {
-                setFuture.setException(throwable);
+            public Void apply(@Nullable List<Void> voids) {
+                return null;
             }
         });
+
+        Futures.addCallback(resultFuture, new submitFutureCallback(setFuture));
         return setFuture;
     }
 

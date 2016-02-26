@@ -1,5 +1,7 @@
 package org.opendaylight.distributed.tx.it.provider.datawriter;
 
+import com.google.common.base.Function;
+import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.*;
 import org.opendaylight.controller.md.sal.binding.api.BindingTransactionChain;
 import org.opendaylight.controller.md.sal.binding.api.DataBroker;
@@ -23,6 +25,7 @@ import java.util.List;
 public class DataBrokerWrite extends AbstractDataStoreWriter implements TransactionChainListener {
     private DataBroker dataBroker;
     private static final Logger LOG = LoggerFactory.getLogger(DataBrokerWrite.class);
+    private List<ListenableFuture<Void>> submitFutures = Lists.newArrayList();
 
     public DataBrokerWrite(BenchmarkTestInput input, DataBroker db, int outerElements, int innerElements)
     {
@@ -67,7 +70,8 @@ public class DataBrokerWrite extends AbstractDataStoreWriter implements Transact
                 counter++;
 
                 if (counter == putsPerTx) {
-                    Futures.addCallback(tx.submit(), new perSubmitFutureCallback(setFuture));
+                    CheckedFuture<Void, TransactionCommitFailedException> submitFut = tx.submit();
+                    submitFutures.add(submitFut);
                     counter = 0;
                     tx = transactionChain.newWriteOnlyTransaction();
                 }
@@ -80,32 +84,16 @@ public class DataBrokerWrite extends AbstractDataStoreWriter implements Transact
          */
 
         CheckedFuture<Void, TransactionCommitFailedException> restSubmitFuture = tx.submit();
-        Futures.addCallback(restSubmitFuture, new FutureCallback<Void>() {
-                @Override
-                public void onSuccess(@Nullable Void aVoid) {
-                    endTime = System.nanoTime();
-                    setFuture.set(null);
-                    LOG.info("Transactions: submitted {}, completed {}", doSubmit, (txOk + txError));
-                    try {
-                        transactionChain.close();
-                    }
-                    catch (IllegalStateException e){
-                        LOG.info("Can't close the transaction chain");
-                    }
-                }
+        submitFutures.add(restSubmitFuture);
+        ListenableFuture<Void> resultFuture = Futures.transform(Futures.allAsList(submitFutures), new Function<List<Void>, Void>() {
+            @Nullable
+            @Override
+            public Void apply(@Nullable List<Void> voids) {
+                return null;
+            }
+        });
 
-                @Override
-                public void onFailure(Throwable throwable) {
-                    setFuture.setException(throwable);
-                    try {
-                        transactionChain.close();
-                    }
-                    catch (IllegalStateException e){
-                        LOG.info("Can't close the transaction chain");
-                    }
-                }
-
-            });
+        Futures.addCallback(resultFuture, new submitFutureCallback(setFuture));
         return setFuture;
     }
 

@@ -21,6 +21,6 @@ public abstract class AbstractDataWriter {
 
     public long getExecTime()
     {
-        return endTime - startTime;
+        return (endTime - startTime)/1000;
     }
 }

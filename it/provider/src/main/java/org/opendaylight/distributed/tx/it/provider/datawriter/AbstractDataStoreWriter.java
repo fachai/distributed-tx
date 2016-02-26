@@ -26,6 +26,7 @@ import java.util.List;
 public abstract class AbstractDataStoreWriter extends AbstractDataWriter   {
     int outerElements, innerElements;
     long doSubmit = 0, txOk = 0, txError = 0;
+    boolean testFail = false;
     DataBroker db;
 
     public AbstractDataStoreWriter(BenchmarkTestInput input,int outerElements, int innerElements)
@@ -89,25 +90,29 @@ public abstract class AbstractDataStoreWriter extends AbstractDataWriter   {
         }
         return true;
     }
-    public class perSubmitFutureCallback implements FutureCallback
+    public class submitFutureCallback implements FutureCallback
     {
         SettableFuture<Void> setFuture;
 
-        public perSubmitFutureCallback(SettableFuture setFuture)
+        public submitFutureCallback(SettableFuture setFuture)
         {
             this.setFuture = setFuture;
-            doSubmit++;
         }
 
         @Override
         public void onSuccess(@Nullable Object o) {
-            txOk++;
+            if (testFail)
+            {
+                setFuture.setException(new Throwable("test fail"));
+                return;
+            }
+            endTime = System.nanoTime();
+            setFuture.set(null);
         }
 
         @Override
         public void onFailure(Throwable throwable) {
-              txError++;
-              setFuture.setException(throwable);
+               setFuture.setException(throwable);
         }
     }
 }
