@@ -1,11 +1,8 @@
 package org.opendaylight.distributed.tx.it.provider.datawriter;
 
 import com.google.common.base.Function;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.*;
-import org.opendaylight.controller.md.sal.common.api.data.AsyncTransaction;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
-import org.opendaylight.controller.md.sal.common.api.data.TransactionChain;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
 import org.opendaylight.distributed.tx.api.DTXLogicalTXProviderType;
 import org.opendaylight.distributed.tx.api.DTx;
@@ -26,11 +23,11 @@ import java.util.List;
 /**
  * Created by sunny on 16-2-25.
  */
-public class DtxAsyncPut extends AbstractDataStoreWriter {
+public class DtxAsyncWrite extends AbstractDataStoreWriter {
     private DTx dtx;
-    private static final Logger LOG = LoggerFactory.getLogger(DtxAsyncPut.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DtxAsyncWrite.class);
 
-    public DtxAsyncPut(BenchmarkTestInput input, DTx dtx, int outerElements, int innerElements)
+    public DtxAsyncWrite(BenchmarkTestInput input, DTx dtx, int outerElements, int innerElements)
     {
         super(input,outerElements,innerElements);
         this.dtx = dtx;
@@ -40,7 +37,18 @@ public class DtxAsyncPut extends AbstractDataStoreWriter {
         final SettableFuture<Void> setFuture = SettableFuture.create();
         long putsPerTx = input.getPutsPerTx();
 
-        List<List<InnerList>> innerLists = buildInnerList();
+        List<List<InnerList>> innerLists = buildInnerLists();
+        //when the operation is delete we should build the test data first
+        if (input.getOperation() == BenchmarkTestInput.Operation.DELETE)
+        {
+            boolean buildTestData = build();//build the test data for the operation
+            if (!buildTestData)
+            {
+                setFuture.setException(new Throwable("can't build the test data for the delete operation"));
+                return setFuture;
+            }
+        }
+
         InstanceIdentifier<DatastoreTestData> nodeId = InstanceIdentifier.create(DatastoreTestData.class);
         //store all the put futures
         List<ListenableFuture<Void>> putFutures = new ArrayList<ListenableFuture<Void>>((int) putsPerTx);
@@ -53,12 +61,21 @@ public class DtxAsyncPut extends AbstractDataStoreWriter {
                         .child(OuterList.class, new OuterListKey(i))
                         .child(InnerList.class, innerList.getKey());
 
-                CheckedFuture<Void, DTxException> tx = dtx.putAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION, innerIid, innerList, nodeId);
+                CheckedFuture<Void, DTxException> tx;
+                if (input.getOperation() == BenchmarkTestInput.Operation.PUT) {
+                    tx = dtx.putAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION, innerIid, innerList, nodeId);
+                }else if (input.getOperation() == BenchmarkTestInput.Operation.MERGE){
+                    tx = dtx.mergeAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION, innerIid, innerList, nodeId);
+                }else{
+                    tx = dtx.deleteAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION, innerIid, nodeId);
+                }
+
                 putFutures.add(tx);
                 counter++;
 
                 if (counter == putsPerTx)
                 {
+                    //aggregate all the put futures into a listenable future, this future can make sure all the Async write has finish cache the data
                     ListenableFuture<Void> aggregatePutFuture = Futures.transform(Futures.allAsList(putFutures), new Function<List<Void>, Void>() {
                         @Nullable
                         @Override
@@ -71,17 +88,7 @@ public class DtxAsyncPut extends AbstractDataStoreWriter {
                         @Override
                         public void onSuccess(@Nullable Void aVoid) {
                             CheckedFuture<Void, TransactionCommitFailedException> submitFuture = dtx.submit();
-                            Futures.addCallback(submitFuture, new FutureCallback<Void>() {
-                                @Override
-                                public void onSuccess(@Nullable Void aVoid) {
-
-                                }
-
-                                @Override
-                                public void onFailure(Throwable throwable) {
-                                     setFuture.setException(throwable);
-                                }
-                            });
+                            Futures.addCallback(submitFuture, new perSubmitFutureCallback(setFuture));
                         }
 
                         @Override
@@ -111,6 +118,7 @@ public class DtxAsyncPut extends AbstractDataStoreWriter {
                         LOG.info("Successfully asyncput all the data via the dtx");
                         endTime = System.nanoTime();
                         setFuture.set(null);
+                        LOG.info("Transactions: submitted {}, completed {}", doSubmit, (txOk + txError));
                     }
 
                     @Override
@@ -129,15 +137,4 @@ public class DtxAsyncPut extends AbstractDataStoreWriter {
         return setFuture;
     }
 
-    @Override
-    public void onTransactionChainFailed(TransactionChain<?, ?> chain,
-                                         AsyncTransaction<?, ?> transaction, Throwable cause) {
-        LOG.error("Broken chain {} in DtxSyncPut, transaction {}, cause {}",
-                chain, transaction.getIdentifier(), cause);
-    }
-
-    @Override
-    public void onTransactionChainSuccessful(TransactionChain<?, ?> chain) {
-        LOG.info("DtxSyncPut closed successfully, chain {}", chain);
-    }
 }

@@ -3,6 +3,7 @@ package org.opendaylight.distributed.tx.it.provider;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.*;
 
 import java.util.*;
@@ -17,6 +18,8 @@ import org.opendaylight.distributed.tx.api.DTXLogicalTXProviderType;
 import org.opendaylight.distributed.tx.api.DTx;
 import org.opendaylight.distributed.tx.api.DTxException;
 import org.opendaylight.distributed.tx.api.DTxProvider;
+import org.opendaylight.distributed.tx.it.provider.datawriter.AbstractDataWriter;
+import org.opendaylight.distributed.tx.it.provider.datawriter.DataBrokerWrite;
 import org.opendaylight.yang.gen.v1.http.cisco.com.ns.yang.cisco.ios.xr.ifmgr.cfg.rev150107.InterfaceActive;
 import org.opendaylight.yang.gen.v1.http.cisco.com.ns.yang.cisco.ios.xr.ifmgr.cfg.rev150107.InterfaceConfigurations;
 import org.opendaylight.yang.gen.v1.http.cisco.com.ns.yang.cisco.ios.xr.ifmgr.cfg.rev150107._interface.configurations.InterfaceConfiguration;
@@ -579,7 +582,33 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
     }
 
     public Future<RpcResult<BenchmarkTestOutput>> dsBenchmarkTest(BenchmarkTestInput input) {
-        //datastore test
+        LOG.info("Starting the datastore benchmark test for dtx and data broker");
+        //Check if there is a test in progress
+        if (dsExecStatus.compareAndSet(TestStatus.ExecStatus.Idle, TestStatus.ExecStatus.Executing) == false)
+        {
+            LOG.info("Test in progress");
+            return RpcResultBuilder
+                    .success(new BenchmarkTestOutputBuilder()
+                    .setStatus(BenchmarkTestOutput.Status.TESTINPROGRESS)
+                    .build()).buildFuture();
+
+        }
+
+        long dbTime = 0, dtxSyncTime = 0, dtxAsyncTime = 0; //record the test time for the corresponding test
+        //create the nodeSet for the dtx
+        Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> m = new HashMap<>();
+        Set<InstanceIdentifier<?>> dsNodeSet = Sets.newHashSet();
+        dsNodeSet.add(InstanceIdentifier.create(DatastoreTestData.class));
+        m.put(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, dsNodeSet);
+        //get the dtx instance for the specific nodes from the provider
+        DTx dTx = dTxProvider.newTx(m);
+        //initialize the data store
+        initializeDataStoreForBenchmark(1000);
+        //test for the data store
+        AbstractDataWriter dataWriter = new DataBrokerWrite(input, dataBroker, 1000, 1000);
+        ListenableFuture<Void> dbTestFut = dataWriter.writeData();
+
+
         return null;
     }
 
