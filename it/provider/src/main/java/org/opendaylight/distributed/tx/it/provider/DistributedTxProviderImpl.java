@@ -20,6 +20,8 @@ import org.opendaylight.distributed.tx.api.DTxException;
 import org.opendaylight.distributed.tx.api.DTxProvider;
 import org.opendaylight.distributed.tx.it.provider.datawriter.AbstractDataWriter;
 import org.opendaylight.distributed.tx.it.provider.datawriter.DataBrokerWrite;
+import org.opendaylight.distributed.tx.it.provider.datawriter.DtxAsyncWrite;
+import org.opendaylight.distributed.tx.it.provider.datawriter.DtxSyncWrite;
 import org.opendaylight.yang.gen.v1.http.cisco.com.ns.yang.cisco.ios.xr.ifmgr.cfg.rev150107.InterfaceActive;
 import org.opendaylight.yang.gen.v1.http.cisco.com.ns.yang.cisco.ios.xr.ifmgr.cfg.rev150107.InterfaceConfigurations;
 import org.opendaylight.yang.gen.v1.http.cisco.com.ns.yang.cisco.ios.xr.ifmgr.cfg.rev150107._interface.configurations.InterfaceConfiguration;
@@ -493,7 +495,6 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
 
     /**
      * this method is used to create the data structure for the benchmark test
-     * @return
      */
     public void initializeDataStoreForBenchmark(final int outerElements)
     {
@@ -594,7 +595,10 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
 
         }
 
+        boolean testFail =false; // mark whether the test fail
         long dbTime = 0, dtxSyncTime = 0, dtxAsyncTime = 0; //record the test time for the corresponding test
+        int outerElements = 1000, innerElements = 1000;
+
         //create the nodeSet for the dtx
         Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> m = new HashMap<>();
         Set<InstanceIdentifier<?>> dsNodeSet = Sets.newHashSet();
@@ -602,14 +606,64 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
         m.put(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, dsNodeSet);
         //get the dtx instance for the specific nodes from the provider
         DTx dTx = dTxProvider.newTx(m);
+
         //initialize the data store
-        initializeDataStoreForBenchmark(1000);
+        initializeDataStoreForBenchmark(outerElements);
         //test for the data store
-        AbstractDataWriter dataWriter = new DataBrokerWrite(input, dataBroker, 1000, 1000);
+        AbstractDataWriter dataWriter = new DataBrokerWrite(input, dataBroker, outerElements, innerElements);
         ListenableFuture<Void> dbTestFut = dataWriter.writeData();
+        try {
+            dbTestFut.get();
+            dbTime = dataWriter.getExecTime();
+        }catch (Exception e)
+        {
+            testFail = true;
+        }
+        //reset the data store for next test
+        initializeDataStoreForBenchmark(outerElements);
+        //test for dtx sync test
+        dataWriter = new DtxSyncWrite(input,dTx, outerElements, innerElements);
+        ListenableFuture<Void> dtxSyncFut = dataWriter.writeData();
+        try
+        {
+            dtxSyncFut.get();
+            dtxSyncTime = dataWriter.getExecTime();
+        }catch (Exception e)
+        {
+            testFail = true;
+        }
 
+        //reset the data store for next test
+        initializeDataStoreForBenchmark(outerElements);
+        //test for dtx sync test
+        dataWriter = new DtxAsyncWrite(input,dTx, outerElements, innerElements);
+        ListenableFuture<Void> dtxAsyncFut = dataWriter.writeData();
+        try
+        {
+            dtxAsyncFut.get();
+            dtxAsyncTime = dataWriter.getExecTime();
+        }catch (Exception e)
+        {
+            testFail = true;
+        }
 
-        return null;
+        dsExecStatus.set(TestStatus.ExecStatus.Idle);
+        if (!testFail)
+        {
+          LOG.info("Data store test success");
+            return RpcResultBuilder
+                    .success(new BenchmarkTestOutputBuilder()
+                            .setStatus(BenchmarkTestOutput.Status.OK)
+                            .setExecTime(dbTime)
+                            .setDtxSyncExecTime(dtxSyncTime)
+                            .setDtxAsyncExecTime(dtxAsyncTime)
+                            .build()).buildFuture();
+        }else{
+            return RpcResultBuilder
+                    .success(new BenchmarkTestOutputBuilder()
+                            .setStatus(BenchmarkTestOutput.Status.FAILED)
+                            .build()).buildFuture();
+        }
     }
 
     public Future<RpcResult<BenchmarkTestOutput>> netconfBenchmarkTest (BenchmarkTestInput input) {
