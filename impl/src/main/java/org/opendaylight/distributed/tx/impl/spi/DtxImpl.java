@@ -48,7 +48,7 @@ public class DtxImpl implements DTx {
     public DtxImpl(@Nonnull final Map<DTXLogicalTXProviderType, TxProvider> providerMap,
                    @Nonnull final Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap, TransactionLock lock) {
         Preconditions.checkArgument(!nodesMap.values().isEmpty(), "Cannot create distributed tx for 0 nodes");
-        Preconditions.checkArgument(providerMap.keySet().contains(nodesMap.keySet()), "logicalType sets of txporider and nodes are different");
+        Preconditions.checkArgument(providerMap.keySet().containsAll(nodesMap.keySet()), "logicalType sets of txporider and nodes are different");
         this.txProviderMap = providerMap;
         perNodeTransactionsbyLogicalType = initializeTransactionsPerLogicalType(providerMap, nodesMap);
         this.deviceLock = lock;
@@ -62,7 +62,7 @@ public class DtxImpl implements DTx {
                                                                                                 Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap){
         Map<DTXLogicalTXProviderType, Map<InstanceIdentifier<?>, CachingReadWriteTx>> typeCacheMap = new HashMap<>(txProviderMap.keySet().size());
 
-        for(DTXLogicalTXProviderType type : txProviderMap.keySet()){
+        for(DTXLogicalTXProviderType type : nodesMap.keySet()){
             Set<InstanceIdentifier<?>> nodes = nodesMap.get(type);
             final DTXLogicalTXProviderType t = type;
             Map<InstanceIdentifier<?>, CachingReadWriteTx>tmpMap = Maps.toMap(nodes, new Function<InstanceIdentifier<?>, CachingReadWriteTx>() {
