@@ -202,7 +202,18 @@ module distributed-tx-it-model{
                            description
                               "The time it took to asynchronously execute all the transaction via dtx";
                       }
-
+                      leaf txOk {
+                           type uint32;
+                           default 0;
+                           description
+                              "The number of successful tests";
+                      }
+                      leaf txError {
+                           type uint32;
+                           default 0;
+                           description
+                              "The number of error tests";
+                      }
                   }
           }
 }

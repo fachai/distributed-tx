@@ -43,7 +43,6 @@ and is available at http://www.eclipse.org/legal/epl-v10.html
     <feature version="${mdsal.version}">odl-mdsal-xsql</feature>
   </feature>
 
-
   <feature name='odl-distributed-tx-it-api' version='${project.version}' description='OpenDaylight :: distributed-tx :: it-api'>
     <feature version='${mdsal.model.version}'>odl-mdsal-models</feature>
     <bundle>mvn:org.opendaylight.distributed.tx/distributed-tx-it-model/${project.version}</bundle>
@@ -61,5 +60,6 @@ and is available at http://www.eclipse.org/legal/epl-v10.html
     <configfile finalname="${configfile.directory}/distributed-tx-it.xml">mvn:org.opendaylight.distributed.tx/distributed-tx-it-provider/${project.version}/xml/config</configfile>
     <configfile finalname="${configfile.directory}/xrnodes-config.xml">mvn:org.opendaylight.distributed.tx/distributed-tx-it-provider/${project.version}/xml/xrnodes</configfile>
   </feature>
+
 
 </features>

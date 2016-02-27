@@ -22,7 +22,7 @@ import java.util.List;
 /**
  * Created by sunny on 16-2-25.
  */
-public class DataBrokerWrite extends AbstractDataStoreWriter implements TransactionChainListener {
+public class DataBrokerWrite extends AbstractDataStoreWriter{
     private DataBroker dataBroker;
     private static final Logger LOG = LoggerFactory.getLogger(DataBrokerWrite.class);
     private List<ListenableFuture<Void>> submitFutures = Lists.newArrayList();
@@ -49,12 +49,11 @@ public class DataBrokerWrite extends AbstractDataStoreWriter implements Transact
             }
         }
 
-        final BindingTransactionChain transactionChain = dataBroker.createTransactionChain(this);
-        WriteTransaction tx = transactionChain.newWriteOnlyTransaction();
+        WriteTransaction tx = dataBroker.newWriteOnlyTransaction();
 
         startTime = System.nanoTime();
         long counter = 0;
-
+        LOG.info("DataBroker {} test begin", input.getOperation());
         for (int i = 0; i < outerElements ; i++) {
             for (InnerList innerList : innerLists.get(i)) {
                 InstanceIdentifier<InnerList> innerIid = InstanceIdentifier.create(DatastoreTestData.class)
@@ -71,9 +70,15 @@ public class DataBrokerWrite extends AbstractDataStoreWriter implements Transact
 
                 if (counter == putsPerTx) {
                     CheckedFuture<Void, TransactionCommitFailedException> submitFut = tx.submit();
-                    submitFutures.add(submitFut);
+                    try{
+                        submitFut.checkedGet();
+                    }catch (TransactionCommitFailedException e)
+                    {
+                        LOG.info("transaction fail");
+                        testFail = true;
+                    }
                     counter = 0;
-                    tx = transactionChain.newWriteOnlyTransaction();
+                    tx = dataBroker.newWriteOnlyTransaction();
                 }
             }
         }
@@ -82,30 +87,9 @@ public class DataBrokerWrite extends AbstractDataStoreWriter implements Transact
          * Submit the outstanding transaction even if it's empty and wait for it to finish
          * We need to empty the transaction chain before closing it
          */
-
         CheckedFuture<Void, TransactionCommitFailedException> restSubmitFuture = tx.submit();
-        submitFutures.add(restSubmitFuture);
-        ListenableFuture<Void> resultFuture = Futures.transform(Futures.allAsList(submitFutures), new Function<List<Void>, Void>() {
-            @Nullable
-            @Override
-            public Void apply(@Nullable List<Void> voids) {
-                return null;
-            }
-        });
+        Futures.addCallback(restSubmitFuture, new submitFutureCallback(setFuture));
 
-        Futures.addCallback(resultFuture, new submitFutureCallback(setFuture));
         return setFuture;
-    }
-
-    @Override
-    public void onTransactionChainFailed(TransactionChain<?, ?> chain,
-                                         AsyncTransaction<?, ?> transaction, Throwable cause) {
-        LOG.error("Broken chain {} in DataBrokerWrite, transaction {}, cause {}",
-                chain, transaction.getIdentifier(), cause);
-    }
-
-    @Override
-    public void onTransactionChainSuccessful(TransactionChain<?, ?> chain) {
-        LOG.info("DataBrokerWrite closed successfully, chain {}", chain);
     }
 }

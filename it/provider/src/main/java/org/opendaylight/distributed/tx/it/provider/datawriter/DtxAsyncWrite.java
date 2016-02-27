@@ -8,6 +8,7 @@ import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFaile
 import org.opendaylight.distributed.tx.api.DTXLogicalTXProviderType;
 import org.opendaylight.distributed.tx.api.DTx;
 import org.opendaylight.distributed.tx.api.DTxException;
+import org.opendaylight.distributed.tx.api.DTxProvider;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.BenchmarkTestInput;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.DatastoreTestData;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterList;
@@ -20,19 +21,24 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Created by sunny on 16-2-25.
  */
 public class DtxAsyncWrite extends AbstractDataStoreWriter {
     private DTx dtx;
+    private DTxProvider dTxProvider;
     private static final Logger LOG = LoggerFactory.getLogger(DtxAsyncWrite.class);
     private List<ListenableFuture<Void>> submitFutures = Lists.newArrayList();
+    private Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap;
 
-    public DtxAsyncWrite(BenchmarkTestInput input, DTx dtx, int outerElements, int innerElements)
+    public DtxAsyncWrite(BenchmarkTestInput input, DTxProvider dTxProvider, Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap, int outerElements, int innerElements)
     {
         super(input,outerElements,innerElements);
-        this.dtx = dtx;
+        this.dTxProvider = dTxProvider;
+        this.nodesMap = nodesMap;
     }
     @Override
     public ListenableFuture<Void> writeData() {
@@ -57,6 +63,8 @@ public class DtxAsyncWrite extends AbstractDataStoreWriter {
         startTime = System.nanoTime();
 
         int counter = 0;
+        dtx = dTxProvider.newTx(nodesMap);
+        LOG.info("Dtx {} test begin", input.getOperation());
         for (int i = 0; i < outerElements ; i++) {
             for (InnerList innerList : innerLists.get(i)) {
                 InstanceIdentifier<InnerList> innerIid = InstanceIdentifier.create(DatastoreTestData.class)
@@ -86,19 +94,23 @@ public class DtxAsyncWrite extends AbstractDataStoreWriter {
                         }
                     });
 
-                    Futures.addCallback(aggregatePutFuture, new FutureCallback<Void>() {
-                        @Override
-                        public void onSuccess(@Nullable Void aVoid) {
-                            CheckedFuture<Void, TransactionCommitFailedException> submitFuture = dtx.submit();
-                            submitFutures.add(submitFuture);
-                        }
+                    try{
+                        aggregatePutFuture.get();
+                    }catch (Exception e)
+                    {
+                        LOG.info("DTX Async put failed");
+                        testFail = true;
+                    }
+                    CheckedFuture<Void, TransactionCommitFailedException> submitFuture = dtx.submit();
+                    try{
+                        submitFuture.checkedGet();
+                    }catch (TransactionCommitFailedException e)
+                    {
+                        LOG.info("DTX Async submit failed");
+                    }
 
-                        @Override
-                        public void onFailure(Throwable throwable) {
-                              testFail = true;
-                        }
-                    });
                     counter = 0;
+                    dtx = dTxProvider.newTx(nodesMap); //after each submit we should get new Dtx
                     putFutures = new ArrayList<ListenableFuture<Void>>((int) putsPerTx);
                 }
             }
@@ -111,27 +123,8 @@ public class DtxAsyncWrite extends AbstractDataStoreWriter {
             }
         });
 
-        Futures.addCallback(aggregatePutFuture, new FutureCallback<Void>() {
-            @Override
-            public void onSuccess(@Nullable Void aVoid) {
-                CheckedFuture<Void, TransactionCommitFailedException> restSubmitFut = dtx.submit();
-                submitFutures.add(restSubmitFut);
-                ListenableFuture<Void> testResult = Futures.transform(Futures.allAsList(submitFutures), new Function<List<Void>, Void>() {
-                    @Nullable
-                    @Override
-                    public Void apply(@Nullable List<Void> voids) {
-                        return null;
-                    }
-                });
-
-                Futures.addCallback(testResult, new submitFutureCallback(setFuture));
-            }
-
-            @Override
-            public void onFailure(Throwable throwable) {
-                testFail = true;
-            }
-        });
+        CheckedFuture<Void, TransactionCommitFailedException> restSubmitFuture = dtx.submit();
+        Futures.addCallback(restSubmitFuture, new submitFutureCallback(setFuture));
 
         return setFuture;
     }

@@ -316,11 +316,6 @@ public class DtxImpl implements DTx {
          * Prepare potential rollback per-node transaction (rollback will be performed in a dedicated Tx)
          */
         @Override public void onSuccess(@Nullable final Void result) {
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
 
             LOG.trace("Per node tx({}/{}) executed successfully for: {}",
                     commitStatus.size(), getNumberofNodes(), perNodeTx.getKey());

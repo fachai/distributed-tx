@@ -11,6 +11,7 @@ import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFaile
 import org.opendaylight.distributed.tx.api.DTXLogicalTXProviderType;
 import org.opendaylight.distributed.tx.api.DTx;
 import org.opendaylight.distributed.tx.api.DTxException;
+import org.opendaylight.distributed.tx.api.DTxProvider;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.BenchmarkTestInput;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.DatastoreTestData;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterList;
@@ -22,19 +23,23 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Created by sunny on 16-2-25.
  */
 public class DtxSyncWrite extends AbstractDataStoreWriter {
     private DTx dtx;
+    private DTxProvider dTxProvider;
     private static final Logger LOG = LoggerFactory.getLogger(DtxSyncWrite.class);
-    private List<ListenableFuture<Void>> submitFutures = Lists.newArrayList();
+    private Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap;
 
-    public DtxSyncWrite(BenchmarkTestInput input, DTx dTx, int outerElements, int innerElements)
+    public DtxSyncWrite(BenchmarkTestInput input, DTxProvider dTxProvider, Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap, int outerElements, int innerElements)
     {
         super(input, outerElements, innerElements);
-        this.dtx = dTx;
+        this.dTxProvider = dTxProvider;
+        this.nodesMap = nodesMap;
     }
 
     @Override
@@ -58,6 +63,8 @@ public class DtxSyncWrite extends AbstractDataStoreWriter {
         startTime = System.nanoTime();
 
         int counter = 0;
+        dtx = dTxProvider.newTx(nodesMap);
+        LOG.info("Dtx {} test begin", input.getOperation());
         for (int i = 0; i < outerElements ; i++) {
             for (InnerList innerList : innerLists.get(i)) {
                 InstanceIdentifier<InnerList> innerIid = InstanceIdentifier.create(DatastoreTestData.class)
@@ -82,29 +89,29 @@ public class DtxSyncWrite extends AbstractDataStoreWriter {
                 }catch (Exception e)
                 {
                     setFuture.setException(e);
-                    return null; //end the rest of test
+                    LOG.info("DTx sync write failed");
+                    return setFuture; //end the rest of test
                 }
 
                 if (counter == putsPerTx)
                 {
                     CheckedFuture<Void, TransactionCommitFailedException> submitFuture = dtx.submit();
-                    submitFutures.add(submitFuture);
+                    try{
+                        submitFuture.checkedGet();
+                    }catch (TransactionCommitFailedException e)
+                    {
+                        testFail = true;
+                        LOG.info("Dtx sync submit failed");
+                    }
                     counter = 0;
+                    dtx = dTxProvider.newTx(nodesMap);
                 }
             }
         }
 
         CheckedFuture<Void, TransactionCommitFailedException> restSubmitFuture = dtx.submit();
-        submitFutures.add(restSubmitFuture);
-        ListenableFuture<Void> resultFuture = Futures.transform(Futures.allAsList(submitFutures), new Function<List<Void>, Void>() {
-            @Nullable
-            @Override
-            public Void apply(@Nullable List<Void> voids) {
-                return null;
-            }
-        });
+        Futures.addCallback(restSubmitFuture, new submitFutureCallback(setFuture));
 
-        Futures.addCallback(resultFuture, new submitFutureCallback(setFuture));
         return setFuture;
     }
 

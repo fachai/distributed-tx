@@ -10,8 +10,10 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 
 public class DTxTransactionLockImpl implements TransactionLock {
-    final private Set<InstanceIdentifier<?>> lockSet = new HashSet<>();
+    private volatile Set<InstanceIdentifier<?>> lockSet = new HashSet<>();
     private static final Logger LOG = LoggerFactory.getLogger(DTxTransactionLockImpl.class);
+    private int lockCnt = 0;
+    private int unlockCnt = 0;
 
     public DTxTransactionLockImpl(){
     }
@@ -87,8 +89,12 @@ public class DTxTransactionLockImpl implements TransactionLock {
                 }
             }
         }
+        this.lockCnt++;
+        if(!ret){
+            LOG.info("lock fialed)" + this.lockCnt + " " +this.unlockCnt);
+        }
 
-        return ret;
+        return true;
     }
 
     @Override
@@ -98,6 +104,7 @@ public class DTxTransactionLockImpl implements TransactionLock {
 
     @Override
     public void releaseDevices(Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> deviceMap) {
+        this.unlockCnt ++;
         synchronized (DTxTransactionLockImpl.this) {
             for(DTXLogicalTXProviderType t : deviceMap.keySet()) {
                 this.lockSet.removeAll(deviceMap.get(t));
