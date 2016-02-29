@@ -2,10 +2,13 @@ package org.opendaylight.distributed.tx.it.provider.datawriter;
 
 import com.google.common.util.concurrent.CheckedFuture;
 import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.SettableFuture;
+import javassist.runtime.Inner;
 import org.opendaylight.controller.md.sal.binding.api.DataBroker;
 import org.opendaylight.controller.md.sal.binding.api.WriteTransaction;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
+import org.opendaylight.controller.md.sal.common.api.data.TransactionChain;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.BenchmarkTestInput;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.DatastoreTestData;
@@ -25,41 +28,15 @@ import java.util.List;
  */
 public abstract class AbstractDataStoreWriter extends AbstractDataWriter   {
     int outerElements, innerElements;
-    long doSubmit = 0, txOk = 0, txError = 0;
     boolean testFail = false;
     DataBroker db;
-
-    public AbstractDataStoreWriter(BenchmarkTestInput input,int outerElements, int innerElements)
-    {
-        super(input);
-        this.outerElements = outerElements;
-        this.innerElements = innerElements;
-    }
 
     public AbstractDataStoreWriter(BenchmarkTestInput input, DataBroker db, int outerElements, int innerElements)
     {
         super(input);
         this.db = db;
-    }
-
-    protected List<List<InnerList>> buildInnerLists() {
-        List<List<InnerList>> innerLists = new ArrayList<>(outerElements);
-
-        for (int i = 0; i < outerElements ; i++) {
-            final String itemStr = "Item-" + String.valueOf(i) + "-";
-            List<InnerList> innerList = new ArrayList<>(innerElements);
-
-            for( int j = 0; j < innerElements; j++ ) {
-                innerList.add(new InnerListBuilder()
-                        .setKey( new InnerListKey( j ) )
-                        .setName(j)
-                        .setValue( itemStr + String.valueOf( j ) )
-                        .build());
-            }
-            innerLists.add(innerList);
-        }
-
-        return innerLists;
+        this.outerElements = outerElements;
+        this.innerElements = innerElements;
     }
 
     /**
@@ -67,8 +44,8 @@ public abstract class AbstractDataStoreWriter extends AbstractDataWriter   {
      * @return
      */
     public boolean build() {
-        List<List<InnerList>> innerLists = buildInnerLists();
 
+        List<List<InnerList>> innerLists = buildInnerLists();
         WriteTransaction transaction = this.db.newWriteOnlyTransaction();
         for (int i = 0; i < outerElements ; i++) {
             for (InnerList innerList : innerLists.get(i) )
@@ -86,33 +63,30 @@ public abstract class AbstractDataStoreWriter extends AbstractDataWriter   {
                 {
                     return false;
                 }
+                transaction = this.db.newWriteOnlyTransaction();
             }
         }
         return true;
     }
-    public class submitFutureCallback implements FutureCallback
-    {
-        SettableFuture<Void> setFuture;
 
-        public submitFutureCallback(SettableFuture setFuture)
-        {
-            this.setFuture = setFuture;
-        }
+    //build the test data
+    List<List<InnerList>> buildInnerLists() {
+        List<List<InnerList>> innerLists = new ArrayList<>(outerElements);
 
-        @Override
-        public void onSuccess(@Nullable Object o) {
-            if (testFail)
-            {
-                setFuture.setException(new Throwable("test fail"));
-                return;
+        for (int i = 0; i < outerElements ; i++) {
+            final String itemStr = "Item-" + String.valueOf(i) + "-";
+            List<InnerList> innerList = new ArrayList<>(innerElements);
+
+            for( int j = 0; j < innerElements; j++ ) {
+                innerList.add(new InnerListBuilder()
+                        .setKey( new InnerListKey( j ) )
+                        .setName(j)
+                        .setValue( itemStr + String.valueOf( j ) )
+                        .build());
             }
-            endTime = System.nanoTime();
-            setFuture.set(null);
+            innerLists.add(innerList);
         }
 
-        @Override
-        public void onFailure(Throwable throwable) {
-               setFuture.setException(throwable);
-        }
+        return innerLists;
     }
 }

@@ -1,11 +1,9 @@
 package org.opendaylight.distributed.tx.it.provider.datawriter;
 
-import com.google.common.base.Function;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.CheckedFuture;
-import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import org.opendaylight.controller.md.sal.binding.api.DataBroker;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
 import org.opendaylight.distributed.tx.api.DTXLogicalTXProviderType;
@@ -21,7 +19,6 @@ import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -35,9 +32,9 @@ public class DtxSyncWrite extends AbstractDataStoreWriter {
     private static final Logger LOG = LoggerFactory.getLogger(DtxSyncWrite.class);
     private Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap;
 
-    public DtxSyncWrite(BenchmarkTestInput input, DTxProvider dTxProvider, Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap, int outerElements, int innerElements)
+    public DtxSyncWrite(BenchmarkTestInput input, DTxProvider dTxProvider, DataBroker dataBroker, Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap, int outerElements, int innerElements)
     {
-        super(input, outerElements, innerElements);
+        super(input, dataBroker,outerElements, innerElements);
         this.dTxProvider = dTxProvider;
         this.nodesMap = nodesMap;
     }
@@ -47,7 +44,6 @@ public class DtxSyncWrite extends AbstractDataStoreWriter {
         final SettableFuture<Void> setFuture = SettableFuture.create();
         long putsPerTx = input.getPutsPerTx();
 
-        List<List<InnerList>> innerLists = buildInnerLists();
         //when the operation is delete we should build the test data first
         if (input.getOperation() == BenchmarkTestInput.Operation.DELETE)
         {
@@ -60,11 +56,11 @@ public class DtxSyncWrite extends AbstractDataStoreWriter {
         }
 
         InstanceIdentifier<DatastoreTestData> nodeId = InstanceIdentifier.create(DatastoreTestData.class);
-        startTime = System.nanoTime();
 
         int counter = 0;
+        List<List<InnerList>> innerLists = buildInnerLists();
+        startTime = System.nanoTime();
         dtx = dTxProvider.newTx(nodesMap);
-        LOG.info("Dtx {} test begin", input.getOperation());
         for (int i = 0; i < outerElements ; i++) {
             for (InnerList innerList : innerLists.get(i)) {
                 InstanceIdentifier<InnerList> innerIid = InstanceIdentifier.create(DatastoreTestData.class)
@@ -102,6 +98,8 @@ public class DtxSyncWrite extends AbstractDataStoreWriter {
                     {
                         testFail = true;
                         LOG.info("Dtx sync submit failed");
+                        setFuture.setException(e);
+                        return setFuture;
                     }
                     counter = 0;
                     dtx = dTxProvider.newTx(nodesMap);
@@ -110,7 +108,20 @@ public class DtxSyncWrite extends AbstractDataStoreWriter {
         }
 
         CheckedFuture<Void, TransactionCommitFailedException> restSubmitFuture = dtx.submit();
-        Futures.addCallback(restSubmitFuture, new submitFutureCallback(setFuture));
+        try
+        {
+            restSubmitFuture.checkedGet();
+            if (testFail)
+            {
+                setFuture.setException(new Throwable("test fail"));
+                return setFuture;
+            }
+            endTime = System.nanoTime();
+            setFuture.set(null);
+        }catch (Exception e)
+        {
+            setFuture.setException(e);
+        }
 
         return setFuture;
     }

@@ -3,6 +3,8 @@ package org.opendaylight.distributed.tx.it.provider.datawriter;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.*;
+import javassist.runtime.Inner;
+import org.opendaylight.controller.md.sal.binding.api.DataBroker;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
 import org.opendaylight.distributed.tx.api.DTXLogicalTXProviderType;
@@ -31,12 +33,11 @@ public class DtxAsyncWrite extends AbstractDataStoreWriter {
     private DTx dtx;
     private DTxProvider dTxProvider;
     private static final Logger LOG = LoggerFactory.getLogger(DtxAsyncWrite.class);
-    private List<ListenableFuture<Void>> submitFutures = Lists.newArrayList();
     private Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap;
 
-    public DtxAsyncWrite(BenchmarkTestInput input, DTxProvider dTxProvider, Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap, int outerElements, int innerElements)
+    public DtxAsyncWrite(BenchmarkTestInput input, DTxProvider dTxProvider, DataBroker dataBroker, Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap, int outerElements, int innerElements)
     {
-        super(input,outerElements,innerElements);
+        super(input, dataBroker, outerElements,innerElements);
         this.dTxProvider = dTxProvider;
         this.nodesMap = nodesMap;
     }
@@ -45,7 +46,6 @@ public class DtxAsyncWrite extends AbstractDataStoreWriter {
         final SettableFuture<Void> setFuture = SettableFuture.create();
         long putsPerTx = input.getPutsPerTx();
 
-        List<List<InnerList>> innerLists = buildInnerLists();
         //when the operation is delete we should build the test data first
         if (input.getOperation() == BenchmarkTestInput.Operation.DELETE)
         {
@@ -60,11 +60,11 @@ public class DtxAsyncWrite extends AbstractDataStoreWriter {
         InstanceIdentifier<DatastoreTestData> nodeId = InstanceIdentifier.create(DatastoreTestData.class);
         //store all the put futures
         List<ListenableFuture<Void>> putFutures = new ArrayList<ListenableFuture<Void>>((int) putsPerTx);
-        startTime = System.nanoTime();
 
         int counter = 0;
+        List<List<InnerList>> innerLists = buildInnerLists();
         dtx = dTxProvider.newTx(nodesMap);
-        LOG.info("Dtx {} test begin", input.getOperation());
+        startTime = System.nanoTime();
         for (int i = 0; i < outerElements ; i++) {
             for (InnerList innerList : innerLists.get(i)) {
                 InstanceIdentifier<InnerList> innerIid = InstanceIdentifier.create(DatastoreTestData.class)
@@ -100,6 +100,8 @@ public class DtxAsyncWrite extends AbstractDataStoreWriter {
                     {
                         LOG.info("DTX Async put failed");
                         testFail = true;
+                        setFuture.setException(e);
+                        return setFuture;
                     }
                     CheckedFuture<Void, TransactionCommitFailedException> submitFuture = dtx.submit();
                     try{
@@ -107,6 +109,9 @@ public class DtxAsyncWrite extends AbstractDataStoreWriter {
                     }catch (TransactionCommitFailedException e)
                     {
                         LOG.info("DTX Async submit failed");
+                        testFail = true;
+                        setFuture.setException(e);
+                        return setFuture;
                     }
 
                     counter = 0;
@@ -124,7 +129,20 @@ public class DtxAsyncWrite extends AbstractDataStoreWriter {
         });
 
         CheckedFuture<Void, TransactionCommitFailedException> restSubmitFuture = dtx.submit();
-        Futures.addCallback(restSubmitFuture, new submitFutureCallback(setFuture));
+        try
+        {
+            restSubmitFuture.checkedGet();
+            if (testFail)
+            {
+                setFuture.setException(new Throwable("test fail"));
+                return setFuture;
+            }
+            endTime = System.nanoTime();
+            setFuture.set(null);
+        }catch (Exception e)
+        {
+            setFuture.setException(e);
+        }
 
         return setFuture;
     }

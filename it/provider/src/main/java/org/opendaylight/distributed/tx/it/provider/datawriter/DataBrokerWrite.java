@@ -3,6 +3,7 @@ package org.opendaylight.distributed.tx.it.provider.datawriter;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.*;
+import javassist.runtime.Inner;
 import org.opendaylight.controller.md.sal.binding.api.BindingTransactionChain;
 import org.opendaylight.controller.md.sal.binding.api.DataBroker;
 import org.opendaylight.controller.md.sal.binding.api.WriteTransaction;
@@ -22,14 +23,14 @@ import java.util.List;
 /**
  * Created by sunny on 16-2-25.
  */
-public class DataBrokerWrite extends AbstractDataStoreWriter{
+public class DataBrokerWrite extends AbstractDataStoreWriter implements TransactionChainListener{
     private DataBroker dataBroker;
     private static final Logger LOG = LoggerFactory.getLogger(DataBrokerWrite.class);
     private List<ListenableFuture<Void>> submitFutures = Lists.newArrayList();
 
     public DataBrokerWrite(BenchmarkTestInput input, DataBroker db, int outerElements, int innerElements)
     {
-        super(input, outerElements, innerElements);
+        super(input, db, outerElements, innerElements);
         this.dataBroker = db;
     }
     @Override
@@ -37,7 +38,6 @@ public class DataBrokerWrite extends AbstractDataStoreWriter{
         final SettableFuture<Void> setFuture = SettableFuture.create();
         long putsPerTx = input.getPutsPerTx();
 
-        List<List<InnerList>> innerLists = buildInnerLists();
         //when the operation is delete we should build the test data first
         if (input.getOperation() == BenchmarkTestInput.Operation.DELETE)
         {
@@ -49,11 +49,12 @@ public class DataBrokerWrite extends AbstractDataStoreWriter{
             }
         }
 
-        WriteTransaction tx = dataBroker.newWriteOnlyTransaction();
+        BindingTransactionChain chain = dataBroker.createTransactionChain(this);
+        WriteTransaction tx = chain.newWriteOnlyTransaction();
 
+        List<List<InnerList>> innerLists = buildInnerLists();
         startTime = System.nanoTime();
         long counter = 0;
-        LOG.info("DataBroker {} test begin", input.getOperation());
         for (int i = 0; i < outerElements ; i++) {
             for (InnerList innerList : innerLists.get(i)) {
                 InstanceIdentifier<InnerList> innerIid = InstanceIdentifier.create(DatastoreTestData.class)
@@ -70,15 +71,19 @@ public class DataBrokerWrite extends AbstractDataStoreWriter{
 
                 if (counter == putsPerTx) {
                     CheckedFuture<Void, TransactionCommitFailedException> submitFut = tx.submit();
-                    try{
-                        submitFut.checkedGet();
-                    }catch (TransactionCommitFailedException e)
-                    {
-                        LOG.info("transaction fail");
-                        testFail = true;
-                    }
+                    Futures.addCallback(submitFut, new FutureCallback<Void>() {
+                        @Override
+                        public void onSuccess(@Nullable Void aVoid) {
+
+                        }
+
+                        @Override
+                        public void onFailure(Throwable throwable) {
+                            testFail = true;
+                        }
+                    });
                     counter = 0;
-                    tx = dataBroker.newWriteOnlyTransaction();
+                    tx = chain.newWriteOnlyTransaction();
                 }
             }
         }
@@ -88,8 +93,39 @@ public class DataBrokerWrite extends AbstractDataStoreWriter{
          * We need to empty the transaction chain before closing it
          */
         CheckedFuture<Void, TransactionCommitFailedException> restSubmitFuture = tx.submit();
-        Futures.addCallback(restSubmitFuture, new submitFutureCallback(setFuture));
 
+        try
+        {
+            restSubmitFuture.checkedGet();
+            if (testFail)
+            {
+                setFuture.setException(new Throwable("test fail"));
+                return setFuture;
+            }
+            endTime = System.nanoTime();
+            setFuture.set(null);
+
+        }catch (Exception e)
+        {
+            setFuture.setException(e);
+        }finally {
+            try{
+                chain.close();;
+            }catch (Exception chainCloseException)
+            {
+                LOG.info("Can't close the transaction chain");
+            }
+        }
         return setFuture;
+    }
+
+    @Override
+    public void onTransactionChainFailed(TransactionChain<?, ?> transactionChain, AsyncTransaction<?, ?> asyncTransaction, Throwable throwable) {
+
+    }
+
+    @Override
+    public void onTransactionChainSuccessful(TransactionChain<?, ?> transactionChain) {
+
     }
 }

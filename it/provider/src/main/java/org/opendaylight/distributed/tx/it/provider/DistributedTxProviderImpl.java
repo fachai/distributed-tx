@@ -38,6 +38,8 @@ import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distribu
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterListBuilder;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterListKey;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.outer.list.InnerList;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.outer.list.InnerListBuilder;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.outer.list.InnerListKey;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.ds.naive.rollback.data.DsNaiveRollbackDataEntry;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.ds.naive.rollback.data.DsNaiveRollbackDataEntryBuilder;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.ds.naive.rollback.data.DsNaiveRollbackDataEntryKey;
@@ -497,13 +499,6 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
         LOG.info("initialize the datastore data tree for benchmark");
         InstanceIdentifier<DatastoreTestData> iid = InstanceIdentifier.create(DatastoreTestData.class);
 
-        if(this.dataBroker != null )
-        {
-            dataBroker.registerDataChangeListener(LogicalDatastoreType.CONFIGURATION,
-                    iid, new DsDataChangeListener(),
-                    AsyncDataBroker.DataChangeScope.SUBTREE);
-        }
-
         WriteTransaction transaction = this.dataBroker.newWriteOnlyTransaction();
         DatastoreTestData datastoreTestData = new DatastoreTestDataBuilder().build();
         transaction.put(LogicalDatastoreType.CONFIGURATION, iid, datastoreTestData);
@@ -572,7 +567,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
         }
 
         long dbTime = 0, dtxSyncTime = 0, dtxAsyncTime = 0; //record the test time for the corresponding test
-        int outerElements = 2, innerElements = 2;
+        int outerElements = 10, innerElements = 10;
 
         //create the nodeSet for the dtx
         Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> m = new HashMap<>();
@@ -580,49 +575,69 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
         dsNodeSet.add(InstanceIdentifier.create(DatastoreTestData.class));
         m.put(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, dsNodeSet);
 
-        //initialize the data store
-        boolean build = initializeDataStoreForBenchmark(outerElements);
-
-        int loopTime = 50;
+        Long loopTime = input.getLoop();
         long testOk = 0;
         long testError = 0;
-        AbstractDataWriter dataWriter;
         for (int i = 0; i < loopTime ; i++) {
             boolean testFail = false;
-            List<? extends AbstractDataWriter> dataWriters = Lists
-                    .newArrayList(new DataBrokerWrite(input, dataBroker, outerElements, innerElements),
-                            new DtxSyncWrite(input, dTxProvider, m, outerElements, innerElements),
-                            new DtxAsyncWrite(input, dTxProvider, m, outerElements, innerElements)); //store the data writer used to do the test
 
+            DataBrokerWrite dbWrite = new DataBrokerWrite(input, dataBroker, outerElements, innerElements);
+            DtxSyncWrite dTxSnycWrite = new DtxSyncWrite(input, dTxProvider, dataBroker, m, outerElements, innerElements);
+            DtxAsyncWrite dTxAsyncWrite = new DtxAsyncWrite(input, dTxProvider, dataBroker, m, outerElements, innerElements);
             //initialize the data store
-            build = initializeDataStoreForBenchmark(outerElements);
-            //test for the data store
-            for (int j = 0; j < dataWriters.size(); j++) {
-                dataWriter = dataWriters.get(j);
-                ListenableFuture<Void> testFut = dataWriter.writeData();
-                try {
-                    testFut.get();
-                } catch (Exception e) {
-                    testFail = true;
-                }
+            if (!initializeDataStoreForBenchmark(outerElements))
+            {
+                testFail = true;
+                LOG.info("can't initialize data store");
             }
 
-            if (!testFail) {
-                dbTime += dataWriters.get(0).getExecTime();
-                dtxSyncTime += dataWriters.get(1).getExecTime();
-                dtxAsyncTime += dataWriters.get(2).getExecTime();
-                testOk++;
+            //DataBroker test
+            ListenableFuture<Void> dbFuture = dbWrite.writeData();
+            try{
+                dbFuture.get();
+            }catch (Exception e)
+            {
+                testFail = true;
             }
-            else{
-                testError ++;
+            if (testFail)
+            {
+                LOG.info("DATA Broker test succeed");
+            }
+
+            //Dtx Sync test
+            ListenableFuture<Void> dTxSyncFuture = dTxSnycWrite.writeData();
+            try{
+                dTxSyncFuture.get();
+            }catch (Exception e)
+            {
+                testFail = true;
+            }
+
+            //Dtx Async test
+            ListenableFuture<Void> dTxAsyncFuture = dTxAsyncWrite.writeData();
+            try{
+                dTxAsyncFuture.get();
+            }catch (Exception e)
+            {
+                testFail = true;
+            }
+
+            if (!testFail)
+            {
+                dbTime += dbWrite.getExecTime();
+                dtxSyncTime += dTxSnycWrite.getExecTime();
+                dtxAsyncTime += dTxAsyncWrite.getExecTime();
+                testOk++;
+            }else{
+                testError++;
             }
         }
-        dbTime = dbTime/testOk;
-        dtxSyncTime = dtxSyncTime/testOk;
-        dtxAsyncTime = dtxAsyncTime/testOk;
         dsExecStatus.set(TestStatus.ExecStatus.Idle);
         LOG.info("Data store test success");
         if (testOk != 0) {
+            dbTime = dbTime/testOk;
+            dtxSyncTime = dtxSyncTime/testOk;
+            dtxAsyncTime = dtxAsyncTime/testOk;
             return RpcResultBuilder
                     .success(new BenchmarkTestOutputBuilder()
                             .setStatus(BenchmarkTestOutput.Status.OK)
