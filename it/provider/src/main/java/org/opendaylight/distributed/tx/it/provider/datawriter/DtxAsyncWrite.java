@@ -1,9 +1,7 @@
 package org.opendaylight.distributed.tx.it.provider.datawriter;
 
 import com.google.common.base.Function;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.*;
-import javassist.runtime.Inner;
 import org.opendaylight.controller.md.sal.binding.api.DataBroker;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
@@ -42,8 +40,7 @@ public class DtxAsyncWrite extends AbstractDataStoreWriter {
         this.nodesMap = nodesMap;
     }
     @Override
-    public ListenableFuture<Void> writeData() {
-        final SettableFuture<Void> setFuture = SettableFuture.create();
+    public void writeData() {
         long putsPerTx = input.getPutsPerTx();
 
         //when the operation is delete we should build the test data first
@@ -52,8 +49,7 @@ public class DtxAsyncWrite extends AbstractDataStoreWriter {
             boolean buildTestData = build();//build the test data for the operation
             if (!buildTestData)
             {
-                setFuture.setException(new Throwable("can't build the test data for the delete operation"));
-                return setFuture;
+                return;
             }
         }
 
@@ -62,30 +58,30 @@ public class DtxAsyncWrite extends AbstractDataStoreWriter {
         List<ListenableFuture<Void>> putFutures = new ArrayList<ListenableFuture<Void>>((int) putsPerTx);
 
         int counter = 0;
-        List<List<InnerList>> innerLists = buildInnerLists();
+        List<OuterList> outerLists = buildOuterList(outerElements, innerElements);
         dtx = dTxProvider.newTx(nodesMap);
         startTime = System.nanoTime();
-        for (int i = 0; i < outerElements ; i++) {
-            for (InnerList innerList : innerLists.get(i)) {
+        for ( OuterList outerList : outerLists ) {
+            for (InnerList innerList : outerList.getInnerList() ) {
                 InstanceIdentifier<InnerList> innerIid = InstanceIdentifier.create(DatastoreTestData.class)
-                        .child(OuterList.class, new OuterListKey(i))
+                        .child(OuterList.class, outerList.getKey())
                         .child(InnerList.class, innerList.getKey());
 
-                CheckedFuture<Void, DTxException> tx;
+                CheckedFuture<Void, DTxException> writeFuture;
                 if (input.getOperation() == BenchmarkTestInput.Operation.PUT) {
-                    tx = dtx.putAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION, innerIid, innerList, nodeId);
+                    writeFuture = dtx.putAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION, innerIid, innerList, nodeId);
                 }else if (input.getOperation() == BenchmarkTestInput.Operation.MERGE){
-                    tx = dtx.mergeAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION, innerIid, innerList, nodeId);
+                    writeFuture = dtx.mergeAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION, innerIid, innerList, nodeId);
                 }else{
-                    tx = dtx.deleteAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION, innerIid, nodeId);
+                    writeFuture = dtx.deleteAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION, innerIid, nodeId);
                 }
 
-                putFutures.add(tx);
+                putFutures.add(writeFuture);
                 counter++;
 
                 if (counter == putsPerTx)
                 {
-                    //aggregate all the put futures into a listenable future, this future can make sure all the Async write has finish cache the data
+                    //aggregate all the put futures into a listenable future, this future can make sure all the Async write has finish caching the data
                     ListenableFuture<Void> aggregatePutFuture = Futures.transform(Futures.allAsList(putFutures), new Function<List<Void>, Void>() {
                         @Nullable
                         @Override
@@ -96,22 +92,21 @@ public class DtxAsyncWrite extends AbstractDataStoreWriter {
 
                     try{
                         aggregatePutFuture.get();
+                        CheckedFuture<Void, TransactionCommitFailedException> submitFuture = dtx.submit();
+                        try{
+                            submitFuture.checkedGet();
+                            txSucceed++;
+                        }catch (TransactionCommitFailedException e)
+                        {
+                            LOG.info("DTX Async submit failed");
+                            txError++;
+                        }
+
                     }catch (Exception e)
                     {
                         LOG.info("DTX Async put failed");
-                        testFail = true;
-                        setFuture.setException(e);
-                        return setFuture;
-                    }
-                    CheckedFuture<Void, TransactionCommitFailedException> submitFuture = dtx.submit();
-                    try{
-                        submitFuture.checkedGet();
-                    }catch (TransactionCommitFailedException e)
-                    {
-                        LOG.info("DTX Async submit failed");
-                        testFail = true;
-                        setFuture.setException(e);
-                        return setFuture;
+                        txError++;
+                        dtx.cancel();
                     }
 
                     counter = 0;
@@ -120,6 +115,7 @@ public class DtxAsyncWrite extends AbstractDataStoreWriter {
                 }
             }
         }
+        //submit the outstanding transactions
         ListenableFuture<Void> aggregatePutFuture = Futures.transform(Futures.allAsList(putFutures), new Function<List<Void>, Void>() {
             @Nullable
             @Override
@@ -128,23 +124,22 @@ public class DtxAsyncWrite extends AbstractDataStoreWriter {
             }
         });
 
-        CheckedFuture<Void, TransactionCommitFailedException> restSubmitFuture = dtx.submit();
-        try
-        {
-            restSubmitFuture.checkedGet();
-            if (testFail)
+        try{
+            aggregatePutFuture.get();
+            CheckedFuture<Void, TransactionCommitFailedException> restSubmitFuture = dtx.submit();
+            try
             {
-                setFuture.setException(new Throwable("test fail"));
-                return setFuture;
+                restSubmitFuture.checkedGet();
+                txSucceed++;
+                endTime = System.nanoTime();
+            }catch (Exception e)
+            {
+                txError ++;
             }
-            endTime = System.nanoTime();
-            setFuture.set(null);
         }catch (Exception e)
         {
-            setFuture.setException(e);
+            txError ++;
         }
-
-        return setFuture;
     }
 
 }

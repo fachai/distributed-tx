@@ -566,8 +566,8 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
 
         }
 
-        long dbTime = 0, dtxSyncTime = 0, dtxAsyncTime = 0; //record the test time for the corresponding test
-        int outerElements = 10, innerElements = 10;
+        long dbTime = 0, dtxSyncTime = 0, dtxAsyncTime = 0; //test time for the corresponding test
+        int outerElements = input.getOuterList(), innerElements = input.getInnerList();
 
         //create the nodeSet for the dtx
         Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> m = new HashMap<>();
@@ -576,10 +576,9 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
         m.put(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, dsNodeSet);
 
         Long loopTime = input.getLoop();
-        long testOk = 0;
-        long testError = 0;
+
+        long dbOk = 0, dTxSyncOk = 0, dTxAyncOk = 0, errorCase = 0;
         for (int i = 0; i < loopTime ; i++) {
-            boolean testFail = false;
 
             DataBrokerWrite dbWrite = new DataBrokerWrite(input, dataBroker, outerElements, innerElements);
             DtxSyncWrite dTxSnycWrite = new DtxSyncWrite(input, dTxProvider, dataBroker, m, outerElements, innerElements);
@@ -587,65 +586,43 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
             //initialize the data store
             if (!initializeDataStoreForBenchmark(outerElements))
             {
-                testFail = true;
                 LOG.info("can't initialize data store");
+                errorCase ++;
+                continue;
             }
 
-            //DataBroker test
-            ListenableFuture<Void> dbFuture = dbWrite.writeData();
-            try{
-                dbFuture.get();
+            //dataBroker test
+            try {
+                dbWrite.writeData();
+                dTxSnycWrite.writeData();
+                dTxAsyncWrite.writeData();
             }catch (Exception e)
             {
-                testFail = true;
-            }
-            if (testFail)
-            {
-                LOG.info("DATA Broker test succeed");
+                LOG.error( "Test error: {}", e.toString());
+                errorCase++;
             }
 
-            //Dtx Sync test
-            ListenableFuture<Void> dTxSyncFuture = dTxSnycWrite.writeData();
-            try{
-                dTxSyncFuture.get();
-            }catch (Exception e)
-            {
-                testFail = true;
-            }
+            dbOk += dbWrite.getTxSucceed(); //number of databroker successful submit
+            dTxSyncOk += dTxSnycWrite.getTxSucceed(); //number of dtx sync successful submit
+            dTxAyncOk += dTxAsyncWrite.getTxSucceed(); //number of dtx async successful submit
 
-            //Dtx Async test
-            ListenableFuture<Void> dTxAsyncFuture = dTxAsyncWrite.writeData();
-            try{
-                dTxAsyncFuture.get();
-            }catch (Exception e)
-            {
-                testFail = true;
-            }
+            dbTime +=dbWrite.getExecTime()/(outerElements * innerElements);
+            dtxSyncTime +=dTxSnycWrite.getExecTime()/(outerElements * innerElements);
+            dtxAsyncTime += dTxAsyncWrite.getExecTime()/(outerElements * innerElements);
 
-            if (!testFail)
-            {
-                dbTime += dbWrite.getExecTime();
-                dtxSyncTime += dTxSnycWrite.getExecTime();
-                dtxAsyncTime += dTxAsyncWrite.getExecTime();
-                testOk++;
-            }else{
-                testError++;
-            }
         }
         dsExecStatus.set(TestStatus.ExecStatus.Idle);
         LOG.info("Data store test success");
-        if (testOk != 0) {
-            dbTime = dbTime/testOk;
-            dtxSyncTime = dtxSyncTime/testOk;
-            dtxAsyncTime = dtxAsyncTime/testOk;
+        if (loopTime != errorCase) {
             return RpcResultBuilder
                     .success(new BenchmarkTestOutputBuilder()
                             .setStatus(BenchmarkTestOutput.Status.OK)
-                            .setExecTime(dbTime)
-                            .setDtxSyncExecTime(dtxSyncTime)
-                            .setDtxAsyncExecTime(dtxAsyncTime)
-                            .setTxOk(testOk)
-                            .setTxError(testError)
+                            .setExecTime(dbTime/(loopTime - errorCase))
+                            .setDtxSyncExecTime(dtxSyncTime/(loopTime - errorCase))
+                            .setDtxAsyncExecTime(dtxAsyncTime/(loopTime - errorCase))
+                            .setDbOk(dbOk)
+                            .setDTxSyncOk(dTxSyncOk)
+                            .setDTxAyncOk(dTxAyncOk)
                             .build()).buildFuture();
         }else{
             return RpcResultBuilder

@@ -1,9 +1,10 @@
 package org.opendaylight.distributed.tx.it.provider.datawriter;
 
-import com.google.common.base.Function;
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.*;
-import javassist.runtime.Inner;
+import com.google.common.util.concurrent.CheckedFuture;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import org.opendaylight.controller.md.sal.binding.api.BindingTransactionChain;
 import org.opendaylight.controller.md.sal.binding.api.DataBroker;
 import org.opendaylight.controller.md.sal.binding.api.WriteTransaction;
@@ -11,7 +12,6 @@ import org.opendaylight.controller.md.sal.common.api.data.*;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.BenchmarkTestInput;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.DatastoreTestData;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterList;
-import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterListKey;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.outer.list.InnerList;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.slf4j.Logger;
@@ -22,6 +22,7 @@ import java.util.List;
 
 /**
  * Created by sunny on 16-2-25.
+ * this class is use to test the writing performance of the databroker
  */
 public class DataBrokerWrite extends AbstractDataStoreWriter implements TransactionChainListener{
     private DataBroker dataBroker;
@@ -34,8 +35,8 @@ public class DataBrokerWrite extends AbstractDataStoreWriter implements Transact
         this.dataBroker = db;
     }
     @Override
-    public ListenableFuture<Void> writeData() {
-        final SettableFuture<Void> setFuture = SettableFuture.create();
+    public void writeData() {
+
         long putsPerTx = input.getPutsPerTx();
 
         //when the operation is delete we should build the test data first
@@ -44,21 +45,20 @@ public class DataBrokerWrite extends AbstractDataStoreWriter implements Transact
             boolean buildTestData = build();//build the test data for the operation
             if (!buildTestData)
             {
-                setFuture.setException(new Throwable("can't build the test data for the delete operation"));
-                return setFuture;
+                return;
             }
         }
 
         BindingTransactionChain chain = dataBroker.createTransactionChain(this);
         WriteTransaction tx = chain.newWriteOnlyTransaction();
 
-        List<List<InnerList>> innerLists = buildInnerLists();
+        List<OuterList> outerLists = buildOuterList(outerElements, innerElements);
         startTime = System.nanoTime();
         long counter = 0;
-        for (int i = 0; i < outerElements ; i++) {
-            for (InnerList innerList : innerLists.get(i)) {
+        for ( OuterList outerList : outerLists ) {
+            for (InnerList innerList : outerList.getInnerList()) {
                 InstanceIdentifier<InnerList> innerIid = InstanceIdentifier.create(DatastoreTestData.class)
-                        .child(OuterList.class, new OuterListKey(i))
+                        .child(OuterList.class, outerList.getKey())
                         .child(InnerList.class, innerList.getKey());
                 if (input.getOperation() == BenchmarkTestInput.Operation.PUT) {
                     tx.put(LogicalDatastoreType.CONFIGURATION, innerIid, innerList);
@@ -74,12 +74,12 @@ public class DataBrokerWrite extends AbstractDataStoreWriter implements Transact
                     Futures.addCallback(submitFut, new FutureCallback<Void>() {
                         @Override
                         public void onSuccess(@Nullable Void aVoid) {
-
+                            txSucceed++;
                         }
 
                         @Override
                         public void onFailure(Throwable throwable) {
-                            testFail = true;
+                            txError++;
                         }
                     });
                     counter = 0;
@@ -97,17 +97,12 @@ public class DataBrokerWrite extends AbstractDataStoreWriter implements Transact
         try
         {
             restSubmitFuture.checkedGet();
-            if (testFail)
-            {
-                setFuture.setException(new Throwable("test fail"));
-                return setFuture;
-            }
+            txSucceed++;
             endTime = System.nanoTime();
-            setFuture.set(null);
 
         }catch (Exception e)
         {
-            setFuture.setException(e);
+            txError++;
         }finally {
             try{
                 chain.close();;
@@ -116,7 +111,7 @@ public class DataBrokerWrite extends AbstractDataStoreWriter implements Transact
                 LOG.info("Can't close the transaction chain");
             }
         }
-        return setFuture;
+
     }
 
     @Override

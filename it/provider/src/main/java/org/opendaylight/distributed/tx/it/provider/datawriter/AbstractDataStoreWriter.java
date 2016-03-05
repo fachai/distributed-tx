@@ -13,6 +13,7 @@ import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFaile
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.BenchmarkTestInput;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.DatastoreTestData;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterList;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterListBuilder;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterListKey;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.outer.list.InnerList;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.outer.list.InnerListBuilder;
@@ -25,10 +26,10 @@ import java.util.List;
 
 /**
  * Created by sunny on 16-2-25.
+ * this class is the parent class for all the datastore test classes
  */
 public abstract class AbstractDataStoreWriter extends AbstractDataWriter   {
     int outerElements, innerElements;
-    boolean testFail = false;
     DataBroker db;
 
     public AbstractDataStoreWriter(BenchmarkTestInput input, DataBroker db, int outerElements, int innerElements)
@@ -45,13 +46,14 @@ public abstract class AbstractDataStoreWriter extends AbstractDataWriter   {
      */
     public boolean build() {
 
-        List<List<InnerList>> innerLists = buildInnerLists();
+        List<OuterList> outerLists = buildOuterList(outerElements, innerElements);
         WriteTransaction transaction = this.db.newWriteOnlyTransaction();
-        for (int i = 0; i < outerElements ; i++) {
-            for (InnerList innerList : innerLists.get(i) )
+        for ( OuterList outerList : outerLists)
+        {
+            for (InnerList innerList : outerList.getInnerList() )
             {
                 InstanceIdentifier<InnerList> innerIid = InstanceIdentifier.create(DatastoreTestData.class)
-                        .child(OuterList.class, new OuterListKey(i))
+                        .child(OuterList.class, outerList.getKey())
                         .child(InnerList.class, innerList.getKey());
 
                 transaction.put(LogicalDatastoreType.CONFIGURATION, innerIid, innerList);
@@ -70,23 +72,31 @@ public abstract class AbstractDataStoreWriter extends AbstractDataWriter   {
     }
 
     //build the test data
-    List<List<InnerList>> buildInnerLists() {
-        List<List<InnerList>> innerLists = new ArrayList<>(outerElements);
-
-        for (int i = 0; i < outerElements ; i++) {
-            final String itemStr = "Item-" + String.valueOf(i) + "-";
-            List<InnerList> innerList = new ArrayList<>(innerElements);
-
-            for( int j = 0; j < innerElements; j++ ) {
-                innerList.add(new InnerListBuilder()
-                        .setKey( new InnerListKey( j ) )
-                        .setName(j)
-                        .setValue( itemStr + String.valueOf( j ) )
-                        .build());
-            }
-            innerLists.add(innerList);
+    public List<OuterList> buildOuterList(int outerElements, int innerElements) {
+        List<OuterList> outerList = new ArrayList<OuterList>(outerElements);
+        for (int j = 0; j < outerElements; j++) {
+            outerList.add(new OuterListBuilder()
+                    .setId( j )
+                    .setInnerList(buildInnerList(j, innerElements))
+                    .setKey(new OuterListKey( j ))
+                    .build());
         }
 
-        return innerLists;
+        return outerList;
+    }
+
+    private List<InnerList> buildInnerList( int index, int elements ) {
+        List<InnerList> innerList = new ArrayList<InnerList>( elements );
+
+        final String itemStr = "Item-" + String.valueOf(index) + "-";
+        for( int i = 0; i < elements; i++ ) {
+            innerList.add(new InnerListBuilder()
+                    .setKey( new InnerListKey( i ) )
+                    .setName(i)
+                    .setValue( itemStr + String.valueOf( i ) )
+                    .build());
+        }
+
+        return innerList;
     }
 }

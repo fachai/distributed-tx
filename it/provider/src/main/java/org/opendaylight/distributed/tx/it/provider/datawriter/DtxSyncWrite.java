@@ -1,7 +1,6 @@
 package org.opendaylight.distributed.tx.it.provider.datawriter;
 
 import com.google.common.util.concurrent.CheckedFuture;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import org.opendaylight.controller.md.sal.binding.api.DataBroker;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
@@ -13,7 +12,6 @@ import org.opendaylight.distributed.tx.api.DTxProvider;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.BenchmarkTestInput;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.DatastoreTestData;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterList;
-import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterListKey;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.outer.list.InnerList;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.slf4j.Logger;
@@ -25,6 +23,7 @@ import java.util.Set;
 
 /**
  * Created by sunny on 16-2-25.
+ * this class is used to do the sync test for dtx
  */
 public class DtxSyncWrite extends AbstractDataStoreWriter {
     private DTx dtx;
@@ -40,8 +39,7 @@ public class DtxSyncWrite extends AbstractDataStoreWriter {
     }
 
     @Override
-    public ListenableFuture<Void> writeData() {
-        final SettableFuture<Void> setFuture = SettableFuture.create();
+    public void writeData() {
         long putsPerTx = input.getPutsPerTx();
 
         //when the operation is delete we should build the test data first
@@ -50,21 +48,20 @@ public class DtxSyncWrite extends AbstractDataStoreWriter {
             boolean buildTestData = build();//build the test data for the operation
             if (!buildTestData)
             {
-                setFuture.setException(new Throwable("can't build the test data for the delete operation"));
-                return setFuture;
+                return;
             }
         }
 
         InstanceIdentifier<DatastoreTestData> nodeId = InstanceIdentifier.create(DatastoreTestData.class);
 
         int counter = 0;
-        List<List<InnerList>> innerLists = buildInnerLists();
+        List<OuterList> outerLists = buildOuterList(outerElements, innerElements);
         startTime = System.nanoTime();
         dtx = dTxProvider.newTx(nodesMap);
-        for (int i = 0; i < outerElements ; i++) {
-            for (InnerList innerList : innerLists.get(i)) {
+        for ( OuterList outerList : outerLists ) {
+            for (InnerList innerList : outerList.getInnerList() ) {
                 InstanceIdentifier<InnerList> innerIid = InstanceIdentifier.create(DatastoreTestData.class)
-                        .child(OuterList.class, new OuterListKey(i))
+                        .child(OuterList.class, outerList.getKey())
                         .child(InnerList.class, innerList.getKey());
 
                 CheckedFuture<Void, DTxException> tx ;
@@ -84,9 +81,10 @@ public class DtxSyncWrite extends AbstractDataStoreWriter {
                     tx.checkedGet();
                 }catch (Exception e)
                 {
-                    setFuture.setException(e);
-                    LOG.info("DTx sync write failed");
-                    return setFuture; //end the rest of test
+                    txError++;
+                    counter = 0;
+                    dtx = dTxProvider.newTx(nodesMap);
+                    continue;
                 }
 
                 if (counter == putsPerTx)
@@ -94,36 +92,28 @@ public class DtxSyncWrite extends AbstractDataStoreWriter {
                     CheckedFuture<Void, TransactionCommitFailedException> submitFuture = dtx.submit();
                     try{
                         submitFuture.checkedGet();
+                        txSucceed++;
                     }catch (TransactionCommitFailedException e)
                     {
-                        testFail = true;
-                        LOG.info("Dtx sync submit failed");
-                        setFuture.setException(e);
-                        return setFuture;
+                        txError++;
                     }
                     counter = 0;
                     dtx = dTxProvider.newTx(nodesMap);
                 }
             }
         }
-
+        //submit the outstanding transactions
         CheckedFuture<Void, TransactionCommitFailedException> restSubmitFuture = dtx.submit();
         try
         {
             restSubmitFuture.checkedGet();
-            if (testFail)
-            {
-                setFuture.setException(new Throwable("test fail"));
-                return setFuture;
-            }
             endTime = System.nanoTime();
-            setFuture.set(null);
+            txSucceed++;
         }catch (Exception e)
         {
-            setFuture.setException(e);
+            txError++;
         }
 
-        return setFuture;
     }
 
 }

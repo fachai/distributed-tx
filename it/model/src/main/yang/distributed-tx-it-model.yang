@@ -139,6 +139,12 @@ module distributed-tx-it-model{
                             }
                          }
                       }
+                      leaf loop {
+                          type uint32;
+                          default 500000;
+                          description
+                             "The times of the test";
+                      }
                       leaf operation {
                            type enumeration {
                               enum "PUT" {
@@ -165,6 +171,18 @@ module distributed-tx-it-model{
                            default 1;
                            description
                                 "Number of write operations (PUT, MERGE, or DELETE) per transaction submit";
+                      }
+                      leaf outerList {
+                           type int32;
+                           default 1000;
+                           description
+                                "Size of outerList";
+                      }
+                      leaf innerList {
+                           type int32;
+                           default 1000;
+                           description
+                               "Size of innerList";
                       }
                   }
                   output {
@@ -202,17 +220,23 @@ module distributed-tx-it-model{
                            description
                               "The time it took to asynchronously execute all the transaction via dtx";
                       }
-                      leaf txOk {
+                      leaf dbOk {
                            type uint32;
                            default 0;
                            description
-                              "The number of successful tests";
+                              "The number of successful databroker tests";
                       }
-                      leaf txError {
+                      leaf dTxSyncOk {
                            type uint32;
                            default 0;
                            description
-                              "The number of error tests";
+                              "The number of successful dtx sync tests ";
+                      }
+                      leaf dTxAyncOk {
+                           type uint32;
+                           default 0;
+                           description
+                              "The number of successful dtx async tests ";
                       }
                   }
           }
