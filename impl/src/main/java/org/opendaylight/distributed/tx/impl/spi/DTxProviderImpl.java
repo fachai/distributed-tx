@@ -31,15 +31,16 @@ public class DTxProviderImpl implements DTxProvider, AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(DTxProviderImpl.class);
     private final Map<Object, DtxReleaseWrapper> currentTxs = Maps.newHashMap();
     private final Map<DTXLogicalTXProviderType, TxProvider> txProviderMap;
-    private final TransactionLock dtxLock = new DTxTransactionLockImpl();
+    private final TransactionLock dtxLock;
 
     public DTxProviderImpl(@Nonnull final Map<DTXLogicalTXProviderType, TxProvider> txProviders){
         txProviderMap = txProviders;
+        dtxLock = new DTxTransactionLockImpl(txProviderMap);
     }
 
     @Nonnull @Override public synchronized DTx newTx(@Nonnull final Set<InstanceIdentifier<?>> nodes)
         throws DTxException.DTxInitializationFailedException {
-        boolean lockSucceed = dtxLock.lockDevices(nodes);
+        boolean lockSucceed = dtxLock.lockDevices(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, nodes);
 
         if(!lockSucceed) {
             throw new DTxException.DTxInitializationFailedException("Failed to lock devices");

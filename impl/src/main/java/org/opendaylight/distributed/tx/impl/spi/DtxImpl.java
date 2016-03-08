@@ -48,7 +48,7 @@ public class DtxImpl implements DTx {
     public DtxImpl(@Nonnull final Map<DTXLogicalTXProviderType, TxProvider> providerMap,
                    @Nonnull final Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap, TransactionLock lock) {
         Preconditions.checkArgument(!nodesMap.values().isEmpty(), "Cannot create distributed tx for 0 nodes");
-        Preconditions.checkArgument(providerMap.keySet().contains(nodesMap.keySet()), "logicalType sets of txporider and nodes are different");
+        Preconditions.checkArgument(providerMap.keySet().containsAll(nodesMap.keySet()), "logicalType sets of txporider and nodes are different");
         this.txProviderMap = providerMap;
         perNodeTransactionsbyLogicalType = initializeTransactionsPerLogicalType(providerMap, nodesMap);
         this.deviceLock = lock;
@@ -405,7 +405,7 @@ public class DtxImpl implements DTx {
                     case SUCCESS: {
                         distributedSubmitFuture.set(null);
                         this.releaseTx();
-                        deviceLock.releaseDevices(this.commitStatus.keySet());
+                        deviceLock.releaseDevices(logicalTxProviderType, this.commitStatus.keySet());
                         return;
                     }
                     default: {
@@ -418,14 +418,14 @@ public class DtxImpl implements DTx {
                     @Override public void onSuccess(@Nullable final Void result) {
                         LOG.info("Distributed tx failed for {}. Rollback was successful", perNodeTx.getKey());
                         distributedSubmitFuture.setException(e);
-                        deviceLock.releaseDevices(commitStatus.keySet());
+                        deviceLock.releaseDevices(logicalTxProviderType, commitStatus.keySet());
                     }
 
                     @Override public void onFailure(final Throwable t) {
                         LOG.warn("Distributed tx filed. Rollback FAILED. Device(s) state is unknown", t);
                         // t should be rollback failed EX
                         distributedSubmitFuture.setException(t);
-                        deviceLock.releaseDevices(commitStatus.keySet());
+                        deviceLock.releaseDevices(logicalTxProviderType, commitStatus.keySet());
                     }
                 });
             }

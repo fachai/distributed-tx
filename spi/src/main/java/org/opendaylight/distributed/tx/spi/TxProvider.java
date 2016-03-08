@@ -3,6 +3,8 @@ package org.opendaylight.distributed.tx.spi;
 import org.opendaylight.controller.md.sal.binding.api.ReadWriteTransaction;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 
+import java.util.Set;
+
 /**
  * Per node transaction provider SPI. Distributed tx treats every node just as an instance of ReadWriteTransaction.
  * This provider interface hides the details of its creation, whether the per node transactions come from MountPoints or are app specific.
@@ -20,4 +22,7 @@ public interface TxProvider {
     ReadWriteTransaction newTx(InstanceIdentifier<?> nodeId)
         throws TxException.TxInitiatizationFailedException;
 
+    boolean isDeviceLocked(InstanceIdentifier<?> device);
+    boolean lockTransactionDevices(Set<InstanceIdentifier<?>> deviceSet);
+    void releaseTransactionDevices(Set<InstanceIdentifier<?>>deviceSet);
 }

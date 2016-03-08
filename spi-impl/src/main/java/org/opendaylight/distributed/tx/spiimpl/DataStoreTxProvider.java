@@ -17,6 +17,9 @@ import org.opendaylight.distributed.tx.spi.TxProvider;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Set;
+
 /**
  * Created by fachai on 1/7/16.
  */
@@ -35,6 +38,20 @@ public class DataStoreTxProvider implements TxProvider, AutoCloseable, BindingAw
     @Override
     public ReadWriteTransaction newTx(@Nullable InstanceIdentifier<?> path) {
         return dataBroker.newReadWriteTransaction();
+    }
+
+    @Override
+    public boolean isDeviceLocked(InstanceIdentifier<?> device) {
+        return false;
+    }
+
+    @Override
+    public boolean lockTransactionDevices(Set<InstanceIdentifier<?>> deviceSet) {
+        return true;
+    }
+
+    @Override
+    public void releaseTransactionDevices(Set<InstanceIdentifier<?>> deviceSet) {
     }
 
     @Override

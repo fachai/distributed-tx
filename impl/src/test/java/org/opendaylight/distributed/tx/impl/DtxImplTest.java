@@ -21,10 +21,7 @@ import org.opendaylight.yangtools.yang.binding.DataContainer;
 import org.opendaylight.yangtools.yang.binding.DataObject;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import javax.annotation.Nullable;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import static org.junit.Assert.fail;
@@ -57,6 +54,22 @@ public class DtxImplTest{
             else
                 throw new TxException.TxInitiatizationFailedException("create tx exception");
         }
+
+        @Override
+        public boolean isDeviceLocked(InstanceIdentifier<?> device) {
+            return false;
+        }
+
+        @Override
+        public boolean lockTransactionDevices(Set<InstanceIdentifier<?>> deviceSet) {
+            return true;
+        }
+
+        @Override
+        public void releaseTransactionDevices(Set<InstanceIdentifier<?>> deviceSet) {
+
+        }
+
         public void setTxException(boolean createTxException)
         {
             this.createTxException = createTxException;
@@ -72,6 +85,22 @@ public class DtxImplTest{
             else
                 throw new TxException.TxInitiatizationFailedException("create tx exception");
         }
+
+        @Override
+        public boolean isDeviceLocked(InstanceIdentifier<?> device) {
+            return false;
+        }
+
+        @Override
+        public boolean lockTransactionDevices(Set<InstanceIdentifier<?>> deviceSet) {
+            return true;
+        }
+
+        @Override
+        public void releaseTransactionDevices(Set<InstanceIdentifier<?>> deviceSet) {
+
+        }
+
         public void setTxException(boolean createTxException){this.createTxException = createTxException;}
     }
 
@@ -130,7 +159,10 @@ public class DtxImplTest{
 
         internalDtxNetconfTestTx1 = new DTXTestTransaction();
         internalDtxNetconfTestTx2 = new DTXTestTransaction();
-        dtxImpl1 = new DtxImpl(new myNetconfTxProvider(), netconfNodes, new DTxTransactionLockImpl());
+        Map<DTXLogicalTXProviderType, TxProvider> netconfTxProviderMap = new HashMap<>();
+        TxProvider netconfTxProvider = new myNetconfTxProvider();
+        netconfTxProviderMap.put(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, netconfTxProvider);
+        dtxImpl1 = new DtxImpl(netconfTxProvider, netconfNodes, new DTxTransactionLockImpl(netconfTxProviderMap));
 
         dataStoreNodes = new HashSet<>();
         this.dataStoreNode1 = InstanceIdentifier.create(TestClassNode3.class);
@@ -158,7 +190,7 @@ public class DtxImplTest{
             }
         });
 
-        dtxImpl2 = new DtxImpl(txProviderMap, nodesMap, new DTxTransactionLockImpl());
+        dtxImpl2 = new DtxImpl(txProviderMap, nodesMap, new DTxTransactionLockImpl(txProviderMap));
     }
 
     @Before
@@ -1377,7 +1409,9 @@ public class DtxImplTest{
     @Test
     public void testSubmitCreateRollbackTxFailInDtxImpl1() {
         myNetconfTxProvider txProvider = new myNetconfTxProvider();
-        DtxImpl dtxImpl1 = new DtxImpl(txProvider, netconfNodes, new DTxTransactionLockImpl());
+        Map<DTXLogicalTXProviderType, TxProvider> netconfTxProviderMap = new HashMap<>();
+        netconfTxProviderMap.put(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, txProvider);
+        DtxImpl dtxImpl1 = new DtxImpl(txProvider, netconfNodes, new DTxTransactionLockImpl(netconfTxProviderMap));
 
         internalDtxNetconfTestTx1.setSubmitException(true);
         txProvider.setTxException(true);
@@ -1417,7 +1451,7 @@ public class DtxImplTest{
                         return dtxLogicalTXProviderType == DTXLogicalTXProviderType.NETCONF_TX_PROVIDER ? netconfNodes : dataStoreNodes  ;
                     }
                 });
-        DtxImpl dtxImpl2 = new DtxImpl(txProviderMap, nodesMap, new DTxTransactionLockImpl());
+        DtxImpl dtxImpl2 = new DtxImpl(txProviderMap, nodesMap, new DTxTransactionLockImpl(txProviderMap));
 
         dataStoreTxProvider.setTxException(true);
         internalDtxDataStoreTestTx2.setSubmitException(true);

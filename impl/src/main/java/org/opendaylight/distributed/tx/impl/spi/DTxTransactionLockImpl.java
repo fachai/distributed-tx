@@ -1,108 +1,71 @@
 package org.opendaylight.distributed.tx.impl.spi;
 
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 import org.opendaylight.distributed.tx.api.DTXLogicalTXProviderType;
 import org.opendaylight.distributed.tx.spi.TransactionLock;
+import org.opendaylight.distributed.tx.spi.TxProvider;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.util.*;
 
 public class DTxTransactionLockImpl implements TransactionLock {
     final private Set<InstanceIdentifier<?>> lockSet = new HashSet<>();
     private static final Logger LOG = LoggerFactory.getLogger(DTxTransactionLockImpl.class);
+    private final Map<DTXLogicalTXProviderType, TxProvider>txProviderMap;
 
-    public DTxTransactionLockImpl(){
+    public DTxTransactionLockImpl(Map<DTXLogicalTXProviderType, TxProvider> providerMap){
+        this.txProviderMap = providerMap;
     }
 
     @Override
-    public boolean lockDevice(InstanceIdentifier<?> device) {
-        boolean ret = true;
-        synchronized (DTxTransactionLockImpl.this) {
-            if (lockSet.contains(device)) {
-                ret = false;
-            } else {
-                lockSet.add(device);
-            }
-        }
-
-        return ret;
+    public boolean isLocked(DTXLogicalTXProviderType type, InstanceIdentifier<?> device) {
+        return this.txProviderMap.get(type).isDeviceLocked(device);
     }
 
     @Override
-    public boolean isLocked(InstanceIdentifier<?> device) {
-        boolean ret ;
-        synchronized (DTxTransactionLockImpl.this) {
-            ret = lockSet.contains(device);
-        }
-
-        return ret;
-    }
-
-    @Override
-    public void releaseDevice(InstanceIdentifier<?> device) {
-        synchronized (DTxTransactionLockImpl.this) {
-            lockSet.remove(device);
-        }
-    }
-
-    @Override
-    public boolean lockDevices(Set<InstanceIdentifier<?>> deviceSet) {
-        boolean ret = true;
-        synchronized (DTxTransactionLockImpl.this) {
-            Set<InstanceIdentifier<?>> s = new HashSet<>();
-            s.addAll(this.lockSet);
-
-            s.retainAll(deviceSet);
-
-            if(s.size() > 0)
-                ret = false;
-            else {
-                lockSet.addAll(deviceSet);
-            }
-        }
-
-        return ret;
+    public boolean lockDevices(DTXLogicalTXProviderType type, Set<InstanceIdentifier<?>> deviceSet) {
+        return this.txProviderMap.get(type).lockTransactionDevices(deviceSet);
     }
     @Override
-    public boolean lockDevices(Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> deviceMap) {
-        boolean ret = true;
+    public boolean lockDevices(final Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> deviceMap) {
+        boolean allLocked = true;
+
         synchronized (DTxTransactionLockImpl.this) {
-            for(DTXLogicalTXProviderType t : deviceMap.keySet()) {
-                Set<InstanceIdentifier<?>> s = new HashSet<>();
-                s.addAll(this.lockSet);
-
-                s.retainAll(deviceMap.get(t));
-
-                if(s.size() > 0) {
-                    ret = false;
+            for(DTXLogicalTXProviderType t : deviceMap.keySet()){
+                if(this.txProviderMap.get(t).lockTransactionDevices(deviceMap.get(t))){
+                    allLocked = false;
                     break;
                 }
             }
 
-            if(ret){
-                for(DTXLogicalTXProviderType t : deviceMap.keySet()) {
-                    this.lockSet.addAll(deviceMap.get(t));
-                }
+            if(!allLocked){
+                this.releaseDevices(deviceMap);
             }
         }
 
-        return ret;
+        return allLocked;
     }
 
     @Override
-    public void releaseDevices(Set<InstanceIdentifier<?>> deviceSet) {
-        this.lockSet.removeAll(deviceSet);
+    public void releaseDevices(DTXLogicalTXProviderType type, Set<InstanceIdentifier<?>> deviceSet) {
+        this.txProviderMap.get(type).releaseTransactionDevices(deviceSet);
     }
 
     @Override
-    public void releaseDevices(Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> deviceMap) {
-        synchronized (DTxTransactionLockImpl.this) {
-            for(DTXLogicalTXProviderType t : deviceMap.keySet()) {
-                this.lockSet.removeAll(deviceMap.get(t));
+    public void releaseDevices(final Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> deviceMap) {
+        Maps.asMap(this.txProviderMap.keySet(), new Function<DTXLogicalTXProviderType, Object>() {
+            @Nullable
+            @Override
+            public Object apply(@Nullable DTXLogicalTXProviderType logicalTXProviderType) {
+                txProviderMap.get(logicalTXProviderType).releaseTransactionDevices(deviceMap.get(logicalTXProviderType));
+                return null;
             }
-        }
+        });
     }
 }
 
