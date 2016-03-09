@@ -37,7 +37,7 @@ public class DTxTransactionLockImpl implements TransactionLock {
 
         synchronized (DTxTransactionLockImpl.this) {
             for(DTXLogicalTXProviderType t : deviceMap.keySet()){
-                if(this.txProviderMap.get(t).lockTransactionDevices(deviceMap.get(t))){
+                if(!this.txProviderMap.get(t).lockTransactionDevices(deviceMap.get(t))){
                     allLocked = false;
                     break;
                 }

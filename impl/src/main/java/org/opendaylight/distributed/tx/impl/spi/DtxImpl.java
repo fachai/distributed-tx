@@ -403,9 +403,9 @@ public class DtxImpl implements DTx {
                         return;
                     }
                     case SUCCESS: {
-                        distributedSubmitFuture.set(null);
                         this.releaseTx();
                         deviceLock.releaseDevices(logicalTxProviderType, this.commitStatus.keySet());
+                        distributedSubmitFuture.set(null);
                         return;
                     }
                     default: {
@@ -417,15 +417,15 @@ public class DtxImpl implements DTx {
                 Futures.addCallback(rollbackUponCommitFailure(commitStatus), new FutureCallback<Void>() {
                     @Override public void onSuccess(@Nullable final Void result) {
                         LOG.info("Distributed tx failed for {}. Rollback was successful", perNodeTx.getKey());
-                        distributedSubmitFuture.setException(e);
                         deviceLock.releaseDevices(logicalTxProviderType, commitStatus.keySet());
+                        distributedSubmitFuture.setException(e);
                     }
 
                     @Override public void onFailure(final Throwable t) {
                         LOG.warn("Distributed tx filed. Rollback FAILED. Device(s) state is unknown", t);
                         // t should be rollback failed EX
-                        distributedSubmitFuture.setException(t);
                         deviceLock.releaseDevices(logicalTxProviderType, commitStatus.keySet());
+                        distributedSubmitFuture.setException(t);
                     }
                 });
             }
