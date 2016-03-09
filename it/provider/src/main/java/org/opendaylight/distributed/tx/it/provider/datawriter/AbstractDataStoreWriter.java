@@ -1,14 +1,9 @@
 package org.opendaylight.distributed.tx.it.provider.datawriter;
 
 import com.google.common.util.concurrent.CheckedFuture;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.SettableFuture;
-import javassist.runtime.Inner;
 import org.opendaylight.controller.md.sal.binding.api.DataBroker;
 import org.opendaylight.controller.md.sal.binding.api.WriteTransaction;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
-import org.opendaylight.controller.md.sal.common.api.data.TransactionChain;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.BenchmarkTestInput;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.DatastoreTestData;
@@ -19,15 +14,9 @@ import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distribu
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.outer.list.InnerListBuilder;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.outer.list.InnerListKey;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
-
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Created by sunny on 16-2-25.
- * this class is the parent class for all the datastore test classes
- */
 public abstract class AbstractDataStoreWriter extends AbstractDataWriter   {
     int outerElements, innerElements;
     DataBroker db;
@@ -39,13 +28,11 @@ public abstract class AbstractDataStoreWriter extends AbstractDataWriter   {
         this.outerElements = outerElements;
         this.innerElements = innerElements;
     }
-
     /**
      * this method is usd to build the test data fot delete operation
      * @return
      */
     public boolean build() {
-
         List<OuterList> outerLists = buildOuterList(outerElements, innerElements);
         WriteTransaction transaction = this.db.newWriteOnlyTransaction();
         for ( OuterList outerList : outerLists)
@@ -81,13 +68,11 @@ public abstract class AbstractDataStoreWriter extends AbstractDataWriter   {
                     .setKey(new OuterListKey( j ))
                     .build());
         }
-
         return outerList;
     }
 
     private List<InnerList> buildInnerList( int index, int elements ) {
         List<InnerList> innerList = new ArrayList<InnerList>( elements );
-
         final String itemStr = "Item-" + String.valueOf(index) + "-";
         for( int i = 0; i < elements; i++ ) {
             innerList.add(new InnerListBuilder()
@@ -96,7 +81,6 @@ public abstract class AbstractDataStoreWriter extends AbstractDataWriter   {
                     .setValue( itemStr + String.valueOf( i ) )
                     .build());
         }
-
         return innerList;
     }
 }

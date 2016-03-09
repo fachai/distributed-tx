@@ -1,7 +1,9 @@
 package org.opendaylight.distributed.tx.it.provider.datawriter;
 
 import com.google.common.base.Function;
-import com.google.common.util.concurrent.*;
+import com.google.common.util.concurrent.CheckedFuture;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import org.opendaylight.controller.md.sal.binding.api.DataBroker;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
@@ -12,21 +14,16 @@ import org.opendaylight.distributed.tx.api.DTxProvider;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.BenchmarkTestInput;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.DatastoreTestData;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterList;
-import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterListKey;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.outer.list.InnerList;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Created by sunny on 16-2-25.
- */
 public class DtxAsyncWrite extends AbstractDataStoreWriter {
     private DTx dtx;
     private DTxProvider dTxProvider;
@@ -54,8 +51,7 @@ public class DtxAsyncWrite extends AbstractDataStoreWriter {
         }
 
         InstanceIdentifier<DatastoreTestData> nodeId = InstanceIdentifier.create(DatastoreTestData.class);
-        //store all the put futures
-        List<ListenableFuture<Void>> putFutures = new ArrayList<ListenableFuture<Void>>((int) putsPerTx);
+        List<ListenableFuture<Void>> putFutures = new ArrayList<ListenableFuture<Void>>((int) putsPerTx); //store all the put futures
 
         int counter = 0;
         List<OuterList> outerLists = buildOuterList(outerElements, innerElements);
@@ -75,7 +71,6 @@ public class DtxAsyncWrite extends AbstractDataStoreWriter {
                 }else{
                     writeFuture = dtx.deleteAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION, innerIid, nodeId);
                 }
-
                 putFutures.add(writeFuture);
                 counter++;
 
@@ -101,7 +96,6 @@ public class DtxAsyncWrite extends AbstractDataStoreWriter {
                             LOG.info("DTX Async submit failed");
                             txError++;
                         }
-
                     }catch (Exception e)
                     {
                         LOG.info("DTX Async put failed");
@@ -141,5 +135,4 @@ public class DtxAsyncWrite extends AbstractDataStoreWriter {
             txError ++;
         }
     }
-
 }

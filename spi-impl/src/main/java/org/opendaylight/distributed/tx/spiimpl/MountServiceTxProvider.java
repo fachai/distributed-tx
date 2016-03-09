@@ -15,6 +15,8 @@ import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Set;
+
 /**
  * Per node transaction provider SPI. Distributed tx treats every node just as an instance of ReadWriteTransaction.
  * This provider interface hides the details of its creation, whether the per node transactions come from MountPoints or are app specific.
@@ -23,6 +25,7 @@ public class MountServiceTxProvider implements TxProvider, AutoCloseable, Bindin
 
     private volatile MountPointService mountService;
     private static final Logger LOG = LoggerFactory.getLogger(MountServiceTxProvider.class);
+    private final TxProviderLock txLock = new TxProviderLock();
 
     /**
      *
@@ -46,6 +49,22 @@ public class MountServiceTxProvider implements TxProvider, AutoCloseable, Bindin
         } else {
             throw new TxException.TxInitiatizationFailedException("Unable to create tx for " + path + ", Mountpoint does not exist");
         }
+    }
+
+    @Override
+    public boolean isDeviceLocked(InstanceIdentifier<?> device) {
+        return txLock.isDeviceLocked(device);
+    }
+
+    @Override
+    public boolean lockTransactionDevices(Set<InstanceIdentifier<?>> deviceSet) {
+
+        return txLock.lockDevices(deviceSet);
+    }
+
+    @Override
+    public void releaseTransactionDevices(Set<InstanceIdentifier<?>> deviceSet) {
+        txLock.releaseDevices(deviceSet);
     }
 
     @Override public void close() throws Exception {

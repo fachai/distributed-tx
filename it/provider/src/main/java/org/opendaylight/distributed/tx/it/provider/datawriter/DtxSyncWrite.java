@@ -1,7 +1,6 @@
 package org.opendaylight.distributed.tx.it.provider.datawriter;
 
 import com.google.common.util.concurrent.CheckedFuture;
-import com.google.common.util.concurrent.SettableFuture;
 import org.opendaylight.controller.md.sal.binding.api.DataBroker;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
@@ -16,15 +15,10 @@ import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distribu
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Created by sunny on 16-2-25.
- * this class is used to do the sync test for dtx
- */
 public class DtxSyncWrite extends AbstractDataStoreWriter {
     private DTx dtx;
     private DTxProvider dTxProvider;
@@ -64,21 +58,20 @@ public class DtxSyncWrite extends AbstractDataStoreWriter {
                         .child(OuterList.class, outerList.getKey())
                         .child(InnerList.class, innerList.getKey());
 
-                CheckedFuture<Void, DTxException> tx ;
-
+                CheckedFuture<Void, DTxException> writeFuture ;
                 if (input.getOperation() == BenchmarkTestInput.Operation.PUT) {
-                    tx = dtx.putAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION, innerIid, innerList, nodeId);
+                    writeFuture = dtx.putAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION, innerIid, innerList, nodeId);
 
                 }else if (input.getOperation() == BenchmarkTestInput.Operation.MERGE){
-                    tx = dtx.mergeAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION, innerIid, innerList, nodeId);
+                    writeFuture = dtx.mergeAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION, innerIid, innerList, nodeId);
 
                 }else{
-                    tx = dtx.deleteAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION, innerIid, nodeId);
+                    writeFuture = dtx.deleteAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION, innerIid, nodeId);
                 }
                 counter++;
 
                 try{
-                    tx.checkedGet();
+                    writeFuture.checkedGet();
                 }catch (Exception e)
                 {
                     txError++;
@@ -113,7 +106,5 @@ public class DtxSyncWrite extends AbstractDataStoreWriter {
         {
             txError++;
         }
-
     }
-
 }

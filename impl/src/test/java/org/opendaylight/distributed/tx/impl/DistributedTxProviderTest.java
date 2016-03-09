@@ -41,9 +41,28 @@ public class DistributedTxProviderTest {
     Map<DTXLogicalTXProviderType, TxProvider> m = new HashMap<>();
 
     private class myTxProvider implements TxProvider{
+        boolean isLocked = true;
+
         @Override
         public ReadWriteTransaction newTx(InstanceIdentifier<?> nodeId) throws TxException.TxInitiatizationFailedException {
             return new DTXTestTransaction();
+        }
+
+        @Override
+        public boolean isDeviceLocked(InstanceIdentifier<?> device) {
+            return false;
+        }
+
+        @Override
+        public boolean lockTransactionDevices(Set<InstanceIdentifier<?>> deviceSet) {
+            boolean ret = isLocked;
+            this.isLocked = !ret;
+            return ret;
+        }
+
+        @Override
+        public void releaseTransactionDevices(Set<InstanceIdentifier<?>> deviceSet) {
+
         }
     }
 

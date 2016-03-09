@@ -2,10 +2,6 @@ package org.opendaylight.distributed.tx.it.provider.datawriter;
 
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.BenchmarkTestInput;
 
-/**
- * Created by sunny on 16-2-24.
- * this class is the parent class for both the data store test classes and netconf test classes
- */
 public abstract class AbstractDataWriter {
     long startTime, endTime;
     BenchmarkTestInput input;
