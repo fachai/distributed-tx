@@ -87,7 +87,6 @@ and is available at http://www.eclipse.org/legal/epl-v10.html
       <artifactId>ietf-topology</artifactId>
       <version>2013.10.21.8-Beryllium</version>
     </dependency>
-
   </dependencies>
 
   <build>
