@@ -1,7 +1,6 @@
 package org.opendaylight.distributed.tx.impl.spi;
 
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import org.opendaylight.distributed.tx.api.DTXLogicalTXProviderType;
 import org.opendaylight.distributed.tx.spi.TransactionLock;
@@ -9,12 +8,13 @@ import org.opendaylight.distributed.tx.spi.TxProvider;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import javax.annotation.Nullable;
-import java.util.*;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 public class DTxTransactionLockImpl implements TransactionLock {
-    final private Set<InstanceIdentifier<?>> lockSet = new HashSet<>();
+    private volatile Set<InstanceIdentifier<?>> lockSet = new HashSet<>();
     private static final Logger LOG = LoggerFactory.getLogger(DTxTransactionLockImpl.class);
     private final Map<DTXLogicalTXProviderType, TxProvider>txProviderMap;
 

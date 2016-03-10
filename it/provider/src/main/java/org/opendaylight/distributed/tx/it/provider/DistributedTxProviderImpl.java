@@ -1,13 +1,13 @@
 package org.opendaylight.distributed.tx.it.provider;
 
 import com.google.common.base.Optional;
-import com.google.common.util.concurrent.CheckedFuture;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.*;
 
 import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.opendaylight.controller.md.sal.binding.api.*;
 import org.opendaylight.controller.md.sal.binding.api.DataChangeListener;
@@ -16,6 +16,10 @@ import org.opendaylight.distributed.tx.api.DTXLogicalTXProviderType;
 import org.opendaylight.distributed.tx.api.DTx;
 import org.opendaylight.distributed.tx.api.DTxException;
 import org.opendaylight.distributed.tx.api.DTxProvider;
+import org.opendaylight.distributed.tx.it.provider.datawriter.AbstractDataWriter;
+import org.opendaylight.distributed.tx.it.provider.datawriter.DataBrokerWrite;
+import org.opendaylight.distributed.tx.it.provider.datawriter.DtxAsyncWrite;
+import org.opendaylight.distributed.tx.it.provider.datawriter.DtxSyncWrite;
 import org.opendaylight.yang.gen.v1.http.cisco.com.ns.yang.cisco.ios.xr.ifmgr.cfg.rev150107.InterfaceActive;
 import org.opendaylight.yang.gen.v1.http.cisco.com.ns.yang.cisco.ios.xr.ifmgr.cfg.rev150107.InterfaceConfigurations;
 import org.opendaylight.yang.gen.v1.http.cisco.com.ns.yang.cisco.ios.xr.ifmgr.cfg.rev150107._interface.configurations.InterfaceConfiguration;
@@ -30,6 +34,12 @@ import org.opendaylight.yang.gen.v1.http.cisco.com.ns.yang.cisco.xr.types.rev150
 import org.opendaylight.yang.gen.v1.urn.opendaylight.netconf.node.topology.rev150114.NetconfNode;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.netconf.node.topology.rev150114.network.topology.topology.topology.types.TopologyNetconf;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.*;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterList;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterListBuilder;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterListKey;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.outer.list.InnerList;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.outer.list.InnerListBuilder;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.outer.list.InnerListKey;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.ds.naive.rollback.data.DsNaiveRollbackDataEntry;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.ds.naive.rollback.data.DsNaiveRollbackDataEntryBuilder;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.ds.naive.rollback.data.DsNaiveRollbackDataEntryKey;
@@ -66,6 +76,10 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
     Map<NodeId, List<InterfaceName>> nodeIfList = new HashMap<>();
     private DataBroker xrNodeBroker = null;
     private int couter = 0;
+    //mark the status of the datastore test
+    private final AtomicReference<TestStatus.ExecStatus> dsExecStatus = new AtomicReference<TestStatus.ExecStatus>( TestStatus.ExecStatus.Idle );
+    //mark the status of the netconf test
+    private final AtomicReference<TestStatus.ExecStatus> netconfExecStatus = new AtomicReference<TestStatus.ExecStatus>( TestStatus.ExecStatus.Idle );
 
     public static final InstanceIdentifier<Topology> NETCONF_TOPO_IID = InstanceIdentifier
             .create(NetworkTopology.class).child(
@@ -477,6 +491,151 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
         }
     }
 
+    /**
+     * this method is used to create the data structure for the benchmark test
+     */
+    public boolean initializeDataStoreForBenchmark(final int outerElements)
+    {
+        LOG.info("initialize the datastore data tree for benchmark");
+        InstanceIdentifier<DatastoreTestData> iid = InstanceIdentifier.create(DatastoreTestData.class);
+
+        WriteTransaction transaction = this.dataBroker.newWriteOnlyTransaction();
+        DatastoreTestData datastoreTestData = new DatastoreTestDataBuilder().build();
+        transaction.put(LogicalDatastoreType.CONFIGURATION, iid, datastoreTestData);
+        CheckedFuture<Void, TransactionCommitFailedException> cf = transaction.submit();
+
+        try{
+            cf.checkedGet();
+        }catch (Exception e)
+        {
+            return false;
+        }
+
+        for (OuterList outerList : buildOuterList(outerElements)) {
+            transaction = this.dataBroker.newWriteOnlyTransaction();
+            InstanceIdentifier<OuterList> outerIid = InstanceIdentifier.create(DatastoreTestData.class)
+                    .child(OuterList.class, outerList.getKey());
+
+            transaction.put(LogicalDatastoreType.CONFIGURATION, outerIid, outerList);
+            CheckedFuture<Void, TransactionCommitFailedException> submitFut = transaction.submit();
+            try {
+                submitFut.checkedGet();
+            } catch (Exception e)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /*
+    this method create the specific number of empty outerList
+     */
+    private List<OuterList> buildOuterList(int outerElements) {
+        List<OuterList> outerList = new ArrayList<OuterList>(outerElements);
+        for (int j = 0; j < outerElements; j++) {
+            outerList.add(new OuterListBuilder()
+                    .setId( j )
+                    .setInnerList(Collections.<InnerList>emptyList())
+                    .setKey(new OuterListKey( j ))
+                    .build());
+        }
+
+        return outerList;
+    }
+
+
+    @Override
+    public Future<RpcResult<BenchmarkTestOutput>> benchmarkTest(BenchmarkTestInput input) {
+        if (input.getLogicalTxType() == BenchmarkTestInput.LogicalTxType.DATASTORE)
+            return dsBenchmarkTest(input);
+        else
+            return netconfBenchmarkTest(input);
+    }
+
+    public Future<RpcResult<BenchmarkTestOutput>> dsBenchmarkTest(BenchmarkTestInput input) {
+        LOG.info("Starting the datastore benchmark test for dtx and data broker");
+//        Check if there is a test in progress
+        if (dsExecStatus.compareAndSet(TestStatus.ExecStatus.Idle, TestStatus.ExecStatus.Executing) == false)
+        {
+            LOG.info("Test in progress");
+            return RpcResultBuilder
+                    .success(new BenchmarkTestOutputBuilder()
+                    .setStatus(BenchmarkTestOutput.Status.TESTINPROGRESS)
+                    .build()).buildFuture();
+
+        }
+
+        long dbTime = 0, dtxSyncTime = 0, dtxAsyncTime = 0; //test time for the corresponding test
+        int outerElements = input.getOuterList(), innerElements = input.getInnerList();
+
+        //create the nodeSet for the dtx
+        Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> m = new HashMap<>();
+        Set<InstanceIdentifier<?>> dsNodeSet = Sets.newHashSet();
+        dsNodeSet.add(InstanceIdentifier.create(DatastoreTestData.class));
+        m.put(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, dsNodeSet);
+
+        Long loopTime = input.getLoop();
+
+        long dbOk = 0, dTxSyncOk = 0, dTxAyncOk = 0, errorCase = 0;
+        for (int i = 0; i < loopTime ; i++) {
+
+            DataBrokerWrite dbWrite = new DataBrokerWrite(input, dataBroker, outerElements, innerElements);
+            DtxSyncWrite dTxSnycWrite = new DtxSyncWrite(input, dTxProvider, dataBroker, m, outerElements, innerElements);
+            DtxAsyncWrite dTxAsyncWrite = new DtxAsyncWrite(input, dTxProvider, dataBroker, m, outerElements, innerElements);
+            //initialize the data store
+            if (!initializeDataStoreForBenchmark(outerElements))
+            {
+                LOG.info("can't initialize data store");
+                errorCase ++;
+                continue;
+            }
+
+            //dataBroker test
+            try {
+                dbWrite.writeData();
+                dTxSnycWrite.writeData();
+                dTxAsyncWrite.writeData();
+            }catch (Exception e)
+            {
+                LOG.error( "Test error: {}", e.toString());
+                errorCase++;
+            }
+
+            dbOk += dbWrite.getTxSucceed(); //number of databroker successful submit
+            dTxSyncOk += dTxSnycWrite.getTxSucceed(); //number of dtx sync successful submit
+            dTxAyncOk += dTxAsyncWrite.getTxSucceed(); //number of dtx async successful submit
+
+            dbTime +=dbWrite.getExecTime()/(outerElements * innerElements);
+            dtxSyncTime +=dTxSnycWrite.getExecTime()/(outerElements * innerElements);
+            dtxAsyncTime += dTxAsyncWrite.getExecTime()/(outerElements * innerElements);
+
+        }
+        dsExecStatus.set(TestStatus.ExecStatus.Idle);
+        LOG.info("Data store test success");
+        if (loopTime != errorCase) {
+            return RpcResultBuilder
+                    .success(new BenchmarkTestOutputBuilder()
+                            .setStatus(BenchmarkTestOutput.Status.OK)
+                            .setExecTime(dbTime/(loopTime - errorCase))
+                            .setDtxSyncExecTime(dtxSyncTime/(loopTime - errorCase))
+                            .setDtxAsyncExecTime(dtxAsyncTime/(loopTime - errorCase))
+                            .setDbOk(dbOk)
+                            .setDTxSyncOk(dTxSyncOk)
+                            .setDTxAyncOk(dTxAyncOk)
+                            .build()).buildFuture();
+        }else{
+            return RpcResultBuilder
+                    .success(new BenchmarkTestOutputBuilder()
+                             .setStatus(BenchmarkTestOutput.Status.FAILED)
+                             .build()).buildFuture();
+        }
+    }
+
+    public Future<RpcResult<BenchmarkTestOutput>> netconfBenchmarkTest (BenchmarkTestInput input) {
+        //netconf test
+        return null;
+    }
     private class DsDataChangeListener implements DataChangeListener{
         @Override
         public void onDataChanged(AsyncDataChangeEvent<InstanceIdentifier<?>, DataObject> asyncDataChangeEvent) {
