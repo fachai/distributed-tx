@@ -29,8 +29,7 @@ public abstract class AbstractDataStoreWriter extends AbstractDataWriter   {
         this.innerElements = innerElements;
     }
     /**
-     * this method is usd to build the test data fot delete operation
-     * @return
+     * this method is used to build the test data for the delete operation
      */
     public boolean build() {
         List<OuterList> outerLists = buildOuterList(outerElements, innerElements);
@@ -58,7 +57,12 @@ public abstract class AbstractDataStoreWriter extends AbstractDataWriter   {
         return true;
     }
 
-    //build the test data
+    /**
+     * build the data for the write operation
+     * @param outerElements
+     * @param innerElements
+     * @return the test data
+     */
     public List<OuterList> buildOuterList(int outerElements, int innerElements) {
         List<OuterList> outerList = new ArrayList<OuterList>(outerElements);
         for (int j = 0; j < outerElements; j++) {

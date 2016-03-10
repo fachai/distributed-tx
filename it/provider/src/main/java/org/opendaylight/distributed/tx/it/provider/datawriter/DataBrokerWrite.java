@@ -30,7 +30,7 @@ public class DataBrokerWrite extends AbstractDataStoreWriter{
     public void writeData() {
         long putsPerTx = input.getPutsPerTx();
 
-        //when the operation is delete we should build the test data first
+        //when the operation is delete we should put the test data first
         if (input.getOperation() == BenchmarkTestInput.Operation.DELETE)
         {
             boolean buildTestData = build();//build the test data for the operation
