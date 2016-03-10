@@ -62,7 +62,7 @@ public class DtxImpl implements DTx {
                                                                                                 Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap){
         Map<DTXLogicalTXProviderType, Map<InstanceIdentifier<?>, CachingReadWriteTx>> typeCacheMap = new HashMap<>(txProviderMap.keySet().size());
 
-        for(DTXLogicalTXProviderType type : txProviderMap.keySet()){
+        for(DTXLogicalTXProviderType type : nodesMap.keySet()){
             Set<InstanceIdentifier<?>> nodes = nodesMap.get(type);
             final DTXLogicalTXProviderType t = type;
             Map<InstanceIdentifier<?>, CachingReadWriteTx>tmpMap = Maps.toMap(nodes, new Function<InstanceIdentifier<?>, CachingReadWriteTx>() {
@@ -316,11 +316,6 @@ public class DtxImpl implements DTx {
          * Prepare potential rollback per-node transaction (rollback will be performed in a dedicated Tx)
          */
         @Override public void onSuccess(@Nullable final Void result) {
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
 
             LOG.trace("Per node tx({}/{}) executed successfully for: {}",
                     commitStatus.size(), getNumberofNodes(), perNodeTx.getKey());
