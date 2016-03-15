@@ -36,13 +36,10 @@ public abstract class AbstractDataStoreWriter extends AbstractDataWriter   {
         WriteTransaction transaction = this.db.newWriteOnlyTransaction();
         for ( OuterList outerList : outerLists)
         {
-            for (InnerList innerList : outerList.getInnerList() )
-            {
-                InstanceIdentifier<InnerList> innerIid = InstanceIdentifier.create(DatastoreTestData.class)
-                        .child(OuterList.class, outerList.getKey())
-                        .child(InnerList.class, innerList.getKey());
+                InstanceIdentifier<OuterList> outerListIid = InstanceIdentifier.create(DatastoreTestData.class)
+                        .child(OuterList.class, outerList.getKey());
 
-                transaction.put(LogicalDatastoreType.CONFIGURATION, innerIid, innerList);
+                transaction.put(LogicalDatastoreType.CONFIGURATION, outerListIid, outerList);
                 CheckedFuture<Void, TransactionCommitFailedException> submitFuture = transaction.submit();
 
                 try{
@@ -52,7 +49,6 @@ public abstract class AbstractDataStoreWriter extends AbstractDataWriter   {
                     return false;
                 }
                 transaction = this.db.newWriteOnlyTransaction();
-            }
         }
         return true;
     }

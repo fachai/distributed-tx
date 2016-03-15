@@ -583,22 +583,33 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
             DataBrokerWrite dbWrite = new DataBrokerWrite(input, dataBroker, outerElements, innerElements);
             DtxSyncWrite dTxSnycWrite = new DtxSyncWrite(input, dTxProvider, dataBroker, m, outerElements, innerElements);
             DtxAsyncWrite dTxAsyncWrite = new DtxAsyncWrite(input, dTxProvider, dataBroker, m, outerElements, innerElements);
-            //initialize the data store
+            //Databroker test, initialize datastore first
             if (!initializeDataStoreForBenchmark(outerElements))
             {
-                LOG.info("can't initialize data store");
+                LOG.info("can't initialize data store for data broker test");
                 errorCase ++;
                 continue;
             }
-
-            //dataBroker test
             try {
                 dbWrite.writeData();
-                dTxSnycWrite.writeData();
-                dTxAsyncWrite.writeData();
             }catch (Exception e)
             {
-                LOG.error( "Test error: {}", e.toString());
+                LOG.error( "Data broker test error: {}", e.toString());
+                errorCase++;
+            }
+
+            //Dtx Sync test, clean the datastore first
+            if (!initializeDataStoreForBenchmark(outerElements))
+            {
+                LOG.info("can't initialize data store for dtx sync test");
+                errorCase ++;
+                continue;
+            }
+            try{
+                dTxSnycWrite.writeData();
+            }catch (Exception e)
+            {
+                LOG.info("Dtx Sync test Error: {}", e.toString());
                 errorCase++;
             }
 

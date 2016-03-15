@@ -60,17 +60,13 @@ public class DataBrokerWrite extends AbstractDataStoreWriter{
 
                 if (counter == putsPerTx) {
                     CheckedFuture<Void, TransactionCommitFailedException> submitFut = tx.submit();
-                    Futures.addCallback(submitFut, new FutureCallback<Void>() {
-                        @Override
-                        public void onSuccess(@Nullable Void aVoid) {
-                            txSucceed++;
-                        }
-
-                        @Override
-                        public void onFailure(Throwable throwable) {
-                            txError++;
-                        }
-                    });
+                    try{
+                        submitFut.checkedGet();
+                        txSucceed++;
+                    }catch (Exception e)
+                    {
+                        txError++;
+                    }
                     counter = 0;
                     tx = dataBroker.newWriteOnlyTransaction();
                 }
