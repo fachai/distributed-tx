@@ -1,39 +1,39 @@
 package org.opendaylight.distributed.tx.it.provider.datawriter;
 
 import com.google.common.util.concurrent.CheckedFuture;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
 import org.opendaylight.controller.md.sal.binding.api.DataBroker;
 import org.opendaylight.controller.md.sal.binding.api.WriteTransaction;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
+import org.opendaylight.distributed.tx.it.provider.DataStoreListBuilder;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.BenchmarkTestInput;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.DatastoreTestData;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.OperationType;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterList;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.outer.list.InnerList;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import javax.annotation.Nullable;
+
 import java.util.List;
 
-public class DataBrokerWrite extends AbstractDataStoreWriter{
+public class DataBrokerWriter extends AbstractDataWriter{
     private DataBroker dataBroker;
-    private static final Logger LOG = LoggerFactory.getLogger(DataBrokerWrite.class);
 
-    public DataBrokerWrite(BenchmarkTestInput input, DataBroker db, int outerElements, int innerElements)
+    public DataBrokerWriter(BenchmarkTestInput input, DataBroker db)
     {
-        super(input, db, outerElements, innerElements);
+        super(input);
         this.dataBroker = db;
     }
     @Override
     public void writeData() {
         long putsPerTx = input.getPutsPerTx();
+        DataStoreListBuilder dataStoreListBuilder = new DataStoreListBuilder(dataBroker, input.getOuterList(), input.getInnerList());
 
         //when the operation is delete we should put the test data first
-        if (input.getOperation() == BenchmarkTestInput.Operation.DELETE)
+        if (input.getOperation() == OperationType.DELETE)
         {
-            boolean buildTestData = build();//build the test data for the operation
+            boolean buildTestData = dataStoreListBuilder.writeTestList();//build the test data for the operation
             if (!buildTestData)
             {
                 return;
@@ -41,7 +41,7 @@ public class DataBrokerWrite extends AbstractDataStoreWriter{
         }
 
         WriteTransaction tx = dataBroker.newWriteOnlyTransaction();
-        List<OuterList> outerLists = buildOuterList(outerElements, innerElements);
+        List<OuterList> outerLists = dataStoreListBuilder.buildOuterList();
         startTime = System.nanoTime();
         long counter = 0;
         for ( OuterList outerList : outerLists ) {
@@ -49,9 +49,9 @@ public class DataBrokerWrite extends AbstractDataStoreWriter{
                 InstanceIdentifier<InnerList> innerIid = InstanceIdentifier.create(DatastoreTestData.class)
                         .child(OuterList.class, outerList.getKey())
                         .child(InnerList.class, innerList.getKey());
-                if (input.getOperation() == BenchmarkTestInput.Operation.PUT) {
+                if (input.getOperation() == OperationType.PUT) {
                     tx.put(LogicalDatastoreType.CONFIGURATION, innerIid, innerList);
-                }else if (input.getOperation() == BenchmarkTestInput.Operation.MERGE){
+                }else if (input.getOperation() == OperationType.MERGE){
                     tx.merge(LogicalDatastoreType.CONFIGURATION, innerIid, innerList);
                 }else {
                     tx.delete(LogicalDatastoreType.CONFIGURATION, innerIid);
