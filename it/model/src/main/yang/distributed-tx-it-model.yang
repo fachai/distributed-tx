@@ -243,7 +243,7 @@ module distributed-tx-it-model{
                            description
                               "The number of successful dtx sync tests ";
                       }
-                      leaf dTxAyncOk {
+                      leaf dTxAsyncOk {
                            type uint32;
                            default 0;
                            description
@@ -257,7 +257,7 @@ module distributed-tx-it-model{
                   mandatory true;
                   type operation-type;
                 }
-              leaf putPerTx {
+              leaf putsPerTx {
                  type uint32;
                  default 1;
                  description
@@ -329,7 +329,7 @@ module distributed-tx-it-model{
                    mandatory true;
                    type operation-type;
                }
-               leaf putPerTx {
+               leaf putsPerTx {
                    type uint32;
                    default 1;
                    description

@@ -631,7 +631,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                             .setDtxAsyncExecTime(dtxAsyncTime/(loopTime - errorCase))
                             .setDbOk(dbOk)
                             .setDTxSyncOk(dTxSyncOk)
-                            .setDTxAyncOk(dTxAyncOk)
+                            .setDTxAsyncOk(dTxAyncOk)
                             .build()).buildFuture();
         }else{
             return RpcResultBuilder
@@ -657,7 +657,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
 
         LOG.info("Begin the DTx datastore test");
 
-        long putsPerTx = input.getPutPerTx();
+        long putsPerTx = input.getPutsPerTx();
         int outerElements = input.getOuterList(), innerElements = input.getInnerList();
         OperationType operation = input.getOperation();
         Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodeMap = new HashMap<>();
