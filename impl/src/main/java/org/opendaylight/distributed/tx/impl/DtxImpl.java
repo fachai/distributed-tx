@@ -632,8 +632,8 @@ public class DtxImpl implements DTx {
                             @Override
                             public void onFailure(Throwable t) {
                                 LOG.info("roll back failed ");
-                                retFuture.setException(t);
                                 dtxReleaseDevices();
+                                retFuture.setException(t);
                             }
                         });
                     }
