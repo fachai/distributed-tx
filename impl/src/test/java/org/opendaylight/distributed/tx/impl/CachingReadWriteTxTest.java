@@ -9,7 +9,6 @@ import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
 import org.opendaylight.controller.md.sal.common.api.data.ReadFailedException;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
 import org.opendaylight.distributed.tx.api.DTxException;
-import org.opendaylight.distributed.tx.impl.spi.CachingReadWriteTx;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import static org.junit.Assert.fail;
 

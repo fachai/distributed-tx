@@ -9,8 +9,6 @@ import org.junit.Test;
 import org.opendaylight.controller.md.sal.binding.api.ReadWriteTransaction;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
 import org.opendaylight.distributed.tx.api.DTxException;
-import org.opendaylight.distributed.tx.impl.spi.CachingReadWriteTx;
-import org.opendaylight.distributed.tx.impl.spi.RollbackImpl;
 import org.opendaylight.yangtools.yang.binding.DataContainer;
 import org.opendaylight.yangtools.yang.binding.DataObject;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
