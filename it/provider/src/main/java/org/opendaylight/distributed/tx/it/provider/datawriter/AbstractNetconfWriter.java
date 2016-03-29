@@ -1,6 +1,5 @@
 package org.opendaylight.distributed.tx.it.provider.datawriter;
 
-
 import org.opendaylight.controller.md.sal.binding.api.DataBroker;
 import com.google.common.util.concurrent.*;
 import org.opendaylight.controller.md.sal.binding.api.WriteTransaction;
