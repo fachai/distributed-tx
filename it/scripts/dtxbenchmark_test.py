@@ -13,14 +13,16 @@ parser.add_argument("--port", default = 8181, type = int, help = "The port numbe
 
 #Test Parameters
 parser.add_argument("--logicalTxType", choices = ["DATASTORE", "NETCONF"], nargs = "+", default = ["DATASTORE"],
-    help = "The transaction type of the test")
+                    help = "The transaction type of the test")
 parser.add_argument("--operation", choices = ["PUT", "MERGE", "DELETE"], nargs = "+", default = ["PUT", "MERGE", "DELETE"],
-    help = "The operation type of the transaction")
-parser.add_argument("--putsPerTx", default = [1, 10, 100, 1000, 5000, 10000, 50000, 100000],
-    help = "Number of operations per transaction")
+                    help = "The operation type of the transaction")
+parser.add_argument("--putsPerTx", default = [1, 10, 100, 1000, 5000, 10000, 50000, 100000],type = int, nargs = "+",
+                    help = "Number of operations per transaction")
+parser.add_argument("--putsPerTxNetconf", default = [1,3,6,9,12,15,18,21],type = int, nargs = "+",
+                    help = "Number of operations per transaction")
 parser.add_argument("--outerList", default = 1000, type = int, help = "The size of outer Elements")
 parser.add_argument("--innerList", default = 100, type = int, help = "The size of inner Elements")
-parser.add_argument("--loop", default = 100, type = int, help = "test time")
+parser.add_argument("--loop", default =50, type = int, help = "test time")
 args = parser.parse_args()
 
 #Base url for the test
@@ -40,7 +42,7 @@ def benchmark_test(logicalTxType, operation, putsPerTx, loop, outerList = 0, inn
     """
     url = BASE_URL + "operations/distributed-tx-it-model:benchmark-test"
     postheaders =  {'content-type': 'application/json', 'Accept': 'application/json'}
-    
+
     test_request_template = '''{
         "input":{
             "logicalTxType" : "%s",
@@ -61,9 +63,10 @@ def benchmark_test(logicalTxType, operation, putsPerTx, loop, outerList = 0, inn
     return result;
 
 #get the test parameter from the argument
-logicalTxTypes = args.logicalTxType
+logicalTxTypesargs.logicalTxType
 operations = args.operation
 putsPerTxs = args.putsPerTx
+putsPerTxNetconfs = args.putsPerTxNetconf
 loop = args.loop
 
 #result.csv is used to store the test result
@@ -100,8 +103,25 @@ try:
 
                     print "dbExecTime : %d, dtxSyncTime : %d, dbSubmitOk : %d, dtxSyncSubmitOk : %d " % (
                         result["execTime"], result["dtxSyncExecTime"], result['dbOk'], result['dTxSyncOk'])
+        else:
+            for operation in operations:
+                print "*****************************************************************************"
+                print "Operation : %s" % operation
+                print "*****************************************************************************"
+                writer.writerow((('%s' % logicalTxType), ('%s' % operation),
+                                 'putsPerTx','ExecTime(us)','dtxSyncExecTime(us)','dtxAsyncExecTime(us)','dbSubmitOk','dtxSyncSubmitOk','dtxAsyncSubmitOk'))
+                for putsPerTx in putsPerTxNetconfs:
+                    print "-----------------------------------------------------------------------------"
+                    print "Testing for loop:%d, putsPerTx : %d" % (loop, putsPerTx)
 
-        #netconf test code add here
+                    result = benchmark_test(logicalTxType, operation, putsPerTx, loop)
+                    writer.writerow(('', '', ('%d' % putsPerTx), ('%d' %  result["execTime"]),('%d' % result["dtxSyncExecTime"])
+                                     , ('%d' % result['dtxAsyncExecTime']),('%d' % result['dbOk']), ('%d' % result['dTxSyncOk']),
+                                     ('%d' % result['dTxAsyncOk'])))
+
+                    print "dbExecTime : %d, dtxSyncTime : %d, dTxAsyncTime : %d, dbSubmitOk : %d, dtxSyncSubmitOk : %d, dtxAsyncSubmitOk : %d " % (
+                        result["execTime"], result["dtxSyncExecTime"], result["dtxAsyncExecTime"], result['dbOk'], result['dTxSyncOk'], result["dTxAsyncOk"])
+
         print "#############################################################################"
         print "DTx %s performance test end" % logicalTxType
         print "#############################################################################"

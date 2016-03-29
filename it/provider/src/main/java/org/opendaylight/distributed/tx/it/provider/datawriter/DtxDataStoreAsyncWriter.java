@@ -26,14 +26,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class DtxAsyncWriter extends AbstractDataWriter {
+public class DtxDataStoreAsyncWriter extends AbstractDataWriter {
     private DTx dtx;
     private DTxProvider dTxProvider;
-    private static final Logger LOG = LoggerFactory.getLogger(DtxAsyncWriter.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DtxDataStoreAsyncWriter.class);
     private Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap;
     private DataBroker dataBroker;
 
-    public DtxAsyncWriter(BenchmarkTestInput input, DTxProvider dTxProvider, DataBroker dataBroker, Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap)
+    public DtxDataStoreAsyncWriter(BenchmarkTestInput input, DTxProvider dTxProvider, DataBroker dataBroker, Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap)
     {
         super(input);
         this.dTxProvider = dTxProvider;

@@ -15,9 +15,7 @@ import org.opendaylight.distributed.tx.api.DTXLogicalTXProviderType;
 import org.opendaylight.distributed.tx.api.DTx;
 import org.opendaylight.distributed.tx.api.DTxException;
 import org.opendaylight.distributed.tx.api.DTxProvider;
-import org.opendaylight.distributed.tx.it.provider.datawriter.DataBrokerWriter;
-import org.opendaylight.distributed.tx.it.provider.datawriter.DtxAsyncWriter;
-import org.opendaylight.distributed.tx.it.provider.datawriter.DtxSyncWriter;
+import org.opendaylight.distributed.tx.it.provider.datawriter.*;
 import org.opendaylight.yang.gen.v1.http.cisco.com.ns.yang.cisco.ios.xr.ifmgr.cfg.rev150107.InterfaceActive;
 import org.opendaylight.yang.gen.v1.http.cisco.com.ns.yang.cisco.ios.xr.ifmgr.cfg.rev150107.InterfaceConfigurations;
 import org.opendaylight.yang.gen.v1.http.cisco.com.ns.yang.cisco.ios.xr.ifmgr.cfg.rev150107._interface.configurations.InterfaceConfiguration;
@@ -578,9 +576,9 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
         long dbOk = 0, dTxSyncOk = 0, dTxAyncOk = 0, errorCase = 0;
         for (int i = 0; i < loopTime ; i++) {
 
-            DataBrokerWriter dbWrite = new DataBrokerWriter(input, dataBroker);
-            DtxSyncWriter dTxSnycWrite = new DtxSyncWriter(input, dTxProvider, dataBroker, m);
-            DtxAsyncWriter dTxAsyncWrite = new DtxAsyncWriter(input, dTxProvider, dataBroker, m);
+            DataBrokerDataStoreWriter dbWrite = new DataBrokerDataStoreWriter(input, dataBroker);
+            DtxDataStoreSyncWriter dTxSnycWrite = new DtxDataStoreSyncWriter(input, dTxProvider, dataBroker, m);
+            DtxDataStoreAsyncWriter dTxAsyncWrite = new DtxDataStoreAsyncWriter(input, dTxProvider, dataBroker, m);
             //Databroker test, initialize datastore first
             if (!initializeTestData(outerElements))
             {
@@ -643,7 +641,78 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
 
     public Future<RpcResult<BenchmarkTestOutput>> netconfBenchmarkTest (BenchmarkTestInput input) {
         //netconf test
-        return null;
+        LOG.info("Starting the netconf test for dtx and  data broker native API");
+
+        //Check if there is a test in progress
+        if(netconfExecStatus.compareAndSet(TestStatus.ExecStatus.Idle,TestStatus.ExecStatus.Executing)==false)
+        {
+            LOG.info("netconf test in progress");
+            return RpcResultBuilder
+                    .success(new BenchmarkTestOutputBuilder()
+                            .setStatus(StatusType.TESTINPROGRESS).
+                                    build()).buildFuture();
+        }
+
+        long nativeNetconfTime = 0, dtxNetconfSTime = 0, dtxNetconfAsTime = 0; //record the test time for the corresponding test
+        long loopTimes = 1;//change to get the average value
+        long dbOk = 0, dTxSyncOk = 0, dTxAyncOk = 0, errorCase = 0;//record how many times the test successed
+        for (int i = 0; i < loopTimes; i++) {
+            DataBrokerNetconfWriter databroker = new DataBrokerNetconfWriter(input, xrNodeBroker, nodeIdSet, nodeIfList);
+            DtxNetconfSyncWriter dtxNetconfSync = new DtxNetconfSyncWriter(input,xrNodeBroker,dTxProvider,nodeIdSet,nodeIfList);
+            DtxNetconfAsyncWriter dtxNetconfAsync = new DtxNetconfAsyncWriter(input, xrNodeBroker,dTxProvider,nodeIdSet,nodeIfList);
+
+            try {
+                databroker.writeData();
+            } catch (Exception e) {
+                LOG.error("Data broker test error: {}", e.toString());
+                errorCase++;
+                continue;
+            }
+
+            try {
+                dtxNetconfSync.writeData();
+            }catch (Exception e){
+                LOG.error( "Dtx Sync test error: {}", e.toString());
+                errorCase++;
+                continue;
+            }
+
+            try {
+                dtxNetconfAsync.writeData();
+            }catch (Exception e){
+                LOG.error( "Dtx ASync test error: {}", e.toString());
+                errorCase++;
+                continue;
+            }
+
+            dbOk += databroker.getTxSucceed();
+            dTxSyncOk += dtxNetconfSync.getTxSucceed();
+            dTxAyncOk += dtxNetconfAsync.getTxSucceed();
+
+            nativeNetconfTime += databroker.getExecTime();
+            dtxNetconfSTime += dtxNetconfSync.getExecTime();
+            dtxNetconfAsTime += dtxNetconfAsync.getExecTime();
+        }
+
+        netconfExecStatus.set(TestStatus.ExecStatus.Idle);
+        LOG.info("Netconf test success");
+        LOG.info("errorCase: {}", errorCase);
+
+        if (loopTimes != errorCase) {
+            return RpcResultBuilder
+                    .success(new BenchmarkTestOutputBuilder()
+                            .setStatus(StatusType.OK)
+                            .setExecTime(nativeNetconfTime / (loopTimes-errorCase))
+                            .setDtxSyncExecTime(dtxNetconfSTime / (loopTimes-errorCase) )
+                            .setDtxAsyncExecTime(dtxNetconfAsTime / (loopTimes-errorCase))
+                            .setDbOk(dbOk)
+                            .setDTxAsyncOk(dTxAyncOk)
+                            .setDTxSyncOk(dTxSyncOk)
+                            .build()).buildFuture();
+        } else {
+            return RpcResultBuilder.success(new BenchmarkTestOutputBuilder().setStatus(StatusType.FAILED)
+                    .build()).buildFuture();
+        }
     }
 
     @Override
