@@ -1,6 +1,6 @@
 package org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.impl.rev141210;
 
-import org.opendaylight.distributed.tx.impl.spi.DTXProviderService;
+import org.opendaylight.distributed.tx.impl.DTXProviderService;
 
 public class DistributedTxImplModule extends org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.impl.rev141210.AbstractDistributedTxImplModule {
     public DistributedTxImplModule(org.opendaylight.controller.config.api.ModuleIdentifier identifier, org.opendaylight.controller.config.api.DependencyResolver dependencyResolver) {

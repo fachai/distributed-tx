@@ -6,6 +6,45 @@ module distributed-tx-it-model{
         revision "2015-01-05" {
                 description "Initial revision of distributed-tx-it model";
         }
+
+        typedef operation-type{
+          type enumeration {
+               enum "PUT" {
+                    value 1;
+                    description
+                         "The put operation";
+               }
+               enum "MERGE" {
+                     value 2;
+                     description
+                          "The merge operation";
+               }
+               enum "DELETE" {
+                     value 3;
+                     description
+                           "The delete operation";
+               }
+           }
+           description
+              "The operation type of the transaction";
+        }
+
+        typedef status-type{
+          type enumeration {
+              enum "OK" {
+                  value 1;
+              }
+              enum "FAILED" {
+                  value 2;
+              }
+              enum "TEST-IN-PROGRESS" {
+                  value 3;
+              }
+          }
+          description
+              "Indicates whether the test finished successfully";
+        }
+
         rpc naive-test {
                 input {
                         leaf name {
@@ -146,25 +185,7 @@ module distributed-tx-it-model{
                              "The times of the test";
                       }
                       leaf operation {
-                           type enumeration {
-                              enum "PUT" {
-                                 value 1;
-                                 description
-                                    "The put operation";
-                              }
-                              enum "MERGE" {
-                                 value 2;
-                                 description
-                                    "The merge operation";
-                              }
-                              enum "DELETE" {
-                                 value 3;
-                                 description
-                                    "delete the item stored in the datastore";
-                              }
-                           }
-                           description
-                               "Type of the transaction operation to benchmark";
+                           type operation-type;
                       }
                       leaf putsPerTx {
                            type uint32;
@@ -188,17 +209,7 @@ module distributed-tx-it-model{
                   output {
                       leaf status {
                            mandatory true;
-                           type enumeration {
-                              enum "OK" {
-                                  value 1;
-                              }
-                              enum "FAILED" {
-                                  value 2;
-                              }
-                              enum "TEST-IN-PROGRESS" {
-                                  value 3;
-                              }
-                           }
+                           type status-type;
                            description
                                "Indicates whether the test finished successfully";
                       }
@@ -232,14 +243,131 @@ module distributed-tx-it-model{
                            description
                               "The number of successful dtx sync tests ";
                       }
-                      leaf dTxAyncOk {
+                      leaf dTxAsyncOk {
                            type uint32;
                            default 0;
                            description
                               "The number of successful dtx async tests ";
                       }
                   }
-          }
+        }
+        rpc datastore-test{
+            input {
+              leaf operation {
+                  mandatory true;
+                  type operation-type;
+                }
+              leaf putsPerTx {
+                 type uint32;
+                 default 1;
+                 description
+                     "number of operations {PUT,MERGE,DELETE} per submit";
+              }
+              leaf outerList {
+                 type int32;
+                 default 10;
+                 description
+                     "Size of outerList";
+              }
+              leaf innerList {
+                 type int32;
+                 default 10;
+                 description
+                     "Size of innerList";
+              }
+              leaf performRollback {
+                 type boolean;
+                 default false;
+                 description
+                     "Indicate whether perform rollback";
+              }
+            }
+            output {
+              leaf status {
+                 type status-type;
+              }
+            }
+            description
+               "perform the dtx datastore test";
+        }
+        rpc netconf-test{
+            input {
+              leaf operation {
+                 mandatory true;
+                 type operation-type;
+              }
+              leaf putPerTx {
+                 type uint32;
+                 default 1;
+                 description
+                    "number of operations {PUT,MERGE,DELETE} per submit";
+              }
+              leaf numberOfTxs {
+                 type uint32;
+                 default 1;
+                 description
+                    "number of transations";
+              }
+              leaf performRollback {
+                 type boolean;
+                 default false;
+                 description
+                    "Indicate whether perform the rollback";
+              }
+            }
+            output {
+               leaf status {
+                 type status-type;
+               }
+            }
+            description
+                "perform dtx netconf test";
+        }
+        rpc mixed-provider-test{
+            input {
+               leaf operation {
+                   mandatory true;
+                   type operation-type;
+               }
+               leaf putsPerTx {
+                   type uint32;
+                   default 1;
+                   description
+                       "number of operations {PUT,MERGE,DELETE} per submit";
+               }
+               leaf outerList {
+                    type int32;
+                    default 10;
+                    description
+                        "Size of outerList for datastore test";
+               }
+               leaf innerList {
+                    type int32;
+                    default 10;
+                    description
+                         "Size of innerList for datastore test";
+               }
+               leaf numberOfNetConfTxs {
+                    type int32;
+                    default 10;
+                    description
+                         "number of netconf transactions";
+               }
+               leaf performRollback {
+                    type boolean;
+                    default false;
+                    description
+                         "indicate whether perform the rollback";
+               }
+            }
+            output {
+               leaf status {
+                  type status-type;
+               }
+            }
+            description
+               "test mixed provider DTx";
+        }
 }
 
 

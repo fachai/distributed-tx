@@ -1,4 +1,4 @@
-package org.opendaylight.distributed.tx.impl.spi;
+package org.opendaylight.distributed.tx.impl;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -20,7 +20,6 @@ import org.opendaylight.controller.md.sal.common.api.TransactionStatus;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
 import org.opendaylight.controller.md.sal.common.api.data.ReadFailedException;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
-import org.opendaylight.distributed.tx.api.DTx;
 import org.opendaylight.distributed.tx.api.DTxException;
 import org.opendaylight.distributed.tx.spi.CachedData;
 import org.opendaylight.distributed.tx.spi.DTXReadWriteTransaction;

@@ -13,8 +13,6 @@ import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
 import org.opendaylight.distributed.tx.api.DTXLogicalTXProviderType;
 import org.opendaylight.distributed.tx.api.DTxException;
-import org.opendaylight.distributed.tx.impl.spi.DTxTransactionLockImpl;
-import org.opendaylight.distributed.tx.impl.spi.DtxImpl;
 import org.opendaylight.distributed.tx.spi.TxException;
 import org.opendaylight.distributed.tx.spi.TxProvider;
 import org.opendaylight.yangtools.yang.binding.DataContainer;

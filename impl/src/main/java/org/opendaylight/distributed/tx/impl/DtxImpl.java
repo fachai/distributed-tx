@@ -1,4 +1,4 @@
-package org.opendaylight.distributed.tx.impl.spi;
+package org.opendaylight.distributed.tx.impl;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -632,8 +632,8 @@ public class DtxImpl implements DTx {
                             @Override
                             public void onFailure(Throwable t) {
                                 LOG.info("roll back failed ");
-                                retFuture.setException(t);
                                 dtxReleaseDevices();
+                                retFuture.setException(t);
                             }
                         });
                     }

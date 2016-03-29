@@ -8,38 +8,39 @@ import org.opendaylight.distributed.tx.api.DTXLogicalTXProviderType;
 import org.opendaylight.distributed.tx.api.DTx;
 import org.opendaylight.distributed.tx.api.DTxException;
 import org.opendaylight.distributed.tx.api.DTxProvider;
+import org.opendaylight.distributed.tx.it.provider.DataStoreListBuilder;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.BenchmarkTestInput;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.DatastoreTestData;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.OperationType;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterList;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.outer.list.InnerList;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class DtxSyncWrite extends AbstractDataStoreWriter {
+public class DtxDataStoreSyncWriter extends AbstractDataWriter {
     private DTx dtx;
     private DTxProvider dTxProvider;
-    private static final Logger LOG = LoggerFactory.getLogger(DtxSyncWrite.class);
     private Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap;
+    private DataBroker dataBroker;
 
-    public DtxSyncWrite(BenchmarkTestInput input, DTxProvider dTxProvider, DataBroker dataBroker, Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap, int outerElements, int innerElements)
+    public DtxDataStoreSyncWriter(BenchmarkTestInput input, DTxProvider dTxProvider, DataBroker dataBroker, Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap)
     {
-        super(input, dataBroker,outerElements, innerElements);
+        super(input);
         this.dTxProvider = dTxProvider;
         this.nodesMap = nodesMap;
+        this.dataBroker = dataBroker;
     }
 
     @Override
     public void writeData() {
         long putsPerTx = input.getPutsPerTx();
-
+        DataStoreListBuilder dataStoreListBuilder = new DataStoreListBuilder(dataBroker, input.getOuterList(), input.getInnerList());
         //when the operation is delete we should build the test data first
-        if (input.getOperation() == BenchmarkTestInput.Operation.DELETE)
+        if (input.getOperation() == OperationType.DELETE)
         {
-            boolean buildTestData = build();//build the test data for the operation
+            boolean buildTestData = dataStoreListBuilder.writeTestList();//build the test data for the operation
             if (!buildTestData)
             {
                 return;
@@ -49,7 +50,7 @@ public class DtxSyncWrite extends AbstractDataStoreWriter {
         InstanceIdentifier<DatastoreTestData> nodeId = InstanceIdentifier.create(DatastoreTestData.class);
 
         int counter = 0;
-        List<OuterList> outerLists = buildOuterList(outerElements, innerElements);
+        List<OuterList> outerLists = dataStoreListBuilder.buildOuterList();
         startTime = System.nanoTime();
         dtx = dTxProvider.newTx(nodesMap);
         for ( OuterList outerList : outerLists ) {
@@ -59,10 +60,10 @@ public class DtxSyncWrite extends AbstractDataStoreWriter {
                         .child(InnerList.class, innerList.getKey());
 
                 CheckedFuture<Void, DTxException> writeFuture ;
-                if (input.getOperation() == BenchmarkTestInput.Operation.PUT) {
+                if (input.getOperation() == OperationType.PUT) {
                     writeFuture = dtx.putAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION, innerIid, innerList, nodeId);
 
-                }else if (input.getOperation() == BenchmarkTestInput.Operation.MERGE){
+                }else if (input.getOperation() == OperationType.MERGE){
                     writeFuture = dtx.mergeAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION, innerIid, innerList, nodeId);
 
                 }else{
