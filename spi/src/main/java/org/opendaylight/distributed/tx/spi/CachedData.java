@@ -10,12 +10,14 @@ import org.opendaylight.yangtools.yang.data.api.ModifyAction;
 
 public final class CachedData {
 
+    private final LogicalDatastoreType logicalDsType;
     private final InstanceIdentifier<?> id;
     private final DataObject data;
     private final ModifyAction operation;
 
-    public CachedData(@Nonnull final InstanceIdentifier<?> id,
+    public CachedData(@Nonnull final LogicalDatastoreType datastoreType, @Nonnull final InstanceIdentifier<?> id,
         @Nullable final DataObject data, @Nonnull final ModifyAction operation) {
+        this.logicalDsType = datastoreType;
         this.id = id;
         this.data = data;
         this.operation = operation;
@@ -36,6 +38,6 @@ public final class CachedData {
     // FIXME !! store the ds type here, dont return fixed CONFIGURATION. Netconf might only support CONFIG writes,
     // but other mountpoints might also support writes to operational
     public LogicalDatastoreType getDsType() {
-        return LogicalDatastoreType.CONFIGURATION;
+        return logicalDsType;
     }
 }

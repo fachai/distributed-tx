@@ -83,7 +83,13 @@ public class RollbackImpl implements Rollback {
                         }
                     }
                 }
-                final CheckedFuture<Void, TransactionCommitFailedException> perNodeRollbackSumitFuture = perNodeRollbackTx.submit();
+                CheckedFuture<Void, TransactionCommitFailedException> perNodeRollbackSumitFuture = null;
+                try{
+                    perNodeRollbackSumitFuture = perNodeRollbackTx.submit();
+                }catch (Exception submitException){
+                    perNodeRollbackSumitFuture = Futures.immediateFailedCheckedFuture(new TransactionCommitFailedException(
+                            "Rollback submit error occur", submitException));
+                }
                 perNodeRollbackSubmitFutures.add(perNodeRollbackSumitFuture);
                 Futures.addCallback(perNodeRollbackSumitFuture, new LoggingRollbackCallback(perNodeCacheEntry.getKey()));
             }

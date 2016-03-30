@@ -76,7 +76,7 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
             @Override public void onSuccess(final Optional<DataObject> result) {
 
                 synchronized (this) {
-                    cache.add(new CachedData(instanceIdentifier, result.orNull(), ModifyAction.DELETE));
+                    cache.add(new CachedData(logicalDatastoreType, instanceIdentifier, result.orNull(), ModifyAction.DELETE));
                 }
 
                 final ListeningExecutorService executorService = MoreExecutors.listeningDecorator(executorPoolPerCache);
@@ -133,7 +133,7 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
         Futures.addCallback(readFuture, new FutureCallback<Optional<T>>() {
             @Override public void onSuccess(final Optional<T> result) {
                 synchronized (this) {
-                    cache.add(new CachedData(instanceIdentifier, result.orNull(), ModifyAction.MERGE));
+                    cache.add(new CachedData(logicalDatastoreType, instanceIdentifier, result.orNull(), ModifyAction.MERGE));
                 }
 
                 final ListeningExecutorService executorService = MoreExecutors.listeningDecorator(executorPoolPerCache);
@@ -199,7 +199,7 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
             @Override
             public void onSuccess(final Optional<T> result) {
                 synchronized (this) {
-                    cache.add(new CachedData(instanceIdentifier, result.orNull(), ModifyAction.REPLACE));
+                    cache.add(new CachedData(logicalDatastoreType, instanceIdentifier, result.orNull(), ModifyAction.REPLACE));
                 }
 
                 final ListeningExecutorService executorService = MoreExecutors.listeningDecorator(executorPoolPerCache);
