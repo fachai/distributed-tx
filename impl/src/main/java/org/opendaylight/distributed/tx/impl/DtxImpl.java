@@ -187,7 +187,7 @@ public class DtxImpl implements DTx {
                 CheckedFuture<Void, TransactionCommitFailedException> submitFuture = null;
                 try {
                     submitFuture = perNodeTx.getValue().submit();
-                }catch (Throwable submitFailException){
+                }catch (Exception submitFailException){
                     new PerNodeSubmitCallback(type, commitStatus, perNodeTx, distributedSubmitFuture).failedWithException(submitFailException);
                     continue;
                 }
