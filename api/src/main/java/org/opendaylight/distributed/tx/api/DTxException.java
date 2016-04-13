@@ -74,6 +74,9 @@ public class DTxException extends RuntimeException {
         }
     }
 
+    /**
+     * Read operation failure for one or more devices.
+     */
     public static class ReadFailedException extends  DTxException{
         public ReadFailedException(String s, Throwable e) {
             super(s, e);
