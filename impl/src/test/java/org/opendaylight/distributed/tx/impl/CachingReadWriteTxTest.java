@@ -274,14 +274,18 @@ public class CachingReadWriteTxTest {
         CachingReadWriteTx cacheRWTx = new CachingReadWriteTx(testTx);
 
         CheckedFuture<Void, DTxException> f1 =  cacheRWTx.asyncPut(LogicalDatastoreType.OPERATIONAL, n0, new DTXTestTransaction.myDataObj());
-        CheckedFuture<Void, DTxException> f2 = cacheRWTx.asyncDelete(LogicalDatastoreType.OPERATIONAL, n0);
         try
         {
              f1.checkedGet();
-             f2.checkedGet();
         }catch (Exception e)
         {
              fail("get the unexpected exception from the AsyncDelete method, test fail");
+        }
+        CheckedFuture<Void, DTxException> f2 = cacheRWTx.asyncDelete(LogicalDatastoreType.OPERATIONAL, n0);
+        try{
+            f2.checkedGet();
+        }catch (Exception e){
+            fail("get the unexpected exception from the AsyncDelete method, test fail");
         }
 
         int expectedDataSizeInTx = 0, expectedCacheDataSize = 2;

@@ -810,6 +810,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                             LOG.info("get submit exception {}", e.toString());
                         }
                         count = 0;
+                        dTx = dTxProvider.newTx(nodeMap);
                     }
                 }
             }
