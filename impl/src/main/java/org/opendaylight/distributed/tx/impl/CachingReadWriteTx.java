@@ -1,4 +1,4 @@
-package org.opendaylight.distributed.tx.impl.spi;
+package org.opendaylight.distributed.tx.impl;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -20,7 +20,6 @@ import org.opendaylight.controller.md.sal.common.api.TransactionStatus;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
 import org.opendaylight.controller.md.sal.common.api.data.ReadFailedException;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
-import org.opendaylight.distributed.tx.api.DTx;
 import org.opendaylight.distributed.tx.api.DTxException;
 import org.opendaylight.distributed.tx.spi.CachedData;
 import org.opendaylight.distributed.tx.spi.DTXReadWriteTransaction;
@@ -77,7 +76,7 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
             @Override public void onSuccess(final Optional<DataObject> result) {
 
                 synchronized (this) {
-                    cache.add(new CachedData(instanceIdentifier, result.orNull(), ModifyAction.DELETE));
+                    cache.add(new CachedData(logicalDatastoreType, instanceIdentifier, result.orNull(), ModifyAction.DELETE));
                 }
 
                 final ListeningExecutorService executorService = MoreExecutors.listeningDecorator(executorPoolPerCache);
@@ -134,7 +133,7 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
         Futures.addCallback(readFuture, new FutureCallback<Optional<T>>() {
             @Override public void onSuccess(final Optional<T> result) {
                 synchronized (this) {
-                    cache.add(new CachedData(instanceIdentifier, result.orNull(), ModifyAction.MERGE));
+                    cache.add(new CachedData(logicalDatastoreType, instanceIdentifier, result.orNull(), ModifyAction.MERGE));
                 }
 
                 final ListeningExecutorService executorService = MoreExecutors.listeningDecorator(executorPoolPerCache);
@@ -200,7 +199,7 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
             @Override
             public void onSuccess(final Optional<T> result) {
                 synchronized (this) {
-                    cache.add(new CachedData(instanceIdentifier, result.orNull(), ModifyAction.REPLACE));
+                    cache.add(new CachedData(logicalDatastoreType, instanceIdentifier, result.orNull(), ModifyAction.REPLACE));
                 }
 
                 final ListeningExecutorService executorService = MoreExecutors.listeningDecorator(executorPoolPerCache);

@@ -1,4 +1,4 @@
-package org.opendaylight.distributed.tx.impl.spi;
+package org.opendaylight.distributed.tx.impl;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -184,8 +184,14 @@ public class DtxImpl implements DTx {
             Map<InstanceIdentifier<?>, CachingReadWriteTx> transactions = this.perNodeTransactionsbyLogicalType.get(type);
 
             for (final Map.Entry<InstanceIdentifier<?>, CachingReadWriteTx> perNodeTx : transactions.entrySet()) {
-                final CheckedFuture<Void, TransactionCommitFailedException> submit = perNodeTx.getValue().submit();
-                Futures.addCallback(submit, new PerNodeSubmitCallback(type, commitStatus, perNodeTx, distributedSubmitFuture));
+                CheckedFuture<Void, TransactionCommitFailedException> submitFuture = null;
+                try {
+                    submitFuture = perNodeTx.getValue().submit();
+                }catch (Exception submitFailException){
+                    new PerNodeSubmitCallback(type, commitStatus, perNodeTx, distributedSubmitFuture).failedWithException(submitFailException);
+                    continue;
+                }
+                Futures.addCallback(submitFuture, new PerNodeSubmitCallback(type, commitStatus, perNodeTx, distributedSubmitFuture));
             }
         }
 
@@ -364,6 +370,10 @@ public class DtxImpl implements DTx {
          * Prepare rollback per-node transaction (rollback will be performed in a dedicated Tx)
          */
         @Override public void onFailure(final Throwable t) {
+            failedWithException(t);
+        }
+
+        public void failedWithException(final Throwable t) {
             LOG.warn("Per node tx executed failed for: {}", perNodeTx.getKey(), t);
 
             final ListeningExecutorService executorService = MoreExecutors.listeningDecorator(executor);
@@ -632,8 +642,8 @@ public class DtxImpl implements DTx {
                             @Override
                             public void onFailure(Throwable t) {
                                 LOG.info("roll back failed ");
-                                retFuture.setException(t);
                                 dtxReleaseDevices();
+                                retFuture.setException(t);
                             }
                         });
                     }

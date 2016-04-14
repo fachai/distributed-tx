@@ -63,7 +63,7 @@ def benchmark_test(logicalTxType, operation, putsPerTx, loop, outerList = 0, inn
     return result;
 
 #get the test parameter from the argument
-logicalTxTypesargs.logicalTxType
+logicalTxTypes = args.logicalTxType
 operations = args.operation
 putsPerTxs = args.putsPerTx
 putsPerTxNetconfs = args.putsPerTxNetconf
@@ -127,4 +127,3 @@ try:
         print "#############################################################################"
 finally:
     f.close()
-

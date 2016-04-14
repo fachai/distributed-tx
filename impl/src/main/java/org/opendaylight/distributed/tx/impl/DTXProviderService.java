@@ -1,4 +1,4 @@
-package org.opendaylight.distributed.tx.impl.spi;
+package org.opendaylight.distributed.tx.impl;
 
 import org.opendaylight.controller.sal.binding.api.BindingAwareBroker;
 import org.opendaylight.controller.sal.binding.api.BindingAwareConsumer;

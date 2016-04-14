@@ -1,4 +1,4 @@
-package org.opendaylight.distributed.tx.impl.spi;
+package org.opendaylight.distributed.tx.impl;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Maps;
@@ -58,14 +58,9 @@ public class DTxTransactionLockImpl implements TransactionLock {
 
     @Override
     public void releaseDevices(final Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> deviceMap) {
-        Maps.asMap(this.txProviderMap.keySet(), new Function<DTXLogicalTXProviderType, Object>() {
-            @Nullable
-            @Override
-            public Object apply(@Nullable DTXLogicalTXProviderType logicalTXProviderType) {
-                txProviderMap.get(logicalTXProviderType).releaseTransactionDevices(deviceMap.get(logicalTXProviderType));
-                return null;
-            }
-        });
+        for(DTXLogicalTXProviderType logicalTXProviderType : deviceMap.keySet()){
+            txProviderMap.get(logicalTXProviderType).releaseTransactionDevices(deviceMap.get(logicalTXProviderType));
+        }
     }
 }
 

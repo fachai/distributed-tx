@@ -1,6 +1,7 @@
 package org.opendaylight.distributed.tx.it.provider;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.*;
 
@@ -8,6 +9,8 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.romix.scala.Option;
+import javassist.runtime.Inner;
 import org.opendaylight.controller.md.sal.binding.api.*;
 import org.opendaylight.controller.md.sal.binding.api.DataChangeListener;
 import org.opendaylight.controller.md.sal.common.api.data.*;
@@ -34,6 +37,8 @@ import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distribu
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterListBuilder;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterListKey;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.outer.list.InnerList;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.outer.list.InnerListBuilder;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.outer.list.InnerListKey;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.ds.naive.rollback.data.DsNaiveRollbackDataEntry;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.ds.naive.rollback.data.DsNaiveRollbackDataEntryBuilder;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.ds.naive.rollback.data.DsNaiveRollbackDataEntryKey;
@@ -753,27 +758,112 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
         List<OuterList> outerLists = dataStoreListBuilder.buildOuterList();
         InstanceIdentifier<DatastoreTestData> nodeId = InstanceIdentifier.create(DatastoreTestData.class);
         long count = 0;
+        //rollback test
+        if (input.isPerformRollback()){
+            //error InnerList Iid to trigger exception
+            InstanceIdentifier<InnerList> errorInnerIid = InstanceIdentifier.create(DatastoreTestData.class)
+                    .child(OuterList.class, new OuterListKey(outerElements))
+                    .child(InnerList.class, new InnerListKey(0));
+
+            InnerList errorInnerlist = new InnerListBuilder()
+                    .setKey(new InnerListKey(0))
+                    .setValue("Error InnerList")
+                    .setName(0)
+                    .build();
+            boolean rollbackSucceed = true;
+            int errorOccur = (int)(putsPerTx * (Math.random())) + 1;//ensure the errorOccur not be zero
+            LOG.info("Error occur at {}", errorOccur);
+
+            for (OuterList outerList : outerLists) {
+                if (!rollbackSucceed) break;
+                for (InnerList innerList : outerList.getInnerList()) {
+                    CheckedFuture<Void, DTxException> writeFuture;
+                    InstanceIdentifier<InnerList> InnerIid = getInstanceIdentifier(outerList, innerList);
+                    writeFuture = writeData(dTx, operation,DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER,
+                            LogicalDatastoreType.CONFIGURATION, InnerIid, nodeId, innerList);
+
+                    try{
+                        writeFuture.checkedGet();
+                    }catch (DTxException e){
+                        LOG.info("put failed for {}", e.toString());
+                    }
+                    count++;
+
+                    if (count == errorOccur) {
+                        writeFuture = writeData(dTx, operation,DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER,
+                                LogicalDatastoreType.CONFIGURATION, errorInnerIid, nodeId, errorInnerlist);
+                    }
+
+                    try {
+                        writeFuture.checkedGet();
+                    } catch (DTxException e) {
+                        LOG.info("put failed for {}", e.toString());
+                    }
+
+                    if (count == putsPerTx){
+                        CheckedFuture<Void, TransactionCommitFailedException> submitFuture = dTx.submit();
+                        try{
+                            submitFuture.checkedGet();
+                            rollbackSucceed = false;
+                            break;
+                        }catch (Exception e){
+                            LOG.info("get submit exception {}", e.toString());
+                        }
+                        count = 0;
+                        dTx = dTxProvider.newTx(nodeMap);
+                    }
+                }
+            }
+            //have a check whether rollback succeed
+            for (OuterList outerList : outerLists) {
+                for (InnerList innerList : outerList.getInnerList()) {
+                    InstanceIdentifier<InnerList> innerIid = getInstanceIdentifier(outerList, innerList);
+                    ReadOnlyTransaction tx = dataBroker.newReadOnlyTransaction();
+                    CheckedFuture<Optional<InnerList>, ReadFailedException> readFuture = tx.read(LogicalDatastoreType.CONFIGURATION,
+                            innerIid);
+                    Optional<InnerList> result = Optional.absent();
+                    try {
+                        result = readFuture.checkedGet();
+                    } catch (ReadFailedException readException) {
+                        rollbackSucceed = false;
+                    }
+                    if (operation != OperationType.DELETE){
+                        if (result.isPresent()) {
+                            rollbackSucceed = false;
+                        }
+                    }else{
+                        if (!result.isPresent()){
+                            rollbackSucceed = false;
+                        }
+                    }
+                }
+            }
+
+            dsTestExecStatus.set(TestStatus.ExecStatus.Idle);
+            if (rollbackSucceed){
+                return RpcResultBuilder.success(new DatastoreTestOutputBuilder()
+                        .setStatus(StatusType.OK)
+                        .build()).buildFuture();
+            }else {
+                return RpcResultBuilder.success(new DatastoreTestOutputBuilder()
+                        .setStatus(StatusType.FAILED)
+                        .build()).buildFuture();
+            }
+        }
+        //normal test
         for (OuterList outerList : outerLists) {
             for (InnerList innerList : outerList.getInnerList()) {
                 InstanceIdentifier<InnerList> InnerIid = getInstanceIdentifier(outerList, innerList);
-
-                CheckedFuture<Void, DTxException> writeFuture;
-                if (operation == OperationType.PUT) {
-                    writeFuture = dTx.putAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER,
-                            LogicalDatastoreType.CONFIGURATION, InnerIid, innerList, nodeId);
-                }else if (operation == OperationType.MERGE){
-                    writeFuture = dTx.mergeAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER,
-                            LogicalDatastoreType.CONFIGURATION, InnerIid, innerList, nodeId);
-                }else {
-                    writeFuture = dTx.deleteAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER,
-                            LogicalDatastoreType.CONFIGURATION, InnerIid, nodeId);
-                }
+                CheckedFuture<Void, DTxException> writeFuture = writeData(dTx, operation,DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER,
+                        LogicalDatastoreType.CONFIGURATION, InnerIid, nodeId, innerList);
                 count++;
+
                 try {
                     writeFuture.checkedGet();
                 }catch (DTxException e){
                     LOG.info("put failed for {}", e.toString());
                 }
+
                 if (count == putsPerTx){
                     CheckedFuture<Void, TransactionCommitFailedException> submitFuture = dTx.submit();
                     try{
@@ -837,6 +927,22 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
         return InstanceIdentifier.create(DatastoreTestData.class)
                                  .child(OuterList.class, outerList.getKey())
                                  .child(InnerList.class, innerList.getKey());
+    }
+
+    private <T extends DataObject>CheckedFuture<Void, DTxException> writeData(DTx dTx, OperationType operation, DTXLogicalTXProviderType dtxTxType, LogicalDatastoreType dsType,
+                                                        InstanceIdentifier<T> Iid, InstanceIdentifier<?> nodeId, T data){
+        CheckedFuture<Void, DTxException> writeFuture = null;
+        if (operation == OperationType.PUT) {
+            writeFuture = dTx.putAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER,
+                    LogicalDatastoreType.CONFIGURATION, Iid, data, nodeId);
+        }else if (operation == OperationType.MERGE){
+            writeFuture = dTx.mergeAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER,
+                    LogicalDatastoreType.CONFIGURATION, Iid, data, nodeId);
+        }else {
+            writeFuture = dTx.deleteAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER,
+                    LogicalDatastoreType.CONFIGURATION, Iid, nodeId);
+        }
+        return writeFuture;
     }
 
     @Override
