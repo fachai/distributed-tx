@@ -69,6 +69,7 @@ public interface DTx extends WriteTransaction {
     /**
      * Merge data for a specific node. The function is deprecated in distributed-tx because of no return value.
      *
+     * @param <T> Class extends DataObject
      * @param logicalDatastoreType ds type
      * @param instanceIdentifier IID for data
      * @param t data to put to the node
@@ -93,6 +94,7 @@ public interface DTx extends WriteTransaction {
     /**
      * Put data to a specific node. This function is deprecated in distributed-tx because of no return value.
      *
+     * @param <T> Class extends DataObject
      * @param logicalDatastoreType ds type
      * @param instanceIdentifier IID for data
      * @param nodeId IID for node to invoke put
@@ -123,6 +125,8 @@ public interface DTx extends WriteTransaction {
      * <li> set DTxException for other failure</li>
      * <li> set null to the future otherwise</li>
      * </ul>
+     *
+     * @return CheckedFuture indicating the submit result
      */
     @Override CheckedFuture<Void, TransactionCommitFailedException> submit()
         throws DTxException.SubmitFailedException,
@@ -131,7 +135,7 @@ public interface DTx extends WriteTransaction {
     /**
      * Cancel the distributed tx
      *
-     * @throws UnsupportedOperationException. Not supported in the first release
+     * Throws UnsupportedOperationException. Not supported in the first release
      *
      */
     @Override boolean cancel()
@@ -142,6 +146,7 @@ public interface DTx extends WriteTransaction {
      * The node has to present in the distributed transaction.
      * This API only works for the pure NETCONF distributed transactions.
      *
+     * @param <T> Class extends DataObject
      * @param logicalDatastoreType ds type
      * @param instanceIdentifier IID for data
      * @param t data to put to the node
@@ -166,12 +171,13 @@ public interface DTx extends WriteTransaction {
      * The node has to present in the distributed transaction.
      * This API only works for the pure NETCONF distributed transactions.
      *
+     * @param <T> Class extends DataObject
      * @param logicalDatastoreType ds type
      * @param instanceIdentifier IID for data
      * @param t data to put to the node
      * @param nodeId IID for node to invoke delete
      *
-     * @return a Future indicating the result of put.
+     * @return a Future indicating the result of put
      * <ul>
      * <li> set DTxException.ReadFailedException to the future if read failure</li>
      * <li> set DTxException.RollbackFailedException if rollback failure</li>
@@ -212,6 +218,8 @@ public interface DTx extends WriteTransaction {
     /**
      * Delete data from a specific node.
      *
+     * @return CheckedFuture indicating the result of the rollback operation.
+     *
      * @throws DTxException.EditFailedException thrown when delete fails, but rollback was successful
      * @throws DTxException.RollbackFailedException  thrown when delete fails and rollback fails as well
      */
@@ -220,12 +228,14 @@ public interface DTx extends WriteTransaction {
     /**
      * Marge data to a specific node and rollback of the whole distributed transaction will be performed on failure.
      *
+     * @param <T> Class extends DataObject
      * @param logicalTXProviderType transaction provider type
      * @param logicalDatastoreType ds type
      * @param instanceIdentifier IID for data
+     * @param t data to merge to the node
      * @param nodeId IID for node to invoke delete
      *
-     * @return a Future indicating the result of the merge operation.
+     * @return CheckedFuture indicating the result of the merge operation.
      * <ul>
      * <li> set DTxException.ReadFailedException to the future if read failure</li>
      * <li> set DTxException.RollbackFailedException if rollback failure</li>
@@ -243,9 +253,11 @@ public interface DTx extends WriteTransaction {
     /**
      * Put data to a specific node and rollback of the whole distributed transaction will be performed on failure.
      *
+     * @param <T> Class extends DataObject
      * @param logicalTXProviderType transaction provider type
      * @param logicalDatastoreType ds type
      * @param instanceIdentifier IID for data
+     * @param t data to put to the node
      * @param nodeId IID for node to invoke delete
      *
      * @return a Future indicating the result of the put operation.
