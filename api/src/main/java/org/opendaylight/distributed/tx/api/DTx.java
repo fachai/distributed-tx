@@ -23,7 +23,7 @@ public interface DTx extends WriteTransaction {
     /**
      * Delete data from a specific node. The function is deprecated in distributed-tx because of no return value.
      *
-     * @param logicalDatastoreType ds type
+     * @param logicalDatastoreType datastore type
      * @param instanceIdentifier IID for data
      * @param nodeId IID for node to invoke delete
      *
@@ -70,7 +70,7 @@ public interface DTx extends WriteTransaction {
      * Merge data for a specific node. The function is deprecated in distributed-tx because of no return value.
      *
      * @param <T> Class extends DataObject
-     * @param logicalDatastoreType ds type
+     * @param logicalDatastoreType datastore type
      * @param instanceIdentifier IID for data
      * @param t data to put to the node
      * @param nodeId IID for node to invoke merge
@@ -95,7 +95,7 @@ public interface DTx extends WriteTransaction {
      * Put data to a specific node. This function is deprecated in distributed-tx because of no return value.
      *
      * @param <T> Class extends DataObject
-     * @param logicalDatastoreType ds type
+     * @param logicalDatastoreType datastore type
      * @param instanceIdentifier IID for data
      * @param nodeId IID for node to invoke put
      * @param t data to put to the node
@@ -119,7 +119,7 @@ public interface DTx extends WriteTransaction {
     /**
      * Submit the distributed transaction. Rollback of the whole transaction will be performed on failure.
      *
-     * @return a Future indicating the result of submit.
+     * @return CheckedFuture indicating the result of submit.
      * <ul>
      * <li> set DTxException.RollbackFailedException if rollback failure</li>
      * <li> set DTxException for other failure</li>
@@ -147,12 +147,12 @@ public interface DTx extends WriteTransaction {
      * This API only works for the pure NETCONF distributed transactions.
      *
      * @param <T> Class extends DataObject
-     * @param logicalDatastoreType ds type
+     * @param logicalDatastoreType datastore type
      * @param instanceIdentifier IID for data
      * @param t data to put to the node
      * @param nodeId IID for node to invoke delete
      *
-     * @return a Future indicating the result of merge.
+     * @return CheckedFuture indicating the result of merge.
      * <ul>
      * <li> set DTxException.ReadFailedException to the future if read failure</li>
      * <li> set DTxException.RollbackFailedException if rollback failure</li>
@@ -172,12 +172,12 @@ public interface DTx extends WriteTransaction {
      * This API only works for the pure NETCONF distributed transactions.
      *
      * @param <T> Class extends DataObject
-     * @param logicalDatastoreType ds type
+     * @param logicalDatastoreType datastore type
      * @param instanceIdentifier IID for data
      * @param t data to put to the node
      * @param nodeId IID for node to invoke delete
      *
-     * @return a Future indicating the result of put
+     * @return CheckedFuture indicating the result of put
      * <ul>
      * <li> set DTxException.ReadFailedException to the future if read failure</li>
      * <li> set DTxException.RollbackFailedException if rollback failure</li>
@@ -196,11 +196,11 @@ public interface DTx extends WriteTransaction {
      * The node has to present in the distributed transaction.
      * This API only works for the pure NETCONF distributed transactions.
      *
-     * @param logicalDatastoreType ds type
+     * @param logicalDatastoreType datastore type
      * @param instanceIdentifier IID for data
      * @param nodeId IID for node to invoke delete
      *
-     * @return a Future indicating the result of delete.
+     * @return CheckedFuture indicating the result of delete.
      * <ul>
      * <li> set DTxException.ReadFailedException to the future if read failure</li>
      * <li> set DTxException.RollbackFailedException if rollback failure</li>
@@ -220,8 +220,10 @@ public interface DTx extends WriteTransaction {
      *
      * @return CheckedFuture indicating the result of the rollback operation.
      *
-     * @throws DTxException.EditFailedException thrown when delete fails, but rollback was successful
-     * @throws DTxException.RollbackFailedException  thrown when delete fails and rollback fails as well
+     * <ul>
+     * <li> set DTxException.RollbackFailedException if rollback failure</li>
+     * <li> set null to the future otherwise</li>
+     * </ul>
      */
     CheckedFuture<Void, DTxException.RollbackFailedException> rollback();
 
@@ -230,7 +232,7 @@ public interface DTx extends WriteTransaction {
      *
      * @param <T> Class extends DataObject
      * @param logicalTXProviderType transaction provider type
-     * @param logicalDatastoreType ds type
+     * @param logicalDatastoreType datastore type
      * @param instanceIdentifier IID for data
      * @param t data to merge to the node
      * @param nodeId IID for node to invoke delete
@@ -255,12 +257,12 @@ public interface DTx extends WriteTransaction {
      *
      * @param <T> Class extends DataObject
      * @param logicalTXProviderType transaction provider type
-     * @param logicalDatastoreType ds type
+     * @param logicalDatastoreType datastore type
      * @param instanceIdentifier IID for data
      * @param t data to put to the node
      * @param nodeId IID for node to invoke delete
      *
-     * @return a Future indicating the result of the put operation.
+     * @return CheckedFuture indicating the result of the put operation.
      * <ul>
      * <li> set DTxException.ReadFailedException to the future if read failure</li>
      * <li> set DTxException.RollbackFailedException if rollback failure</li>
@@ -279,11 +281,11 @@ public interface DTx extends WriteTransaction {
      * Delete data to a specific node and rollback of the whole distributed transaction will be performed on failure.
      *
      * @param logicalTXProviderType transaction provider type
-     * @param logicalDatastoreType ds type
+     * @param logicalDatastoreType datastore type
      * @param instanceIdentifier IID for data
      * @param nodeId IID for node to invoke delete
      *
-     * @return a Future indicating the result of the merge operation.
+     * @return CheckedFuture indicating the result of the merge operation.
      * <ul>
      * <li> set DTxException.ReadFailedException to the future if read failure</li>
      * <li> set DTxException.RollbackFailedException if rollback failure</li>
