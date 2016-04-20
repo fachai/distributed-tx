@@ -296,7 +296,7 @@ module distributed-tx-it-model{
                  mandatory true;
                  type operation-type;
               }
-              leaf putPerTx {
+              leaf putsPerTx {
                  type uint32;
                  default 1;
                  description
@@ -335,19 +335,7 @@ module distributed-tx-it-model{
                    description
                        "number of operations {PUT,MERGE,DELETE} per submit";
                }
-               leaf outerList {
-                    type int32;
-                    default 10;
-                    description
-                        "Size of outerList for datastore test";
-               }
-               leaf innerList {
-                    type int32;
-                    default 10;
-                    description
-                         "Size of innerList for datastore test";
-               }
-               leaf numberOfNetConfTxs {
+               leaf numberOfTxs {
                     type int32;
                     default 10;
                     description

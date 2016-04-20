@@ -40,7 +40,7 @@ public class DtxDataStoreSyncWriter extends AbstractDataWriter {
         //when the operation is delete we should build the test data first
         if (input.getOperation() == OperationType.DELETE)
         {
-            boolean buildTestData = dataStoreListBuilder.writeTestList();//build the test data for the operation
+            boolean buildTestData = dataStoreListBuilder.buildTestInnerList();//build the test data for the operation
             if (!buildTestData)
             {
                 return;

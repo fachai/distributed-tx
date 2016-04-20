@@ -30,7 +30,7 @@ public class DataStoreListBuilder {
     /**
      * this method is used to build the test data for the delete operation
      */
-    public boolean writeTestList() {
+    public boolean buildTestInnerList() {
         List<OuterList> outerLists = buildOuterList();
         WriteTransaction transaction = dataBroker.newWriteOnlyTransaction();
         for ( OuterList outerList : outerLists)
