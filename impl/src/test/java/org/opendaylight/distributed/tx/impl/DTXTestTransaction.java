@@ -20,6 +20,8 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 
 public class DTXTestTransaction implements ReadWriteTransaction {
@@ -28,8 +30,9 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     Map<InstanceIdentifier<?>, Boolean> mergeExceptionMap = new HashMap<>();
     Map<InstanceIdentifier<?>, Boolean> deleteExceptionMap = new HashMap<>();
     boolean submitException = false;
+    static int delayTime = 1;
 
-    private Map<InstanceIdentifier<?>,ArrayList<DataObject>> txDataMap = new HashMap<>();
+    private Map<InstanceIdentifier<?>,ConcurrentLinkedDeque<DataObject>> txDataMap = new ConcurrentHashMap<>();
 
     public void setReadException(InstanceIdentifier<?> instanceIdentifier, boolean ept){
         this.readExceptionMap.put(instanceIdentifier, ept);
@@ -50,6 +53,9 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     {
         this.submitException = ept;
     }
+    public static void setDelayTime(int dlTime){
+        delayTime = dlTime;
+    }
 
     /**
      * this method is used to get the data size of the specific instanceIdentifier
@@ -67,7 +73,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
      */
     public void createObjForIdentifier(InstanceIdentifier<?> instanceIdentifier)
     {
-        txDataMap.put(instanceIdentifier, new ArrayList<DataObject>(Sets.newHashSet(new myDataObj())));
+        txDataMap.put(instanceIdentifier, new ConcurrentLinkedDeque<DataObject>(Sets.newHashSet(new myDataObj())));
     }
 
     @Override
@@ -75,7 +81,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
         T obj = null;
 
         if(txDataMap.containsKey(instanceIdentifier) && txDataMap.get(instanceIdentifier).size() > 0)
-            obj = (T)txDataMap.get(instanceIdentifier).get(0);
+            obj = (T)txDataMap.get(instanceIdentifier).getFirst();
 
         if(!readExceptionMap.containsKey(instanceIdentifier))
             readExceptionMap.put(instanceIdentifier, false);
@@ -87,7 +93,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
             @Override
             public void run() {
                 try {
-                    Thread.sleep(5);
+                    Thread.sleep(delayTime);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -118,7 +124,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     @Override
     public <T extends DataObject> void put(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t) {
        if(!txDataMap.containsKey(instanceIdentifier))
-           txDataMap.put(instanceIdentifier, new ArrayList<DataObject>());
+           txDataMap.put(instanceIdentifier, new ConcurrentLinkedDeque<DataObject>());
 
        if(!putExceptionMap.containsKey(instanceIdentifier))
            putExceptionMap.put(instanceIdentifier,false);
@@ -136,7 +142,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     @Override
     public <T extends DataObject> void put(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, boolean b) {
         if(!txDataMap.containsKey(instanceIdentifier))
-            txDataMap.put(instanceIdentifier, new ArrayList<DataObject>());
+            txDataMap.put(instanceIdentifier, new ConcurrentLinkedDeque<DataObject>());
 
         if(!putExceptionMap.containsKey(instanceIdentifier))
             putExceptionMap.put(instanceIdentifier,false);
@@ -155,7 +161,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     @Override
     public <T extends DataObject> void merge(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t) {
         if(!txDataMap.containsKey(instanceIdentifier))
-            txDataMap.put(instanceIdentifier, new ArrayList<DataObject>());
+            txDataMap.put(instanceIdentifier, new ConcurrentLinkedDeque<DataObject>());
 
         if(!mergeExceptionMap.containsKey(instanceIdentifier))
             mergeExceptionMap.put(instanceIdentifier, false);
@@ -173,7 +179,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     @Override
     public <T extends DataObject> void merge(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, boolean b) {
         if(!txDataMap.containsKey(instanceIdentifier))
-            txDataMap.put(instanceIdentifier, new ArrayList<DataObject>());
+            txDataMap.put(instanceIdentifier, new ConcurrentLinkedDeque<DataObject>());
 
         if(!mergeExceptionMap.containsKey(instanceIdentifier))
             mergeExceptionMap.put(instanceIdentifier, false);

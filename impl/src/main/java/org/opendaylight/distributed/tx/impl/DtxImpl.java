@@ -92,6 +92,14 @@ public class DtxImpl implements DTx {
         return perNodeTransactionsbyLogicalType.get(type).get(nodeId).getSizeOfCache();
     }
 
+    private void waitForAllTxsDone(){
+        for (DTXLogicalTXProviderType type : this.perNodeTransactionsbyLogicalType.keySet()) {
+            for (CachingReadWriteTx perNodeTx : this.perNodeTransactionsbyLogicalType.get(type).values()){
+                perNodeTx.waitForAllActiveOperationsDone();
+            }
+        }
+    }
+
     @Deprecated
     @Override public void delete(final LogicalDatastoreType logicalDatastoreType,
         final InstanceIdentifier<?> instanceIdentifier, final InstanceIdentifier<?> nodeId)
@@ -174,7 +182,7 @@ public class DtxImpl implements DTx {
 
     @Override public CheckedFuture<Void, TransactionCommitFailedException> submit()
         throws DTxException.SubmitFailedException, DTxException.RollbackFailedException {
-
+        waitForAllTxsDone();
         int totalSubmitSize = getNumberofNodes();
 
         final Map<InstanceIdentifier<?>, PerNodeTxState> commitStatus = Maps.newHashMapWithExpectedSize(totalSubmitSize);
@@ -231,6 +239,7 @@ public class DtxImpl implements DTx {
     }
 
     private CheckedFuture<Void, DTxException.RollbackFailedException> rollbackUponOperationFailure(){
+        waitForAllTxsDone();
         Rollback rollback = new RollbackImpl();
         Map<InstanceIdentifier<?>, CachingReadWriteTx> perNodeCache = new HashMap<>();
 
