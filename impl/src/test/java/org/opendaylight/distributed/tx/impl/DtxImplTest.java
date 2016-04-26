@@ -35,17 +35,17 @@ public class DtxImplTest{
     InstanceIdentifier<TestIid3> n2;
     InstanceIdentifier<TestIid4> n3;
 
-    DTXTestTransaction internalDtxNetconfTestTx1; //transaction for node1 of the Netconf txProvider
-    DTXTestTransaction internalDtxNetconfTestTx2; //transaction for node2  of the Netconf txProvider
-    DTXTestTransaction internalDtxDataStoreTestTx1; //transaction for node1 of the Datastore txProvider
-    DTXTestTransaction internalDtxDataStoreTestTx2; //transaction for node2 of the Datastore txProvider
+    volatile DTXTestTransaction internalDtxNetconfTestTx1; //transaction for node1 of the Netconf txProvider
+    volatile DTXTestTransaction internalDtxNetconfTestTx2; //transaction for node2  of the Netconf txProvider
+    volatile DTXTestTransaction internalDtxDataStoreTestTx1; //transaction for node1 of the Datastore txProvider
+    volatile DTXTestTransaction internalDtxDataStoreTestTx2; //transaction for node2 of the Datastore txProvider
 
     Set<InstanceIdentifier<?>> netconfNodes; //netconf nodeId set
     Set<InstanceIdentifier<?>> dataStoreNodes; //datastore nodeId set
     Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap;
     List<InstanceIdentifier<? extends TestIid>> identifiers; //identifier list
-    DtxImpl netConfOnlyDTx; //dtx instance for only netconf nodes
-    DtxImpl mixedDTx; //dtx instance for both netconf and datastore nodes
+    volatile DtxImpl netConfOnlyDTx; //dtx instance for only netconf nodes
+    volatile DtxImpl mixedDTx; //dtx instance for both netconf and datastore nodes
     ExecutorService threadPool; //use for multithread testing
 
     private class myNetconfTxProvider implements TxProvider{
@@ -2120,6 +2120,9 @@ public class DtxImplTest{
         }
 
         threadPool.shutdown();
+        while (!threadPool.isTerminated()){
+
+        }
         mixedDTx.submit();
         int expectedDataSizeInIdentifier = 1;
 
@@ -2223,6 +2226,9 @@ public class DtxImplTest{
             }
         }
         threadPool.shutdown();
+        while (!threadPool.isTerminated()){
+
+        }
         netConfOnlyDTx.submit();
         for (final InstanceIdentifier<?> nodeIid : netconfNodes) {
             Assert.assertEquals("Size of data in the transaction is wrong", numOfThreads, netConfOnlyDTx.getSizeofCacheByNodeId(nodeIid));
