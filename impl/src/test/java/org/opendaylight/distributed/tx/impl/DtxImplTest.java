@@ -35,17 +35,17 @@ public class DtxImplTest{
     InstanceIdentifier<TestIid3> n2;
     InstanceIdentifier<TestIid4> n3;
 
-    volatile DTXTestTransaction internalDtxNetconfTestTx1; //transaction for node1 of the Netconf txProvider
-    volatile DTXTestTransaction internalDtxNetconfTestTx2; //transaction for node2  of the Netconf txProvider
-    volatile DTXTestTransaction internalDtxDataStoreTestTx1; //transaction for node1 of the Datastore txProvider
-    volatile DTXTestTransaction internalDtxDataStoreTestTx2; //transaction for node2 of the Datastore txProvider
+    DTXTestTransaction internalDtxNetconfTestTx1; //transaction for node1 of the Netconf txProvider
+    DTXTestTransaction internalDtxNetconfTestTx2; //transaction for node2  of the Netconf txProvider
+    DTXTestTransaction internalDtxDataStoreTestTx1; //transaction for node1 of the Datastore txProvider
+    DTXTestTransaction internalDtxDataStoreTestTx2; //transaction for node2 of the Datastore txProvider
 
     Set<InstanceIdentifier<?>> netconfNodes; //netconf nodeId set
     Set<InstanceIdentifier<?>> dataStoreNodes; //datastore nodeId set
     Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap;
     List<InstanceIdentifier<? extends TestIid>> identifiers; //identifier list
-    volatile DtxImpl netConfOnlyDTx; //dtx instance for only netconf nodes
-    volatile DtxImpl mixedDTx; //dtx instance for both netconf and datastore nodes
+    DtxImpl netConfOnlyDTx; //dtx instance for only netconf nodes
+    DtxImpl mixedDTx; //dtx instance for both netconf and datastore nodes
     ExecutorService threadPool; //use for multithread testing
 
     private class myNetconfTxProvider implements TxProvider{
@@ -187,7 +187,9 @@ public class DtxImplTest{
         identifiers = Lists.newArrayList(n0, n1, n2, n3);
 
         internalDtxNetconfTestTx1 = new DTXTestTransaction();
+        internalDtxNetconfTestTx1.addInstanceIdentifier(n0, n1, n2, n3);
         internalDtxNetconfTestTx2 = new DTXTestTransaction();
+        internalDtxNetconfTestTx2.addInstanceIdentifier(n0, n1, n2, n3);
         Map<DTXLogicalTXProviderType, TxProvider> netconfTxProviderMap = new HashMap<>();
         TxProvider netconfTxProvider = new myNetconfTxProvider();
         netconfTxProviderMap.put(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, netconfTxProvider);
@@ -199,7 +201,9 @@ public class DtxImplTest{
         this.dataStoreIid2 = InstanceIdentifier.create(DataStoreNode2.class);
         dataStoreNodes.add(dataStoreIid2);
         internalDtxDataStoreTestTx1 = new DTXTestTransaction();
+        internalDtxDataStoreTestTx1.addInstanceIdentifier(n0, n1, n2, n3);
         internalDtxDataStoreTestTx2 = new DTXTestTransaction();
+        internalDtxDataStoreTestTx2.addInstanceIdentifier(n0, n1, n2, n3);
 
         Set<DTXLogicalTXProviderType> providerTypes = Sets.newHashSet(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER,DTXLogicalTXProviderType.NETCONF_TX_PROVIDER);
         //create two maps, transaction provider map and nodes map
@@ -769,7 +773,7 @@ public class DtxImplTest{
      */
     @Test
     public void testConcurrentPutToSameNodeWithoutObjExPutFailRollbackSucceedInNetConfOnlyDTx(){
-        int numOfThreads = (int)(Math.random()*9) + 1;
+        int numOfThreads = (int)(Math.random()*3) + 1;
         threadPool = Executors.newFixedThreadPool(numOfThreads);
         final int errorOccur = (int)(Math.random()*numOfThreads);
         for (int i = 0; i < numOfThreads; i++){
@@ -808,6 +812,7 @@ public class DtxImplTest{
     public void testConcurrentPutToSameNodeWithoutObjExReadExceptionRollbackSucceedInNetConfOnlyDTx(){
         int numOfThreads = (int)(Math.random()*3) + 1;
         threadPool = Executors.newFixedThreadPool(numOfThreads);
+
         final int errorOccur = (int)(Math.random()*numOfThreads);
         for (int i = 0; i < numOfThreads; i++){
             final int finalI = i;
@@ -844,46 +849,47 @@ public class DtxImplTest{
      */
     @Test
     public void testConcurrentPutToSameNodeWithoutObjExReadExceptionRollbackSucceedInMixedDTx(){
-        int numOfThreads = (int)(Math.random()*9) + 1;
-        threadPool = Executors.newFixedThreadPool(numOfThreads);
-        final int errorOccur = (int)(Math.random()*numOfThreads);
-        for (int i = 0; i < numOfThreads; i++){
-            final int finalI = i;
-            threadPool.execute(new Runnable() {
-                @Override
-                public void run() {
-                    CheckedFuture<Void, DTxException> netConfWriteFuture;
-                    CheckedFuture<Void, DTxException> dataStoreWriteFuture;
-                    if (finalI == errorOccur){
-                        internalDtxNetconfTestTx1.setReadException(n0, true);
-                    }
-                    netConfWriteFuture = mixedDTx.putAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION,
-                            n0, new TestIid1(), netConfIid1);
-                    dataStoreWriteFuture = mixedDTx.putAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION,
-                            n0, new TestIid1(), dataStoreIid1);
-                    try{
-                        netConfWriteFuture.checkedGet();
-                    }catch (DTxException e){
-                        if (finalI != errorOccur)
-                            fail("get the unexpected exception");
-                    }
-                    try{
-                        dataStoreWriteFuture.checkedGet();
-                    }catch (DTxException e){
-                        fail("get the unexpected exception");
-                    }
-                }
-            });
-        }
-        threadPool.shutdown();
-        while(!threadPool.isTerminated()){
+            int numOfThreads = (int) (Math.random() * 3) + 1;
+            threadPool = Executors.newFixedThreadPool(numOfThreads);
 
-        }
-        int expectedDataSizeInIdentifier = 0;
-        Assert.assertEquals("The Size of data in netConfTx is wrong",
-                expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSize(n0));
-        Assert.assertEquals("The Size of data in dataStoreTx is wrong",
-                expectedDataSizeInIdentifier, internalDtxDataStoreTestTx1.getTxDataSize(n0));
+            final int errorOccur = (int) (Math.random() * numOfThreads);
+            for (int i = 0; i < numOfThreads; i++) {
+                final int finalI = i;
+                threadPool.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        CheckedFuture<Void, DTxException> netConfWriteFuture;
+                        CheckedFuture<Void, DTxException> dataStoreWriteFuture;
+                        if (finalI == errorOccur) {
+                            internalDtxNetconfTestTx1.setReadException(n0, true);
+                        }
+                        netConfWriteFuture = mixedDTx.putAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION,
+                                n0, new TestIid1(), netConfIid1);
+                        dataStoreWriteFuture = mixedDTx.putAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION,
+                                n0, new TestIid1(), dataStoreIid1);
+                        try {
+                            netConfWriteFuture.checkedGet();
+                        } catch (DTxException e) {
+                            if (finalI != errorOccur)
+                                fail("get the unexpected exception");
+                        }
+                        try {
+                            dataStoreWriteFuture.checkedGet();
+                        } catch (DTxException e) {
+                            fail("get the unexpected exception");
+                        }
+                    }
+                });
+            }
+            threadPool.shutdown();
+            while (!threadPool.isTerminated()) {
+
+            }
+            int expectedDataSizeInIdentifier = 0;
+            Assert.assertEquals("The Size of data in netConfTx is wrong",
+                    expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSize(n0));
+            Assert.assertEquals("The Size of data in dataStoreTx is wrong",
+                    expectedDataSizeInIdentifier, internalDtxDataStoreTestTx1.getTxDataSize(n0));
     }
     /**
      * simulate the case in which no data exist in n0 of netconf Node1 and datastore Node1
@@ -892,8 +898,9 @@ public class DtxImplTest{
      */
     @Test
     public void testConcurrentPutToSameNodeWithoutObjExPutExceptionRollbackSucceedInMixedDTx(){
-        int numOfThreads = (int)(Math.random()*9) + 1;
+        int numOfThreads = (int)(Math.random()*3) + 1;
         threadPool = Executors.newFixedThreadPool(numOfThreads);
+
         final int errorOccur = (int)(Math.random()*numOfThreads);
         for (int i = 0; i < numOfThreads; i++){
             final int finalI = i;
@@ -1170,7 +1177,7 @@ public class DtxImplTest{
      * simulate the case multithread try to merge data into different identifiers of the same netconf node
      */
     @Test
-    public void testConcurrentMergeAndRollbackOnFailureInNetConfOnlyDTx() {
+    public void testConcurrentMergeAndRollbackOnFailureWithoutObjExInNetConfOnlyDTx() {
         int numOfThreads = (int)(Math.random()*4) + 1;
         threadPool = Executors.newFixedThreadPool(numOfThreads);
         for (int i = 0; i < numOfThreads; i++)
@@ -1206,7 +1213,7 @@ public class DtxImplTest{
      * simulate the case multithread try to merge data into different identifiers of two nodes in MixedDTx
      */
     @Test
-    public void testConcurrentMergeAndRollbackOnFailureInMixedDTx() {
+    public void testConcurrentMergeAndRollbackOnFailureWithoutObjExInMixedDTx() {
         int numOfThreads = (int)(Math.random()*4) + 1;
         threadPool = Executors.newFixedThreadPool(numOfThreads);
         for (int i = 0; i < numOfThreads; i++)
@@ -1251,7 +1258,7 @@ public class DtxImplTest{
      * one of the operation hit error and rollback succeed
      */
     @Test
-    public void testConcurrentMergeAndRollbackOnFailureReadErrorRollbackSucceedInNetConfOnlyDTx() {
+    public void testConcurrentMergeAndRollbackOnFailureWithoutObjExReadErrorRollbackSucceedInNetConfOnlyDTx() {
         int numOfThreads = (int)(Math.random()*4) + 1;
         threadPool = Executors.newFixedThreadPool(numOfThreads);
         final int errorOccur = (int)(Math.random()*numOfThreads);
@@ -1293,7 +1300,7 @@ public class DtxImplTest{
      * one of the operation hit error and rollback succeed
      */
     @Test
-    public void testConcurrentMergeAndRollbackOnFailureReadFailRollbackSucceedInMixedDTx() {
+    public void testConcurrentMergeAndRollbackOnFailureWithoutObjExReadFailRollbackSucceedInMixedDTx() {
         int numOfThreads = (int)(Math.random()*4) + 1;
         threadPool = Executors.newFixedThreadPool(numOfThreads);
         final int errorOccur = (int)(Math.random()*numOfThreads);
@@ -1780,7 +1787,6 @@ public class DtxImplTest{
         int numOfThreads = (int)(Math.random()*4) + 1;
         threadPool = Executors.newFixedThreadPool(numOfThreads);
         final int errorOccur = (int)(Math.random()*numOfThreads);
-        DTXTestTransaction.setDelayTime(1);
         for (int i = 0; i < numOfThreads; i++)
         {
             internalDtxNetconfTestTx1.createObjForIdentifier(identifiers.get(i));
@@ -1888,39 +1894,39 @@ public class DtxImplTest{
      * the delete operation read failed, rollback succeed, original data back to n0
      */
     @Test
-    public void testConcurrentDeleteToSameNodeWithObjExReadExceptionRollbackSucceedInNetConfDTx(){
-        int numOfThreads = (int)(Math.random()*3) + 1;
-        threadPool = Executors.newFixedThreadPool(numOfThreads);
-        final int errorOccur = (int)(Math.random()*numOfThreads);
-        internalDtxNetconfTestTx1.createObjForIdentifier(n0);
-        for (int i = 0; i < numOfThreads; i++){
-            final int finalI = i;
-            threadPool.execute(new Runnable() {
-                @Override
-                public void run() {
-                    CheckedFuture<Void, DTxException> writeFuture;
-                    if (finalI == errorOccur){
-                        internalDtxNetconfTestTx1.setReadException(n0, true);
-                        writeFuture = netConfOnlyDTx.deleteAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION,
-                                n0, netConfIid1);
+    public void testConcurrentDeleteToSameNodeWithoutObjExReadExceptionRollbackSucceedInNetConfDTx(){
+            int numOfThreads = (int) (Math.random() * 3) + 1;
+            threadPool = Executors.newFixedThreadPool(numOfThreads);
+            final int errorOccur = (int) (Math.random() * numOfThreads);
+            for (int i = 0; i < numOfThreads; i++) {
+                final int finalI = i;
+                threadPool.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        CheckedFuture<Void, DTxException> writeFuture;
+                        if (finalI == errorOccur) {
+                            internalDtxNetconfTestTx1.setReadException(n0, true);
+                            writeFuture = netConfOnlyDTx.deleteAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION,
+                                    n0, netConfIid1);
+                        } else {
+                            writeFuture = netConfOnlyDTx.putAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION,
+                                    n0, new TestIid1(), netConfIid1);
+                        }
+                        try {
+                            writeFuture.checkedGet();
+                        } catch (DTxException e) {
+                            if (finalI != errorOccur)
+                                fail("get the unexpected exception");
+                        }
                     }
-                    writeFuture = netConfOnlyDTx.putAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION,
-                            n0, new TestIid1(), netConfIid1);
-                    try{
-                        writeFuture.checkedGet();
-                    }catch (DTxException e){
-                        if (finalI != errorOccur)
-                            fail("get the unexpected exception");
-                    }
-                }
-            });
-        }
-        threadPool.shutdown();
-        while(!threadPool.isTerminated()){
+                });
+            }
+            threadPool.shutdown();
+            while (!threadPool.isTerminated()) {
 
-        }
-        int expectedDataSizeInIdentifier = 1;
-        Assert.assertEquals("The Size of data in tx is wrong", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSize(n0));
+            }
+            int expectedDataSizeInIdentifier = 0;
+            Assert.assertEquals("The Size of data in tx is wrong", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSize(n0));
     }
     /**
      * simulate the case data exist in n0 of netconf Node1 and datastore node1
@@ -1929,7 +1935,7 @@ public class DtxImplTest{
      */
     @Test
     public void testConcurrentDeleteToSameNodeWithObjExReadExceptionRollbackSucceedInMixedDTx(){
-        int numOfThreads = (int)(Math.random()*9) + 1;
+        int numOfThreads = (int)(Math.random()*3) + 1;
         threadPool = Executors.newFixedThreadPool(numOfThreads);
         final int errorOccur = (int)(Math.random()*numOfThreads);
         internalDtxNetconfTestTx1.createObjForIdentifier(n0);
@@ -1973,44 +1979,46 @@ public class DtxImplTest{
         Assert.assertEquals("The Size of data in datastore tx is wrong", expectedDataSizeInIdentifier, internalDtxDataStoreTestTx1.getTxDataSize(n0));
     }
     /**
-     * simulate the case data exist in n0 of netconf Node1
+     * simulate the case no data exist in n0 of netconf Node1
      * use multithreads to put data to n0 and delete the data
-     * the delete operation delete failed, rollback succeed, original data back to n0
+     * the delete operation delete failed, rollback succeed, no data in the node at last
      */
     @Test
-    public void testConcurrentDeleteToSameNodeWithObjExDeleteExceptionRollbackSucceedInNetConfOnlyDTx(){
-        int numOfThreads = (int)(Math.random()*9) + 1;
-        threadPool = Executors.newFixedThreadPool(numOfThreads);
-        final int errorOccur = (int)(Math.random()*numOfThreads);
-        internalDtxNetconfTestTx1.createObjForIdentifier(n0);
-        for (int i = 0; i < numOfThreads; i++){
-            final int finalI = i;
-            threadPool.execute(new Runnable() {
-                @Override
-                public void run() {
-                    CheckedFuture<Void, DTxException> writeFuture;
-                    if (finalI == errorOccur){
-                        internalDtxNetconfTestTx1.setDeleteException(n0, true);
-                        writeFuture = netConfOnlyDTx.deleteAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION,
-                                n0, netConfIid1);
+    public void testConcurrentDeleteToSameNodeWithoutObjExDeleteExceptionRollbackSucceedInNetConfOnlyDTx(){
+            int numOfThreads = (int) (Math.random() * 3) + 1;
+            threadPool = Executors.newFixedThreadPool(numOfThreads);
+            final int errorOccur = (int) (Math.random() * numOfThreads);
+            System.out.println(numOfThreads + "   " + errorOccur);
+            internalDtxNetconfTestTx1.setDeleteException(n0, true);
+//            internalDtxNetconfTestTx1.createObjForIdentifier(n0);
+            for (int i = 0; i < numOfThreads; i++) {
+                final int finalI = i;
+                threadPool.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        CheckedFuture<Void, DTxException> writeFuture;
+                        if (finalI == errorOccur) {
+                            writeFuture = netConfOnlyDTx.deleteAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION,
+                                    n0, netConfIid1);
+                        } else {
+                            writeFuture = netConfOnlyDTx.putAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION,
+                                    n0, new TestIid1(), netConfIid1);
+                        }
+                        try {
+                            writeFuture.checkedGet();
+                        } catch (DTxException e) {
+                            if (finalI != errorOccur)
+                                fail("get the unexpected exception");
+                        }
                     }
-                    writeFuture = netConfOnlyDTx.putAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION,
-                            n0, new TestIid1(), netConfIid1);
-                    try{
-                        writeFuture.checkedGet();
-                    }catch (DTxException e){
-                        if (finalI != errorOccur)
-                            fail("get the unexpected exception");
-                    }
-                }
-            });
-        }
-        threadPool.shutdown();
-        while(!threadPool.isTerminated()){
+                });
+            }
+            threadPool.shutdown();
+            while (!threadPool.isTerminated()) {
 
-        }
-        int expectedDataSizeInIdentifier = 1;
-        Assert.assertEquals("The Size of data in tx is wrong", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSize(n0));
+            }
+            int expectedDataSizeInIdentifier = 0;
+            Assert.assertEquals("The Size of data in tx is wrong", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSize(n0));
     }
     /**
      * simulate the case data exist in n0 of netconf Node1 and datastore Node1
@@ -2019,7 +2027,7 @@ public class DtxImplTest{
      */
     @Test
     public void testConcurrentDeleteToSameNodeWithObjExDeleteExceptionRollbackSucceedInMixedDTx(){
-        int numOfThreads = (int)(Math.random()*9) + 1;
+        int numOfThreads = (int)(Math.random()*3) + 1;
         threadPool = Executors.newFixedThreadPool(numOfThreads);
         final int errorOccur = (int)(Math.random()*numOfThreads);
         internalDtxNetconfTestTx1.createObjForIdentifier(n0);
@@ -2071,7 +2079,6 @@ public class DtxImplTest{
     public void testConcurrentPutWithoutObjExAndSubmitInNetConfOnlyDTx(){
         int numOfThreads = (int)(Math.random()*3) + 1;
         threadPool = Executors.newFixedThreadPool(numOfThreads * netconfNodes.size());
-        DTXTestTransaction.setDelayTime(10);//delay time is the time it takes to read the original data
         for (final InstanceIdentifier<?> nodeIid : netconfNodes) {
             for (int i = 0; i < numOfThreads; i++) {
                 final int finalI = i;
@@ -2085,6 +2092,9 @@ public class DtxImplTest{
             }
         }
         threadPool.shutdown();
+        while (!threadPool.isTerminated()){
+
+        }
         netConfOnlyDTx.submit();
         for (final InstanceIdentifier<?> nodeIid : netconfNodes) {
             Assert.assertEquals("Size of data in the transaction is wrong", numOfThreads, netConfOnlyDTx.getSizeofCacheByNodeId(nodeIid));
@@ -2102,7 +2112,6 @@ public class DtxImplTest{
     public void testConcurrentPutWithoutObjExAndSubmitInMixedDTx(){
         int numOfThreads = (int)(Math.random()*3) + 1;
         threadPool = Executors.newFixedThreadPool(numOfThreads * 4);
-        DTXTestTransaction.setDelayTime(10);//delay time is the time it takes to read the original data
         for (final DTXLogicalTXProviderType type : nodesMap.keySet()){
             for (final InstanceIdentifier<?> nodeIid : nodesMap.get(type)){
                 for (int i = 0; i < numOfThreads; i++) {
@@ -2141,7 +2150,6 @@ public class DtxImplTest{
     public void testConcurrentMergeWithoutObjExAndSubmitInNetConfOnlyDTx(){
         int numOfThreads = (int)(Math.random()*3) + 1;
         threadPool = Executors.newFixedThreadPool(numOfThreads * netconfNodes.size());
-        DTXTestTransaction.setDelayTime(10);//delay time is the time it takes to read the original data
         for (final InstanceIdentifier<?> nodeIid : netconfNodes) {
             for (int i = 0; i < numOfThreads; i++) {
                 final int finalI = i;
@@ -2155,6 +2163,9 @@ public class DtxImplTest{
             }
         }
         threadPool.shutdown();
+        while (!threadPool.isTerminated()){
+
+        }
         netConfOnlyDTx.submit();
         for (final InstanceIdentifier<?> nodeIid : netconfNodes) {
             Assert.assertEquals("Size of data in the transaction is wrong", numOfThreads, netConfOnlyDTx.getSizeofCacheByNodeId(nodeIid));
@@ -2172,7 +2183,6 @@ public class DtxImplTest{
     public void testConcurrentMergeWithoutObjExAndSubmitInMixedDTx(){
         int numOfThreads = (int)(Math.random()*3) + 1;
         threadPool = Executors.newFixedThreadPool(numOfThreads * 4);
-        DTXTestTransaction.setDelayTime(10);//delay time is the time it takes to read the original data
         for (final DTXLogicalTXProviderType type : nodesMap.keySet()){
             for (final InstanceIdentifier<?> nodeIid : nodesMap.get(type)){
                 for (int i = 0; i < numOfThreads; i++) {
@@ -2190,6 +2200,9 @@ public class DtxImplTest{
         }
 
         threadPool.shutdown();
+        while (!threadPool.isTerminated()){
+
+        }
         mixedDTx.submit();
         int expectedDataSizeInIdentifier = 1;
 
@@ -2208,7 +2221,6 @@ public class DtxImplTest{
     public void testConcurrentDeleteWithObjExAndSubmitInNetConfOnlyDTx(){
         int numOfThreads = (int)(Math.random()*3) + 1;
         threadPool = Executors.newFixedThreadPool(numOfThreads * netconfNodes.size());
-        DTXTestTransaction.setDelayTime(10);//delay time is the time it takes to read the original data
         for (int i = 0; i < numOfThreads; i++){
             internalDtxNetconfTestTx1.createObjForIdentifier(identifiers.get(i));
             internalDtxNetconfTestTx2.createObjForIdentifier(identifiers.get(i));
@@ -2244,42 +2256,44 @@ public class DtxImplTest{
      * this case is used to check whether all the transacions have been finished before submit executes
      */
     @Test
-    public void testConcurrentDeleteWithoutObjExAndSubmitInMixedDTx(){
-        int numOfThreads = (int)(Math.random()*3) + 1;
-        threadPool = Executors.newFixedThreadPool(numOfThreads * 4);
-        DTXTestTransaction.setDelayTime(10);//delay time is the time it takes to read the original data
-        for (int i = 0; i < numOfThreads; i ++){
-            internalDtxNetconfTestTx1.createObjForIdentifier(identifiers.get(i));
-            internalDtxNetconfTestTx2.createObjForIdentifier(identifiers.get(i));
-            internalDtxDataStoreTestTx1.createObjForIdentifier(identifiers.get(i));
-            internalDtxDataStoreTestTx2.createObjForIdentifier(identifiers.get(i));
-        }
-        for (final DTXLogicalTXProviderType type : nodesMap.keySet()){
-            for (final InstanceIdentifier<?> nodeIid : nodesMap.get(type)){
-                for (int i = 0; i < numOfThreads; i++) {
-                    final int finalI = i;
-                    threadPool.execute(new Runnable() {
-                        @Override
-                        public void run() {
-                            mixedDTx.deleteAndRollbackOnFailure(type, LogicalDatastoreType.OPERATIONAL,
-                                    (InstanceIdentifier<TestIid>)identifiers.get(finalI), nodeIid);
-                        }
-                    });
+    public void testConcurrentDeleteWithObjExAndSubmitInMixedDTx(){
+            int numOfThreads = (int) (Math.random() * 3) + 1;
+            threadPool = Executors.newFixedThreadPool(numOfThreads * 4);
+            for (int i = 0; i < numOfThreads; i++) {
+                internalDtxNetconfTestTx1.createObjForIdentifier(identifiers.get(i));
+                internalDtxNetconfTestTx2.createObjForIdentifier(identifiers.get(i));
+                internalDtxDataStoreTestTx1.createObjForIdentifier(identifiers.get(i));
+                internalDtxDataStoreTestTx2.createObjForIdentifier(identifiers.get(i));
+            }
+            for (final DTXLogicalTXProviderType type : nodesMap.keySet()) {
+                for (final InstanceIdentifier<?> nodeIid : nodesMap.get(type)) {
+                    for (int i = 0; i < numOfThreads; i++) {
+                        final int finalI = i;
+                        threadPool.execute(new Runnable() {
+                            @Override
+                            public void run() {
+                                mixedDTx.deleteAndRollbackOnFailure(type, LogicalDatastoreType.OPERATIONAL,
+                                        (InstanceIdentifier<TestIid>) identifiers.get(finalI), nodeIid);
+                            }
+                        });
+                    }
+
                 }
+            }
+
+            threadPool.shutdown();
+            while (!threadPool.isTerminated()) {
 
             }
-        }
+            mixedDTx.submit();
+            int expectedDataSizeInIdentifier = 0;
 
-        threadPool.shutdown();
-        mixedDTx.submit();
-        int expectedDataSizeInIdentifier = 0;
-
-        for (int i = 0; i < numOfThreads; i++) {
-            Assert.assertEquals("size of netconfNode1 identifier's data is wrong", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSize(identifiers.get(i)));
-            Assert.assertEquals("size of netconfNode2 identifier's data is wrong", expectedDataSizeInIdentifier, internalDtxNetconfTestTx2.getTxDataSize(identifiers.get(i)));
-            Assert.assertEquals("size of datastoreNode1 identifier's data is wrong", expectedDataSizeInIdentifier, internalDtxDataStoreTestTx1.getTxDataSize(identifiers.get(i)));
-            Assert.assertEquals("size of datastoreNode2 identifier's data is wrong", expectedDataSizeInIdentifier, internalDtxDataStoreTestTx2.getTxDataSize(identifiers.get(i)));
-        }
+            for (int i = 0; i < numOfThreads; i++) {
+                Assert.assertEquals("size of netconfNode1 identifier's data is wrong", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSize(identifiers.get(i)));
+                Assert.assertEquals("size of netconfNode2 identifier's data is wrong", expectedDataSizeInIdentifier, internalDtxNetconfTestTx2.getTxDataSize(identifiers.get(i)));
+                Assert.assertEquals("size of datastoreNode1 identifier's data is wrong", expectedDataSizeInIdentifier, internalDtxDataStoreTestTx1.getTxDataSize(identifiers.get(i)));
+                Assert.assertEquals("size of datastoreNode2 identifier's data is wrong", expectedDataSizeInIdentifier, internalDtxDataStoreTestTx2.getTxDataSize(identifiers.get(i)));
+            }
     }
 
 

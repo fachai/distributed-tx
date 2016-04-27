@@ -25,12 +25,12 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 
 
 public class DTXTestTransaction implements ReadWriteTransaction {
-    Map<InstanceIdentifier<?>, Boolean> readExceptionMap = new HashMap<>();
-    Map<InstanceIdentifier<?>, Boolean> putExceptionMap = new HashMap<>();
-    Map<InstanceIdentifier<?>, Boolean> mergeExceptionMap = new HashMap<>();
-    Map<InstanceIdentifier<?>, Boolean> deleteExceptionMap = new HashMap<>();
-    boolean submitException = false;
-    static int delayTime = 1;
+    Map<InstanceIdentifier<?>, Boolean> readExceptionMap = new ConcurrentHashMap<>();
+    Map<InstanceIdentifier<?>, Boolean> putExceptionMap = new ConcurrentHashMap<>();
+    Map<InstanceIdentifier<?>, Boolean> mergeExceptionMap = new ConcurrentHashMap<>();
+    Map<InstanceIdentifier<?>, Boolean> deleteExceptionMap = new ConcurrentHashMap<>();
+    boolean  submitException = false;
+    static int delayTime = 20;
 
     private Map<InstanceIdentifier<?>,ConcurrentLinkedDeque<DataObject>> txDataMap = new ConcurrentHashMap<>();
 
@@ -53,9 +53,17 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     {
         this.submitException = ept;
     }
-    public static void setDelayTime(int dlTime){
-        delayTime = dlTime;
+
+    public void addInstanceIdentifier(InstanceIdentifier<?>... iids){
+        for (InstanceIdentifier<?> iid : iids) {
+            this.readExceptionMap.put(iid, false);
+            this.deleteExceptionMap.put(iid, false);
+            this.putExceptionMap.put(iid, false);
+            this.mergeExceptionMap.put(iid, false);
+            this.txDataMap.put(iid, new ConcurrentLinkedDeque<DataObject>());
+        }
     }
+
 
     /**
      * this method is used to get the data size of the specific instanceIdentifier
@@ -63,8 +71,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
      * @return the size of data
      */
     public int getTxDataSize(InstanceIdentifier<?> instanceIdentifier) {
-        return this.txDataMap.containsKey(instanceIdentifier)?
-                this.txDataMap.get(instanceIdentifier).size() : 0;
+        return this.txDataMap.get(instanceIdentifier).size();
     }
 
     /**
@@ -73,18 +80,15 @@ public class DTXTestTransaction implements ReadWriteTransaction {
      */
     public void createObjForIdentifier(InstanceIdentifier<?> instanceIdentifier)
     {
-        txDataMap.put(instanceIdentifier, new ConcurrentLinkedDeque<DataObject>(Sets.newHashSet(new myDataObj())));
+        txDataMap.get(instanceIdentifier).add(new myDataObj());
     }
 
     @Override
     public <T extends DataObject> CheckedFuture<Optional<T>, ReadFailedException> read(LogicalDatastoreType logicalDatastoreType, final InstanceIdentifier<T> instanceIdentifier) {
         T obj = null;
 
-        if(txDataMap.containsKey(instanceIdentifier) && txDataMap.get(instanceIdentifier).size() > 0)
+        if(txDataMap.get(instanceIdentifier).size() > 0)
             obj = (T)txDataMap.get(instanceIdentifier).getFirst();
-
-        if(!readExceptionMap.containsKey(instanceIdentifier))
-            readExceptionMap.put(instanceIdentifier, false);
 
         final Optional<T> retOpt = Optional.fromNullable(obj);
 
@@ -123,15 +127,11 @@ public class DTXTestTransaction implements ReadWriteTransaction {
 
     @Override
     public <T extends DataObject> void put(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t) {
-       if(!txDataMap.containsKey(instanceIdentifier))
-           txDataMap.put(instanceIdentifier, new ConcurrentLinkedDeque<DataObject>());
-
-       if(!putExceptionMap.containsKey(instanceIdentifier))
-           putExceptionMap.put(instanceIdentifier,false);
-
-       if(!putExceptionMap.get(instanceIdentifier)) {
-           txDataMap.get(instanceIdentifier).clear();
-           txDataMap.get(instanceIdentifier).add(t);
+        if(!putExceptionMap.get(instanceIdentifier)) {
+           synchronized (this) {
+               txDataMap.get(instanceIdentifier).clear();
+               txDataMap.get(instanceIdentifier).add(t);
+           }
        }
         else {
            setPutException(instanceIdentifier, false);
@@ -141,16 +141,11 @@ public class DTXTestTransaction implements ReadWriteTransaction {
 
     @Override
     public <T extends DataObject> void put(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, boolean b) {
-        if(!txDataMap.containsKey(instanceIdentifier))
-            txDataMap.put(instanceIdentifier, new ConcurrentLinkedDeque<DataObject>());
-
-        if(!putExceptionMap.containsKey(instanceIdentifier))
-            putExceptionMap.put(instanceIdentifier,false);
-
-        if(!putExceptionMap.get(instanceIdentifier))
-        {
-            txDataMap.get(instanceIdentifier).clear();
-            txDataMap.get(instanceIdentifier).add(t);
+        if(!putExceptionMap.get(instanceIdentifier)) {
+            synchronized (this) {
+                txDataMap.get(instanceIdentifier).clear();
+                txDataMap.get(instanceIdentifier).add(t);
+            }
         }
         else {
             setPutException(instanceIdentifier,false);
@@ -160,15 +155,11 @@ public class DTXTestTransaction implements ReadWriteTransaction {
 
     @Override
     public <T extends DataObject> void merge(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t) {
-        if(!txDataMap.containsKey(instanceIdentifier))
-            txDataMap.put(instanceIdentifier, new ConcurrentLinkedDeque<DataObject>());
-
-        if(!mergeExceptionMap.containsKey(instanceIdentifier))
-            mergeExceptionMap.put(instanceIdentifier, false);
-
         if(!mergeExceptionMap.get(instanceIdentifier)) {
-            txDataMap.get(instanceIdentifier).clear();
-            txDataMap.get(instanceIdentifier).add(t);
+            synchronized (this) {
+                txDataMap.get(instanceIdentifier).clear();
+                txDataMap.get(instanceIdentifier).add(t);
+            }
         }
         else {
             setMergeException(instanceIdentifier,false);
@@ -178,15 +169,11 @@ public class DTXTestTransaction implements ReadWriteTransaction {
 
     @Override
     public <T extends DataObject> void merge(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, boolean b) {
-        if(!txDataMap.containsKey(instanceIdentifier))
-            txDataMap.put(instanceIdentifier, new ConcurrentLinkedDeque<DataObject>());
-
-        if(!mergeExceptionMap.containsKey(instanceIdentifier))
-            mergeExceptionMap.put(instanceIdentifier, false);
-
         if(!mergeExceptionMap.get(instanceIdentifier)) {
-            txDataMap.get(instanceIdentifier).clear();
-            txDataMap.get(instanceIdentifier).add(t);
+            synchronized (this) {
+                txDataMap.get(instanceIdentifier).clear();
+                txDataMap.get(instanceIdentifier).add(t);
+            }
         }
         else {
             setMergeException(instanceIdentifier,false);
@@ -201,19 +188,12 @@ public class DTXTestTransaction implements ReadWriteTransaction {
 
     @Override
     public void delete(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<?> instanceIdentifier) {
-        if(!txDataMap.containsKey(instanceIdentifier))
-            return;
-
-        if(!deleteExceptionMap.containsKey(instanceIdentifier))
-            deleteExceptionMap.put(instanceIdentifier, false);
-
-        if(!deleteExceptionMap.get(instanceIdentifier))
-            if(txDataMap.get(instanceIdentifier).size()>0)
-                txDataMap.get(instanceIdentifier).clear();
-            else {
-                setDeleteException(instanceIdentifier,false);
-                return;
+        if(!deleteExceptionMap.get(instanceIdentifier)) {
+            synchronized (this) {
+                if (txDataMap.get(instanceIdentifier).size() > 0)
+                    txDataMap.get(instanceIdentifier).clear();
             }
+        }
         else {
             setDeleteException(instanceIdentifier,false);
             throw new RuntimeException(" delete exception");
