@@ -15,11 +15,9 @@ import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 public interface DTxProvider {
 
     /**
-     *
-     * Instantiate a new distributed transaction.
+     * Instantiate a new distributed transaction for NETCONF.
      *
      * @param nodes set of instance IDs for nodes participating in a distributed tx.
-     * TODO should we use linked set instead and honor the ordering ?
      *
      * @return new distributed Tx for a set of nodes.
      * Per node transaction was successfully initialized for each node at this point.
@@ -30,9 +28,26 @@ public interface DTxProvider {
      * <li> Node is used by other distributed transaction</li>
      * <li> Node tx could not be initialized (node is in use by other client/is unreachable etc)</li>
      * </ul>
-     *
-     * TODO maybe break down the initialization ex
      */
     @Nonnull DTx newTx(@Nonnull Set<InstanceIdentifier<?>> nodes) throws DTxException.DTxInitializationFailedException;
+    /**
+     * Instantiate a new distributed transaction containing different providers.
+     *
+     * @param nodes maps of instance IDs for nodes participating from one or multiple providers in a distributed tx. Supported providers are
+     * <ul>
+     * <li> NETCONF_TX_PROVIDER </li>
+     * <li>DATASTORE_TX_PROVIDER</li>
+     * </ul>
+     *
+     * @return new distributed Tx for a set of nodes.
+     * Per node transaction was successfully initialized for each node at this point.
+     *
+     * @throws DTxException.DTxInitializationFailedException if:
+     * <ul>
+     * <li> Unknown node was specified</li>
+     * <li> Node is used by other distributed transaction</li>
+     * <li> Node tx could not be initialized (node is in use by other client/is unreachable etc)</li>
+     * </ul>
+     */
     @Nonnull DTx newTx(@Nonnull Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodes) throws DTxException.DTxInitializationFailedException;
 }

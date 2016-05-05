@@ -12,16 +12,22 @@ public class TxProviderLock {
     final private Set<InstanceIdentifier<?>> lockSet = new HashSet<>();
 
     public boolean isDeviceLocked(InstanceIdentifier<?> device) {
+
+        return false;
+        /*
         boolean ret ;
         synchronized (TxProviderLock.this) {
             ret = lockSet.contains(device);
         }
 
         return ret;
+        */
     }
 
     public boolean lockDevices(Set<InstanceIdentifier<?>> deviceSet) {
         boolean ret = true;
+
+        if(false)
 
         synchronized (TxProviderLock.this) {
             Set<InstanceIdentifier<?>> s = new HashSet<>();
@@ -40,6 +46,7 @@ public class TxProviderLock {
     }
 
     public void releaseDevices(Set<InstanceIdentifier<?>> deviceSet) {
+        if(false)
         synchronized (TxProviderLock.this) {
             this.lockSet.removeAll(deviceSet);
         }

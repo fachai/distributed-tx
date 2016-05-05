@@ -274,8 +274,7 @@ public class DtxImpl implements DTx {
     }
 
     @Override public boolean cancel() throws DTxException.RollbackFailedException {
-        //not supported in the first version
-        return false;
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     @Override public Object getIdentifier() {
