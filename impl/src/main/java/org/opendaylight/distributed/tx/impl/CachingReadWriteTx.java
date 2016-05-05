@@ -11,6 +11,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -36,10 +37,10 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
     private final ReadWriteTransaction delegate;
     public final Deque<CachedData> cache = new ConcurrentLinkedDeque<>();
     private final ExecutorService executorPoolPerCache;
-    private volatile int numOfActiveOperations;
+    private AtomicInteger numOfActiveOperations;
 
     public CachingReadWriteTx(@Nonnull final ReadWriteTransaction delegate) {
-        numOfActiveOperations = 0;
+        numOfActiveOperations = new AtomicInteger(0);
         this.delegate = delegate;
         this.executorPoolPerCache = Executors.newCachedThreadPool();
     }
@@ -282,21 +283,17 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
     }
 
     public void waitForAllActiveOperationsDone(){
-        while(numOfActiveOperations > 0){
+        while(numOfActiveOperations.get() > 0){
             Thread.yield();
         }
     }
 
     public void increaseOperation(){
-        synchronized (this){
-            numOfActiveOperations++;
-        }
+        numOfActiveOperations.incrementAndGet();
     }
 
     public void decreaseOperation(){
-        synchronized (this){
-            numOfActiveOperations--;
-        }
+        numOfActiveOperations.decrementAndGet();
     }
 
     @Deprecated

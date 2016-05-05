@@ -1988,9 +1988,7 @@ public class DtxImplTest{
             int numOfThreads = (int) (Math.random() * 3) + 1;
             threadPool = Executors.newFixedThreadPool(numOfThreads);
             final int errorOccur = (int) (Math.random() * numOfThreads);
-            System.out.println(numOfThreads + "   " + errorOccur);
             internalDtxNetconfTestTx1.setDeleteException(n0, true);
-//            internalDtxNetconfTestTx1.createObjForIdentifier(n0);
             for (int i = 0; i < numOfThreads; i++) {
                 final int finalI = i;
                 threadPool.execute(new Runnable() {
