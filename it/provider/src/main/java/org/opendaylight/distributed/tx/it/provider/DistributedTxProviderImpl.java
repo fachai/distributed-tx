@@ -70,7 +70,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
     private MountPointService mountService;
     Set<NodeId> nodeIdSet = new HashSet<>();
     Map<NodeId, List<InterfaceName>> nodeIfList = new HashMap<>();
-    private DataBroker xrNodeBroker = null;
+    private Map<String, DataBroker> xrNodeBrokerMap = new HashMap<>();
     //mark the status of the datastore test
     private final AtomicReference<TestStatus.ExecStatus> dsExecStatus = new AtomicReference<>(TestStatus.ExecStatus.Idle);
     //mark the status of the netconf test
@@ -348,7 +348,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
             LOG.info("dtx ifc {}", ifname.toString());
 
             if (name.length() < 6) {
-                final ReadWriteTransaction xrNodeReadTx = xrNodeBroker.newReadWriteTransaction();
+                final ReadWriteTransaction xrNodeReadTx = xrNodeBrokerMap.get("sdn-1").newReadWriteTransaction();
 
                 xrNodeReadTx.put(LogicalDatastoreType.CONFIGURATION, specificInterfaceCfgIid, config);
 
@@ -444,11 +444,10 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                                 new NodeKey(nodeId)));
                 final MountPoint xrNode = xrNodeOptional.get();
 
-                if (xrNodeBroker == null) {
-                    xrNodeBroker = xrNode.getService(DataBroker.class).get();
-                }
+                DataBroker xrNodeBroker = xrNode.getService(DataBroker.class).get();
 
                 if (nodeId.getValue().contains("sdn")) {
+                    xrNodeBrokerMap.put(nodeId.getValue(), xrNodeBroker);
                     this.nodeIdSet.add(nodeId);
                     if (!this.nodeIfList.containsKey(nodeId))
                         this.nodeIfList.put(nodeId, new ArrayList<InterfaceName>());
@@ -648,6 +647,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
         long nativeNetconfTime = 0, dtxNetconfSTime = 0, dtxNetconfAsTime = 0; //record the test time for the corresponding test
         long loopTimes = 1;//change to get the average value
         long dbOk = 0, dTxSyncOk = 0, dTxAyncOk = 0, errorCase = 0;//record how many times the test successed
+        DataBroker xrNodeBroker = xrNodeBrokerMap.get("sdn-1");
         for (int i = 0; i < loopTimes; i++) {
             DataBrokerNetconfWriter databroker = new DataBrokerNetconfWriter(input, xrNodeBroker, nodeIdSet, nodeIfList);
             DtxNetconfSyncWriter dtxNetconfSync = new DtxNetconfSyncWriter(input, xrNodeBroker, dTxProvider, nodeIdSet, nodeIfList);
@@ -959,7 +959,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
         InstanceIdentifier netconfNodeId = NETCONF_TOPO_IID.child(Node.class, new NodeKey(n));
         InstanceIdentifier<InterfaceConfigurations> netconfIid = InstanceIdentifier.create(InterfaceConfigurations.class);
         netconfNodeIdSet.add(netconfNodeId);
-
+        DataBroker xrNodeBroker = xrNodeBrokerMap.get("sdn-1");
         //data store node set
         Set<InstanceIdentifier<?>> dataStoreNodeIdSet = new HashSet<>();
         InstanceIdentifier<DatastoreTestData> dsNodeId = InstanceIdentifier.create(DatastoreTestData.class);
@@ -977,10 +977,10 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                     .build()).buildFuture();
         }
         //initialize netconf device
-        deleteInterfaces(input.getNumberOfTxs());
+        deleteInterfaces(xrNodeBroker, input.getNumberOfTxs());
 
         if (input.getOperation() == OperationType.DELETE) {
-            if (!buildTestInterfaces(input.getNumberOfTxs())) {
+            if (!buildTestInterfaces(xrNodeBroker, input.getNumberOfTxs())) {
                 LOG.info("Can't build the test innerList for DTx MixedProvider NetConf delete test");
                 mixedProviderTestStatus.set(TestStatus.ExecStatus.Idle);
                 return RpcResultBuilder
@@ -1204,7 +1204,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
      * it will first check whether the subInterfaces exit, and then try to delete the subInterfaces
      * @param numberOfTxs the number of test subInterfaces
      */
-    public void deleteInterfaces(int numberOfTxs){
+    public void deleteInterfaces( DataBroker xrNodeBroker, long numberOfTxs){
         InstanceIdentifier<InterfaceConfigurations> netconfIid = InstanceIdentifier.create(InterfaceConfigurations.class);
 
         for (int i = 1; i <= numberOfTxs; i++) {
@@ -1234,7 +1234,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
         }
     }
 
-    public boolean buildTestInterfaces(long numberOfIfs)
+    public boolean buildTestInterfaces(DataBroker xrNodeBroker, long numberOfIfs)
     {
         LOG.info("initialize the interface for netconf test");
         WriteTransaction xrNodeWriteTx = null;
@@ -1263,9 +1263,200 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
 
     @Override
     public Future<RpcResult<NetconfTestOutput>> netconfTest(NetconfTestInput input) {
-          return RpcResultBuilder.success(new NetconfTestOutputBuilder()
-          .setStatus(StatusType.OK)
-          .build()).buildFuture();
+        LOG.info("Begin the DTx Netconf test");
+
+        long putsPerTx=input.getPutsPerTx();
+        OperationType operation=input.getOperation();
+
+        List<NodeId> nodeIdList = new ArrayList(nodeIdSet);
+        Set<InstanceIdentifier<?>> txIidSet = new HashSet<>();
+        NodeId n1 =nodeIdList.get(0);
+        InstanceIdentifier nodeId1 = NETCONF_TOPO_IID.child(Node.class, new NodeKey(n1));
+        txIidSet.add(nodeId1);
+
+        NodeId n2 =nodeIdList.get(1);
+        InstanceIdentifier nodeId2 = NETCONF_TOPO_IID.child(Node.class, new NodeKey(n2));
+        txIidSet.add(nodeId2);
+
+        InstanceIdentifier<InterfaceConfigurations> netconfIid = InstanceIdentifier.create(InterfaceConfigurations.class);
+        LOG.info("txIidSet {}",txIidSet);
+
+        DataBroker xrNodeBroker1 = xrNodeBrokerMap.get("sdn-1");
+        DataBroker xrNodeBroker2 = xrNodeBrokerMap.get("sdn-2");
+        deleteInterfaces(xrNodeBroker1, input.getNumberOfTxs());
+        deleteInterfaces(xrNodeBroker2, input.getNumberOfTxs());
+        if(input.getOperation()==OperationType.DELETE){
+            if (!buildTestInterfaces(xrNodeBroker1, input.getNumberOfTxs())){
+                LOG.info("Can't initialize the test data for DTx netconf node1 delete test");
+                netconfExecStatus.set(TestStatus.ExecStatus.Idle);
+                return RpcResultBuilder
+                        .success(new NetconfTestOutputBuilder()
+                                .setStatus(StatusType.FAILED)
+                                .build()).buildFuture();
+            }
+
+        if (!buildTestInterfaces(xrNodeBroker2, input.getNumberOfTxs())){
+                LOG.info("Can't initialize the test data for DTx netconf node2 delete test");
+                netconfExecStatus.set(TestStatus.ExecStatus.Idle);
+                return RpcResultBuilder
+                        .success(new NetconfTestOutputBuilder()
+                                .setStatus(StatusType.FAILED)
+                                .build()).buildFuture();
+            }
+        }
+
+        //write data into device via DTx
+        int counter=0;
+        //rollback test
+        if(input.isPerformRollback()){
+            deleteInterfaces(xrNodeBroker2, 1);
+            DTx dtx=dTxProvider.newTx(txIidSet);
+            InterfaceName errorIfName = new InterfaceName("GigabitEthernet0/0/0/2.9");
+            final KeyedInstanceIdentifier<InterfaceConfiguration, InterfaceConfigurationKey> errorSpecificInterfaceCfgIid
+                    = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(new InterfaceActive("act"), errorIfName));
+            final InterfaceConfigurationBuilder interfaceConfigurationBuilder = new InterfaceConfigurationBuilder();
+            interfaceConfigurationBuilder.setInterfaceName(errorIfName);
+            interfaceConfigurationBuilder.setDescription("wrong interface name");
+            interfaceConfigurationBuilder.setActive(new InterfaceActive("act"));
+            InterfaceConfiguration errorConfig = interfaceConfigurationBuilder.build();
+
+
+            boolean rollbackSucced =true;
+
+            for(int i=1;i<=input.getNumberOfTxs();i++){
+                InterfaceName subIfname = new InterfaceName("GigabitEthernet0/0/0/1." + i);
+                final KeyedInstanceIdentifier<InterfaceConfiguration, InterfaceConfigurationKey> specificInterfaceCfgIid
+                        = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(new InterfaceActive("act"), subIfname));
+                final InterfaceConfigurationBuilder interfaceConfigurationBuilder2 = new InterfaceConfigurationBuilder();
+                interfaceConfigurationBuilder2.setInterfaceName(subIfname);
+                interfaceConfigurationBuilder2.setDescription("Test description" + "-" + input.getOperation()+"-"+i);
+                interfaceConfigurationBuilder2.setActive(new InterfaceActive("act"));
+                InterfaceConfiguration config = interfaceConfigurationBuilder2.build();
+
+                CheckedFuture<Void, DTxException> done = writeData(dtx, operation, DTXLogicalTXProviderType.NETCONF_TX_PROVIDER,
+                            LogicalDatastoreType.CONFIGURATION, specificInterfaceCfgIid, nodeId1, config);
+                counter++;
+
+                try {
+                    done.checkedGet();
+                } catch (Exception e) {
+                    LOG.info("put failed for {}", e.toString());
+                }
+
+                if (counter == putsPerTx) {
+                    done = writeData(dtx, OperationType.DELETE, DTXLogicalTXProviderType.NETCONF_TX_PROVIDER,
+                            LogicalDatastoreType.CONFIGURATION, errorSpecificInterfaceCfgIid, nodeId2, errorConfig);
+
+                    try {
+                        done.checkedGet();
+                        rollbackSucced = false;
+                        break;
+                    } catch (Exception e) {
+                        LOG.info("put failed for {}", e.toString());
+                    }
+                    counter = 0;
+                    dtx = dTxProvider.newTx(txIidSet);
+                }
+            }
+
+            netconfExecStatus.set(TestStatus.ExecStatus.Idle);
+            if(rollbackSucced){
+                return  RpcResultBuilder.success(new NetconfTestOutputBuilder()
+                        .setStatus(StatusType.OK)
+                        .build()).buildFuture();
+            }else{
+                return  RpcResultBuilder.success(new NetconfTestOutputBuilder()
+                        .setStatus(StatusType.FAILED)
+                        .build()).buildFuture();
+            }
+        }else{
+            //normal test
+            DTx dtx=dTxProvider.newTx(txIidSet);
+            boolean testSucceed = true;
+            for (int i = 1; i <= input.getNumberOfTxs(); i++){
+                InterfaceName subIfname = new InterfaceName("GigabitEthernet0/0/0/1." + i);
+                final KeyedInstanceIdentifier<InterfaceConfiguration, InterfaceConfigurationKey> specificInterfaceCfgIid
+                        = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(new InterfaceActive("act"), subIfname));
+                final InterfaceConfigurationBuilder interfaceConfigurationBuilder2 = new InterfaceConfigurationBuilder();
+                interfaceConfigurationBuilder2.setInterfaceName(subIfname);
+                interfaceConfigurationBuilder2.setDescription("Test description" + "-" + input.getOperation()+"-"+i);
+                interfaceConfigurationBuilder2.setActive(new InterfaceActive("act"));
+                InterfaceConfiguration config = interfaceConfigurationBuilder2.build();
+
+                CheckedFuture<Void, DTxException> writeFuture1 = writeData(dtx, operation, DTXLogicalTXProviderType.NETCONF_TX_PROVIDER,
+                        LogicalDatastoreType.CONFIGURATION, specificInterfaceCfgIid, nodeId1, config);
+                CheckedFuture<Void, DTxException> writeFuture2 = writeData(dtx, operation, DTXLogicalTXProviderType.NETCONF_TX_PROVIDER,
+                        LogicalDatastoreType.CONFIGURATION, specificInterfaceCfgIid, nodeId2, config);
+                counter++;
+
+                try {
+                    writeFuture1.checkedGet();
+                    writeFuture2.checkedGet();
+                } catch (Exception e) {
+                    testSucceed = false;
+                    LOG.info("put failed for {}", e.toString());
+                }
+
+                if (counter == putsPerTx) {
+                    CheckedFuture<Void, TransactionCommitFailedException> submitFuture = dtx.submit();
+                    try {
+                        submitFuture.checkedGet();
+                    } catch (Exception e) {
+                        LOG.info("submit failed for {}", e.toString());
+                        testSucceed = false;
+                    }
+                    counter = 0;
+                    dtx = dTxProvider.newTx(txIidSet);
+                }
+            }
+            CheckedFuture<Void, TransactionCommitFailedException> restSubmitFuture = dtx.submit();
+            try {
+                restSubmitFuture.checkedGet();
+            } catch (TransactionCommitFailedException e) {
+                LOG.info("get submit exception {}", e.toString());
+            }
+
+            //check whether the data has been written to the devices
+            for (int i = 1; i <= input.getNumberOfTxs(); i++){
+                InterfaceName subIfname = new InterfaceName("GigabitEthernet0/0/0/1." + i);
+                KeyedInstanceIdentifier<InterfaceConfiguration, InterfaceConfigurationKey> specificInterfaceCfgIid
+                        = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(new InterfaceActive("act"), subIfname));
+                ReadOnlyTransaction netconfTx1 = xrNodeBroker1.newReadOnlyTransaction();
+                ReadOnlyTransaction netconfTx2 = xrNodeBroker2.newReadOnlyTransaction();
+
+                CheckedFuture<Optional<InterfaceConfiguration>, ReadFailedException> netconfReadFuture1 = netconfTx1.read(LogicalDatastoreType.CONFIGURATION, specificInterfaceCfgIid);
+                CheckedFuture<Optional<InterfaceConfiguration>, ReadFailedException> netconfReadFuture2 = netconfTx2.read(LogicalDatastoreType.CONFIGURATION, specificInterfaceCfgIid);
+                Optional<InterfaceConfiguration> netonfResult1 = Optional.absent();
+                Optional<InterfaceConfiguration> netconfResult2 = Optional.absent();
+
+                try {
+                    netonfResult1 = netconfReadFuture1.checkedGet();
+                    netconfResult2 = netconfReadFuture2.checkedGet();
+                } catch (ReadFailedException e) {
+                    LOG.info("Can't read the data from the device");
+                    break;
+                }
+                if (operation != OperationType.DELETE) {
+                    if (!netonfResult1.isPresent() && !netconfResult2.isPresent()) {
+                        LOG.info("dtx write data failed");
+                        testSucceed = false;
+                    }
+                } else {
+                    if (netonfResult1.isPresent() && netconfResult2.isPresent()) {
+                        testSucceed = false;
+                    }
+                }
+            }
+            if (testSucceed){
+                return RpcResultBuilder.success(new NetconfTestOutputBuilder()
+                        .setStatus(StatusType.OK)
+                        .build()).buildFuture();
+            }else{
+                return RpcResultBuilder.success(new NetconfTestOutputBuilder()
+                        .setStatus(StatusType.FAILED)
+                        .build()).buildFuture();
+            }
+        }
     }
 
     private class DsDataChangeListener implements DataChangeListener {
