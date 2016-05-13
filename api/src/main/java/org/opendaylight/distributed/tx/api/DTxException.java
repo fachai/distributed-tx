@@ -1,8 +1,18 @@
+/*
+ * Copyright (c) 2015 Cisco Systems, Inc. and others.  All rights reserved.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v1.0 which accompanies this distribution,
+ * and is available at http://www.eclipse.org/legal/epl-v10.html
+ */
 package org.opendaylight.distributed.tx.api;
 
 import java.util.Collection;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 
+/**
+ * Distributed transaction exceptions.
+ */
 public class DTxException extends RuntimeException {
 
     public DTxException(final String s, final Throwable e) {
@@ -14,10 +24,9 @@ public class DTxException extends RuntimeException {
     }
 
     /**
-     * Distributed tx initialization failure.
+     * Distributed transaction initialization failure.
      */
     public static class DTxInitializationFailedException extends DTxException {
-
         public DTxInitializationFailedException(final String s) {
             super(s);
         }
@@ -27,7 +36,6 @@ public class DTxException extends RuntimeException {
      * Edit operation failure for one or more devices.
      */
     public static class EditFailedException extends DTxException {
-
         public EditFailedException(final String s) {
             super(s);
         }
@@ -35,7 +43,7 @@ public class DTxException extends RuntimeException {
     }
 
     /**
-     * Rollback failure for distributed tx. This indicates unknown resulting state.
+     * Rollback failure for distributed transaction. This indicates unknown resulting state.
      */
     public static class RollbackFailedException extends DTxException {
 

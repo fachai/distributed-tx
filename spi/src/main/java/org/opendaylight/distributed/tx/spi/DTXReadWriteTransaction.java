@@ -1,5 +1,6 @@
 package org.opendaylight.distributed.tx.spi;
 
+import com.google.common.base.Optional;
 import com.google.common.util.concurrent.CheckedFuture;
 import org.opendaylight.controller.md.sal.binding.api.ReadWriteTransaction;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
@@ -30,5 +31,8 @@ public interface  DTXReadWriteTransaction extends  ReadWriteTransaction{
                                                      final InstanceIdentifier<T> instanceIdentifier, final T t, final boolean ensureParents) ;
 
     @Override CheckedFuture<Void, TransactionCommitFailedException> submit() ;
+
+    @Override public <T extends DataObject> CheckedFuture<Optional<T>, ReadFailedException> read(
+            final LogicalDatastoreType logicalDatastoreType, final InstanceIdentifier<T> instanceIdentifier) ;
 
 }
