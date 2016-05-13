@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2015 Cisco Systems, Inc. and others.  All rights reserved.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v1.0 which accompanies this distribution,
+ * and is available at http://www.eclipse.org/legal/epl-v10.html
+ */
 package org.opendaylight.distributed.tx.spi;
 
 import com.google.common.base.Optional;
@@ -8,8 +15,10 @@ import org.opendaylight.yangtools.yang.binding.DataObject;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.opendaylight.yangtools.yang.data.api.ModifyAction;
 
+/**
+ * In memory cache data object.
+ */
 public final class CachedData {
-
     private final LogicalDatastoreType logicalDsType;
     private final InstanceIdentifier<?> id;
     private final DataObject data;
@@ -23,20 +32,39 @@ public final class CachedData {
         this.operation = operation;
     }
 
+    /**
+     * Get the data from cache.
+     *
+     * @return optional of the data object.
+     */
     public Optional<DataObject> getData() {
         return Optional.fromNullable(data);
     }
 
+    /**
+     * Get IID of the cache data.
+     *
+     * @return instance identifier of the data object.
+     */
     public InstanceIdentifier<?> getId() {
         return id;
     }
 
+    /**
+     * Get operation type on the data.
+     *
+     * @return operation type.
+     */
     public ModifyAction getOperation() {
         return operation;
     }
 
-    // FIXME !! store the ds type here, dont return fixed CONFIGURATION. Netconf might only support CONFIG writes,
-    // but other mountpoints might also support writes to operational
+
+    /**
+     * Get logical data store type of the cache data.
+     *
+     * @return LogicalDataStoreType of the object.
+     */
     public LogicalDatastoreType getDsType() {
         return logicalDsType;
     }
