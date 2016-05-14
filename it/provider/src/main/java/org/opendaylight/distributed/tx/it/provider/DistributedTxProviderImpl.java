@@ -1311,7 +1311,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
         if(input.isPerformRollback()){
             deleteInterfaces(xrNodeBroker2, 1);
             DTx dtx=dTxProvider.newTx(txIidSet);
-            InterfaceName errorIfName = new InterfaceName("GigabitEthernet0/0/0/2.9");
+            InterfaceName errorIfName = new InterfaceName("GigabitEthernet0/0/0/1.1");
             final KeyedInstanceIdentifier<InterfaceConfiguration, InterfaceConfigurationKey> errorSpecificInterfaceCfgIid
                     = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(new InterfaceActive("act"), errorIfName));
             final InterfaceConfigurationBuilder interfaceConfigurationBuilder = new InterfaceConfigurationBuilder();

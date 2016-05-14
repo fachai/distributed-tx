@@ -2349,6 +2349,243 @@ public class DtxImplTest{
     }
 
     /**
+     * multithreads put data in the netconf device, right after the operations invoke rollback immediately
+     * check whether the rollback action wait for all the action finish in netconf only DTx
+     */
+    @Test
+    public void testConcurrentPutRollbackInNetConfOnlyDTx() {
+        int numOfThreads = (int)(Math.random()*4) + 1;
+        threadPool = Executors.newFixedThreadPool(numOfThreads);
+        for (int i = 0; i < numOfThreads; i++)
+        {
+            final int finalI = i;
+            threadPool.execute(new Runnable() {
+                @Override
+                public void run() {
+                    CheckedFuture<Void, DTxException> f = netConfOnlyDTx.putAndRollbackOnFailure(LogicalDatastoreType.OPERATIONAL,
+                            (InstanceIdentifier<TestIid>)identifiers.get(finalI), new TestIid(), netConfIid1);
+                }
+            });
+        }
+        threadPool.shutdown();
+        while (!threadPool.isTerminated())
+        {
+            //waiting for all the thread terminate
+        }
+        CheckedFuture<Void, DTxException.RollbackFailedException> rollbackFuture = netConfOnlyDTx.rollback();
+        try{
+            rollbackFuture.checkedGet();
+        }catch (Exception e){
+            fail("can't perform rollback, the test failed");
+        }
+        int expectedDataSizeInIdentifier = 0;
+        for (int i = 0; i < numOfThreads; i++)
+        {
+            Assert.assertEquals("size of identifier's data is wrong", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSize(identifiers.get(i)));
+        }
+    }
+    /**
+     * multithreads put data in the netconf device and datastore, right after the operations invoke rollback immediately
+     * check whether the rollback action wait for all the action finish in mixed provider DTx
+     */
+    @Test
+    public void testConcurrentPutRollbackInMixedDTx() {
+        int numOfThreads = (int)(Math.random()*4) + 1;
+        threadPool = Executors.newFixedThreadPool(numOfThreads);
+        for (int i = 0; i < numOfThreads; i++)
+        {
+            final int finalI = i;
+            threadPool.execute(new Runnable() {
+                @Override
+                public void run() {
+                    mixedDTx.putAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER,
+                            LogicalDatastoreType.OPERATIONAL,
+                            (InstanceIdentifier<TestIid>)identifiers.get(finalI), new TestIid(), netConfIid1);
+                    mixedDTx.putAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER,
+                            LogicalDatastoreType.OPERATIONAL,
+                            (InstanceIdentifier<TestIid>)identifiers.get(finalI), new TestIid(), dataStoreIid1);
+                }
+            });
+        }
+        threadPool.shutdown();
+        while (!threadPool.isTerminated())
+        {
+            //waiting for all the thread terminate
+        }
+        CheckedFuture<Void, DTxException.RollbackFailedException> rollbackFuture = mixedDTx.rollback();
+        try{
+            rollbackFuture.checkedGet();
+        }catch (Exception e){
+            fail("Can't perform rollback, test failed");
+        }
+        int expectedDataSizeInIdentifier = 0;
+        for (int i = 0; i < numOfThreads; i++)
+        {
+            Assert.assertEquals("size of identifier's data is wrong", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSize(identifiers.get(i)));
+            Assert.assertEquals("size of identifier's data is wrong", expectedDataSizeInIdentifier, internalDtxDataStoreTestTx1.getTxDataSize(identifiers.get(i)));
+        }
+    }
+    /**
+     * multithreads merge data in the netconf device, right after the operations invoke rollback immediately
+     * check whether the rollback action wait for all the action finish
+     */
+    @Test
+    public void testConcurrentMergeRollbackInNetConfOnlyDTx() {
+        int numOfThreads = (int)(Math.random()*3) + 1;
+        threadPool = Executors.newFixedThreadPool(numOfThreads);
+        for (int i = 0; i < numOfThreads; i++)
+        {
+            final int finalI = i;
+            threadPool.execute(new Runnable() {
+                @Override
+                public void run() {
+                    CheckedFuture<Void, DTxException> f = netConfOnlyDTx.mergeAndRollbackOnFailure(LogicalDatastoreType.OPERATIONAL,
+                            (InstanceIdentifier<TestIid>)identifiers.get(finalI), new TestIid(), netConfIid1);
+                }
+            });
+        }
+        threadPool.shutdown();
+        while (!threadPool.isTerminated())
+        {
+            //waiting for all the thread terminate
+        }
+        CheckedFuture<Void, DTxException.RollbackFailedException> rollbackFuture = netConfOnlyDTx.rollback();
+        try{
+            rollbackFuture.checkedGet();
+        }catch (Exception e){
+            fail("can't perform rollback, the test failed");
+        }
+        int expectedDataSizeInIdentifier = 0;
+        for (int i = 0; i < numOfThreads; i++)
+        {
+            Assert.assertEquals("size of identifier's data is wrong", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSize(identifiers.get(i)));
+        }
+    }
+    /**
+     * multithreads merge data in the netconf device and datastore, right after the operations invoke rollback immediately
+     * check whether the rollback action wait for all the action finish in mixed provider DTx
+     */
+    @Test
+    public void testConcurrentMergeRollbackInMixedDTx() {
+        int numOfThreads = (int)(Math.random()*4) + 1;
+        threadPool = Executors.newFixedThreadPool(numOfThreads);
+        for (int i = 0; i < numOfThreads; i++)
+        {
+            final int finalI = i;
+            threadPool.execute(new Runnable() {
+                @Override
+                public void run() {
+                    mixedDTx.mergeAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER,
+                            LogicalDatastoreType.OPERATIONAL,
+                            (InstanceIdentifier<TestIid>)identifiers.get(finalI), new TestIid(), netConfIid1);
+                    mixedDTx.mergeAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER,
+                            LogicalDatastoreType.OPERATIONAL,
+                            (InstanceIdentifier<TestIid>)identifiers.get(finalI), new TestIid(), dataStoreIid1);
+                }
+            });
+        }
+        threadPool.shutdown();
+        while (!threadPool.isTerminated())
+        {
+            //waiting for all the thread terminate
+        }
+        CheckedFuture<Void, DTxException.RollbackFailedException> rollbackFuture = mixedDTx.rollback();
+        try{
+            rollbackFuture.checkedGet();
+        }catch (Exception e){
+            fail("Can't perform rollback, test failed");
+        }
+        int expectedDataSizeInIdentifier = 0;
+        for (int i = 0; i < numOfThreads; i++)
+        {
+            Assert.assertEquals("size of identifier's data is wrong", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSize(identifiers.get(i)));
+            Assert.assertEquals("size of identifier's data is wrong", expectedDataSizeInIdentifier, internalDtxDataStoreTestTx1.getTxDataSize(identifiers.get(i)));
+        }
+    }
+    /**
+     * multithreads delete data in the netconf device, right after the operations invoke rollback immediately
+     * check whether the rollback action wait for all the action finish
+     */
+    @Test
+    public void testConcurrentDeleteRollbackInNetConfOnlyDTx() {
+        int numOfThreads = (int)(Math.random()*3) + 1;
+        threadPool = Executors.newFixedThreadPool(numOfThreads);
+        for (int i = 0; i < numOfThreads; i++){
+            internalDtxNetconfTestTx1.createObjForIdentifier(identifiers.get(i));
+        }
+        for (int i = 0; i < numOfThreads; i++) {
+            final int finalI = i;
+            threadPool.execute(new Runnable() {
+                @Override
+                public void run() {
+                    CheckedFuture<Void, DTxException> f = netConfOnlyDTx.deleteAndRollbackOnFailure(LogicalDatastoreType.OPERATIONAL,
+                            (InstanceIdentifier<TestIid>)identifiers.get(finalI), netConfIid1);
+                }
+            });
+        }
+        threadPool.shutdown();
+        while (!threadPool.isTerminated())
+        {
+            //waiting for all the thread terminate
+        }
+        CheckedFuture<Void, DTxException.RollbackFailedException> rollbackFuture = netConfOnlyDTx.rollback();
+        try{
+            rollbackFuture.checkedGet();
+        }catch (Exception e){
+            fail("can't perform rollback, the test failed");
+        }
+        int expectedDataSizeInIdentifier = 1;
+        for (int i = 0; i < numOfThreads; i++)
+        {
+            Assert.assertEquals("size of identifier's data is wrong", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSize(identifiers.get(i)));
+        }
+    }
+    /**
+     * multithreads delete data in the netconf device and datastore, right after the operations invoke rollback immediately
+     * check whether the rollback action wait for all the action finish in mixed provider DTx
+     */
+    @Test
+    public void testConcurrentDeleteRollbackInMixedDTx() {
+        int numOfThreads = (int)(Math.random()*4) + 1;
+        threadPool = Executors.newFixedThreadPool(numOfThreads);
+        for (int i = 0; i < numOfThreads; i++){
+            internalDtxNetconfTestTx1.createObjForIdentifier((InstanceIdentifier<TestIid>)identifiers.get(i));
+            internalDtxDataStoreTestTx1.createObjForIdentifier((InstanceIdentifier<TestIid>)identifiers.get(i));
+        }
+        for (int i = 0; i < numOfThreads; i++)
+        {
+            final int finalI = i;
+            threadPool.execute(new Runnable() {
+                @Override
+                public void run() {
+                    mixedDTx.deleteAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER,
+                            LogicalDatastoreType.OPERATIONAL,
+                            (InstanceIdentifier<TestIid>)identifiers.get(finalI), netConfIid1);
+                    mixedDTx.deleteAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER,
+                            LogicalDatastoreType.OPERATIONAL,
+                            (InstanceIdentifier<TestIid>)identifiers.get(finalI), dataStoreIid1);
+                }
+            });
+        }
+        threadPool.shutdown();
+        while (!threadPool.isTerminated())
+        {
+            //waiting for all the thread terminate
+        }
+        CheckedFuture<Void, DTxException.RollbackFailedException> rollbackFuture = mixedDTx.rollback();
+        try{
+            rollbackFuture.checkedGet();
+        }catch (Exception e){
+            fail("Can't perform rollback, test failed");
+        }
+        int expectedDataSizeInIdentifier = 1;
+        for (int i = 0; i < numOfThreads; i++)
+        {
+            Assert.assertEquals("size of identifier's data is wrong", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSize(identifiers.get(i)));
+            Assert.assertEquals("size of identifier's data is wrong", expectedDataSizeInIdentifier, internalDtxDataStoreTestTx1.getTxDataSize(identifiers.get(i)));
+        }
+    }
+    /**
      * this test case is used to test after the concurrent operations on the transaction, we can successfully rollback
      */
     @Test
