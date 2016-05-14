@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2015 Cisco Systems, Inc. and others.  All rights reserved.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v1.0 which accompanies this distribution,
+ * and is available at http://www.eclipse.org/legal/epl-v10.html
+ */
 package org.opendaylight.distributed.tx.impl;
 
 import com.google.common.base.Function;
@@ -29,26 +36,19 @@ public class RollbackImpl implements Rollback {
 
     @Override public CheckedFuture<Void, DTxException.RollbackFailedException> rollback(
             @Nonnull final Map<InstanceIdentifier<?>, ? extends TxCache> perNodeCachesByType,
-            // @Nonnull final Map<DTXLogicalTXProviderType, Map<InstanceIdentifier<?>, ? extends TxCache>> perNodeCachesByType,
             @Nonnull final Map<InstanceIdentifier<?>, ? extends ReadWriteTransaction> perNodeRollbackTxs) {
 
         final List<ListenableFuture<Void>> perNodeRollbackSubmitFutures = Lists.newArrayListWithCapacity(perNodeRollbackTxs.size());
-
-        // for (DTXLogicalTXProviderType type : perNodeCachesByType.keySet()) {
-        //    Map<InstanceIdentifier<?>, ? extends TxCache> perNodeCaches = perNodeCachesByType.get(type);
             for (final Map.Entry<InstanceIdentifier<?>, ? extends TxCache> perNodeCacheEntry : perNodeCachesByType.entrySet()) {
                 InstanceIdentifier<?> nodeId = perNodeCacheEntry.getKey();
                 TxCache perNodeCache = perNodeCacheEntry.getValue();
 
                 final ReadWriteTransaction perNodeRollbackTx = perNodeRollbackTxs.get(nodeId);
                 for (CachedData cachedData : perNodeCache) {
-
-                    // FIXME how to fix the incorrect capture types for IID and DataObject in the put call below ??
                     final InstanceIdentifier<DataObject> dataId = (InstanceIdentifier<DataObject>) cachedData.getId();
 
                     ModifyAction revertAction = getRevertAction(cachedData.getOperation(), cachedData.getData());
 
-                    LOG.info("perNodeCache {}", revertAction);
                     switch (revertAction) {
                         case REPLACE: {
                             try {
@@ -62,9 +62,6 @@ public class RollbackImpl implements Rollback {
                         }
                         case DELETE: {
                             try {
-                                // FIXME doing this on a netconf device with candidate might result in a failure
-                                // (for the device where submit failed, the state was automatically rolledback)
-                                // So we should read the data first if we really need to roll back
                                 perNodeRollbackTx.delete(cachedData.getDsType(), dataId);
                                 break;
                             } catch (Exception e) {
@@ -138,11 +135,11 @@ public class RollbackImpl implements Rollback {
         }
 
         @Override public void onSuccess(@Nullable final Void result) {
-            LOG.debug("Node: {} rolled back successfully", perNodeCacheEntry);
+            LOG.trace("Node: {} rolled back successfully", perNodeCacheEntry);
         }
 
         @Override public void onFailure(final Throwable t) {
-            LOG.debug("Unable to rollback Node: {}. Rollback FAILED", perNodeCacheEntry, t);
+            LOG.trace("Unable to rollback Node: {}. Rollback FAILED", perNodeCacheEntry, t);
         }
     }
 }

@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2015 Cisco Systems, Inc. and others.  All rights reserved.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v1.0 which accompanies this distribution,
+ * and is available at http://www.eclipse.org/legal/epl-v10.html
+ */
 package org.opendaylight.distributed.tx.impl;
 
 import com.google.common.base.Function;
@@ -48,7 +55,7 @@ public class DtxImpl implements DTx {
     public DtxImpl(@Nonnull final Map<DTXLogicalTXProviderType, TxProvider> providerMap,
                    @Nonnull final Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap, TransactionLock lock) {
         Preconditions.checkArgument(!nodesMap.values().isEmpty(), "Cannot create distributed tx for 0 nodes");
-        Preconditions.checkArgument(providerMap.keySet().containsAll(nodesMap.keySet()), "logicalType sets of txporider and nodes are different");
+        Preconditions.checkArgument(providerMap.keySet().containsAll(nodesMap.keySet()), "logicalType sets of txporiders and nodes are different");
         this.txProviderMap = providerMap;
         perNodeTransactionsbyLogicalType = initializeTransactionsPerLogicalType(providerMap, nodesMap);
         this.deviceLock = lock;
@@ -78,7 +85,7 @@ public class DtxImpl implements DTx {
         return typeCacheMap;
     }
 
-    //following methods is used to do the concurrent test for DtxImpl
+    // This is a method for unit test
     public int getSizeofCacheByNodeId(InstanceIdentifier<?> nodeId)
     {
         Preconditions.checkArgument(perNodeTransactionsbyLogicalType.get(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER).containsKey(nodeId),
@@ -86,6 +93,7 @@ public class DtxImpl implements DTx {
         return getSizeofCacheByNodeIdAndType(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, nodeId);
     }
 
+    // This is a method for unit test
     public int getSizeofCacheByNodeIdAndType(DTXLogicalTXProviderType type, InstanceIdentifier<?> nodeId)
     {
         Preconditions.checkArgument(containsIid(nodeId), "Unknown node: %s. Not in transaction", nodeId);
@@ -158,7 +166,6 @@ public class DtxImpl implements DTx {
     @Override public <T extends DataObject> void put(final LogicalDatastoreType logicalDatastoreType,
         final InstanceIdentifier<T> instanceIdentifier, final T t, final InstanceIdentifier<?> nodeId)
         throws DTxException.EditFailedException {
-        //FIXME Not thread-safe. Add concurrency protection
         Preconditions.checkArgument(perNodeTransactionsbyLogicalType.get(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER).containsKey(nodeId),
                 "Unknown node: %s. Not in transaction", nodeId);
         final ReadWriteTransaction transaction = perNodeTransactionsbyLogicalType.get(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER).get(nodeId);
@@ -300,7 +307,6 @@ public class DtxImpl implements DTx {
     }
 
     private class PerNodeSubmitCallback implements FutureCallback<Void> {
-        // TODO this field should be threadsafe
         private final Map<InstanceIdentifier<?>, PerNodeTxState> commitStatus;
         private final Map.Entry<InstanceIdentifier<?>, CachingReadWriteTx> perNodeTx;
         private final SettableFuture<Void> distributedSubmitFuture;
@@ -321,7 +327,6 @@ public class DtxImpl implements DTx {
          * Prepare potential rollback per-node transaction (rollback will be performed in a dedicated Tx)
          */
         @Override public void onSuccess(@Nullable final Void result) {
-
             LOG.trace("Per node tx({}/{}) executed successfully for: {}",
                     commitStatus.size(), getNumberofNodes(), perNodeTx.getKey());
 
@@ -357,7 +362,6 @@ public class DtxImpl implements DTx {
          * Invoked when this distributed transaction cannot open a post submit transaction (for performing potential rollback)
          */
         private void handleRollbackTxCreationException(final TxException.TxInitiatizationFailedException e) {
-            // TODO we should try to rollback at least the nodes we can, not just fail the distributed Tx
             LOG.warn("Unable to create post submit transaction for node: {}. Distributed transaction failing",
                 perNodeTx.getKey(), e);
             distributedSubmitFuture.setException(new DTxException.SubmitFailedException(
@@ -420,14 +424,13 @@ public class DtxImpl implements DTx {
             } catch (final DTxException.SubmitFailedException e) {
                 Futures.addCallback(rollbackUponCommitFailure(commitStatus), new FutureCallback<Void>() {
                     @Override public void onSuccess(@Nullable final Void result) {
-                        LOG.info("Distributed tx failed for {}. Rollback was successful", perNodeTx.getKey());
+                        LOG.trace("Distributed tx failed for {}. Rollback was successful", perNodeTx.getKey());
                         deviceLock.releaseDevices(logicalTxProviderType, commitStatus.keySet());
                         distributedSubmitFuture.setException(e);
                     }
 
                     @Override public void onFailure(final Throwable t) {
                         LOG.warn("Distributed tx filed. Rollback FAILED. Device(s) state is unknown", t);
-                        // t should be rollback failed EX
                         deviceLock.releaseDevices(logicalTxProviderType, commitStatus.keySet());
                         distributedSubmitFuture.setException(t);
                     }
@@ -515,7 +518,6 @@ public class DtxImpl implements DTx {
         }
 
         public void releaseStatePerNode(){
-            LOG.info("release tx hdl");
             this.rollbackTx.cancel();
         }
     }
@@ -617,14 +619,12 @@ public class DtxImpl implements DTx {
         Futures.addCallback(putFuture, new FutureCallback<Void>() {
             @Override
             public void onSuccess(@Nullable Void aVoid) {
-                LOG.info("asyncput on success call back");
                 retFuture.set(null);
             }
 
             @Override
             public void onFailure(Throwable throwable) {
-                LOG.info("asyncput failure callback begin to roll back ");
-
+                LOG.trace("asyncput failure callback begin to roll back ");
                 Runnable rolllbackRoutine = new Runnable() {
                     @Override
                     public void run() {
@@ -633,14 +633,12 @@ public class DtxImpl implements DTx {
                         Futures.addCallback(rollExcept, new FutureCallback<Void>() {
                             @Override
                             public void onSuccess(@Nullable Void result) {
-                                LOG.info("roll back succeed ");
                                 dtxReleaseDevices();
                                 retFuture.setException(new DTxException.EditFailedException("Failed to put but succeed to rollback"));
                             }
 
                             @Override
                             public void onFailure(Throwable t) {
-                                LOG.info("roll back failed ");
                                 dtxReleaseDevices();
                                 retFuture.setException(t);
                             }

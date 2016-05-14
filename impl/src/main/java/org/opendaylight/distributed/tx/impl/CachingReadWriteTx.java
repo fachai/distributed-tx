@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2015 Cisco Systems, Inc. and others.  All rights reserved.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v1.0 which accompanies this distribution,
+ * and is available at http://www.eclipse.org/legal/epl-v10.html
+ */
 package org.opendaylight.distributed.tx.impl;
 
 import com.google.common.base.Function;
@@ -74,7 +81,6 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
 
         Futures.addCallback(readFuture, new FutureCallback<Optional<DataObject>>() {
             @Override public void onSuccess(final Optional<DataObject> result) {
-
                 synchronized (this) {
                     cache.add(new CachedData(logicalDatastoreType, instanceIdentifier, result.orNull(), ModifyAction.DELETE));
                 }
@@ -92,12 +98,11 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
                     @Override
                     public void onSuccess(@Nullable Object result) {
                         retFuture.set(null);
-                        LOG.info("async delete done and return !!!!");
                     }
 
                     @Override
                     public void onFailure(Throwable t) {
-                        LOG.info("async delete exception");
+                        LOG.trace("async delete failure");
                         retFuture.setException(t);
                     }
                 });
@@ -149,12 +154,11 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
                     @Override
                     public void onSuccess(@Nullable Object result) {
                         retFuture.set(null);
-                        LOG.info("async merge device merge done and return");
                     }
 
                     @Override
                     public void onFailure(Throwable t) {
-                        LOG.info("async merge device exception");
+                        LOG.trace("async merge failure");
                         retFuture.setException(t);
                     }
                 });
@@ -179,8 +183,6 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
     @Override public <T extends DataObject> void merge(final LogicalDatastoreType logicalDatastoreType,
         final InstanceIdentifier<T> instanceIdentifier, final T t, final boolean b) {
         delegate.merge(logicalDatastoreType, instanceIdentifier, t, b);
-        // TODO how to handle ensure parents ? we dont have control over that here, so we probably have to cache the whole subtree
-        // Not support it.
     }
 
     @Override public <T extends DataObject> void put(final LogicalDatastoreType logicalDatastoreType,
@@ -206,7 +208,6 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
                 final ListenableFuture asyncPutFuture = executorService.submit(new Callable() {
                     @Override
                     public Object call() throws Exception {
-                        LOG.info("asyncPut put obj {}", Integer.toHexString(System.identityHashCode(t)));
                         delegate.put(logicalDatastoreType, instanceIdentifier, t);
                         return null;
                     }
@@ -220,6 +221,7 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
 
                     @Override
                     public void onFailure(Throwable t) {
+                        LOG.trace("async put failure");
                         retFuture.setException(t);
                     }
                 });

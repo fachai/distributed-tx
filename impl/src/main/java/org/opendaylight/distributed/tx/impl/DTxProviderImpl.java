@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2015 Cisco Systems, Inc. and others.  All rights reserved.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v1.0 which accompanies this distribution,
+ * and is available at http://www.eclipse.org/legal/epl-v10.html
+ */
 package org.opendaylight.distributed.tx.impl;
 
 import com.google.common.base.Preconditions;
@@ -111,20 +118,6 @@ public class DTxProviderImpl implements DTxProvider, AutoCloseable {
         @Override
         public <T extends DataObject> CheckedFuture<Void, DTxException> putAndRollbackOnFailure(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, InstanceIdentifier<?> nodeId) throws DTxException.EditFailedException {
             CheckedFuture<Void, DTxException> putFuture = delegate.putAndRollbackOnFailure(logicalDatastoreType, instanceIdentifier, t, nodeId);
-
-            /*
-            Futures.addCallback(putFuture, new FutureCallback<Void>() {
-                @Override
-                public void onSuccess(@Nullable Void result) {
-                    releaseNodes();
-                }
-
-                @Override
-                public void onFailure(Throwable t) {
-                    releaseNodes();
-                }
-            });
-            */
 
             return putFuture;
         }
