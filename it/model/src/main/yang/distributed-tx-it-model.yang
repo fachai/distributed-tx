@@ -45,6 +45,24 @@ module distributed-tx-it-model{
               "Indicates whether the test finished successfully";
         }
 
+        typedef test-type{
+          type enumeration {
+              enum "NORMAL" {
+                   value 1;
+              }
+              enum "ROLLBACK-ON-FAILURE"{
+                   value 2;
+              }
+              enum "ROLLBACK" {
+                   value 3;
+              }
+          }
+          description
+              "Stand for the test type, normal test is used for test DTx writing ability,
+              rollback on failure test is used to test neither DTx action rollback or submit rollback,
+              rollback test is used to test DTx rollback ability";
+        }
+
         rpc naive-test {
                 input {
                         leaf name {
@@ -256,6 +274,7 @@ module distributed-tx-it-model{
               leaf operation {
                   mandatory true;
                   type operation-type;
+                  default "PUT";
                 }
               leaf putsPerTx {
                  type uint32;
@@ -275,11 +294,9 @@ module distributed-tx-it-model{
                  description
                      "Size of innerList";
               }
-              leaf performRollback {
-                 type boolean;
-                 default false;
-                 description
-                     "Indicate whether perform rollback";
+              leaf type {
+                 type test-type;
+                 default "NORMAL";
               }
             }
             output {
@@ -295,6 +312,7 @@ module distributed-tx-it-model{
               leaf operation {
                  mandatory true;
                  type operation-type;
+                 default "PUT";
               }
               leaf putsPerTx {
                  type uint32;
@@ -308,11 +326,9 @@ module distributed-tx-it-model{
                  description
                     "number of transations";
               }
-              leaf performRollback {
-                 type boolean;
-                 default false;
-                 description
-                    "Indicate whether perform the rollback";
+              leaf type {
+                 type test-type;
+                 default "NORMAL";
               }
             }
             output {
@@ -328,6 +344,7 @@ module distributed-tx-it-model{
                leaf operation {
                    mandatory true;
                    type operation-type;
+                   default "PUT";
                }
                leaf putsPerTx {
                    type uint32;
@@ -341,11 +358,9 @@ module distributed-tx-it-model{
                     description
                          "number of netconf transactions";
                }
-               leaf performRollback {
-                    type boolean;
-                    default false;
-                    description
-                         "indicate whether perform the rollback";
+               leaf type {
+                    type test-type;
+                    default "NORMAL";
                }
             }
             output {
