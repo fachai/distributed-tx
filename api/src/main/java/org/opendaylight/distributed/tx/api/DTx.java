@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2015 Cisco Systems, Inc. and others.  All rights reserved.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v1.0 which accompanies this distribution,
+ * and is available at http://www.eclipse.org/legal/epl-v10.html
+ */
 package org.opendaylight.distributed.tx.api;
 
 import com.google.common.util.concurrent.CheckedFuture;
@@ -8,9 +15,9 @@ import org.opendaylight.yangtools.yang.binding.DataObject;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 
 /**
- * Distributed transaction working with a set of nodes.
+ * Distributed transaction for multiple transaction providers and nodes.
  *
- * Reusing MD-SAL transaction API, adding node specific data modification operations.
+ * Reuse MD-SAL transaction API and add DTX specific API.
  */
 public interface DTx extends WriteTransaction {
     /**
@@ -216,7 +223,7 @@ public interface DTx extends WriteTransaction {
             InstanceIdentifier<?> nodeId);
 
     /**
-     * Delete data from a specific node.
+     * Rollback the entire transaction.
      *
      * @return CheckedFuture indicating the result of the rollback operation.
      *
@@ -278,7 +285,7 @@ public interface DTx extends WriteTransaction {
             final InstanceIdentifier<T> instanceIdentifier, final T t, final InstanceIdentifier<?> nodeId);
 
     /**
-     * Delete data to a specific node and rollback of the whole distributed transaction will be performed on failure.
+     * Delete data from a specific node and rollback of the whole distributed transaction will be performed on failure.
      *
      * @param logicalTXProviderType transaction provider type
      * @param logicalDatastoreType datastore type

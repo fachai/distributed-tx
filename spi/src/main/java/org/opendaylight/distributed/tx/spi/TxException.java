@@ -1,7 +1,14 @@
+/*
+ * Copyright (c) 2015 Cisco Systems, Inc. and others.  All rights reserved.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v1.0 which accompanies this distribution,
+ * and is available at http://www.eclipse.org/legal/epl-v10.html
+ */
 package org.opendaylight.distributed.tx.spi;
 
 /**
- * Per Node transaction failure
+ * TX Provider exceptions.
  */
 public class TxException extends RuntimeException {
 
@@ -26,15 +33,4 @@ public class TxException extends RuntimeException {
             super(s);
         }
     }
-
-    /**
-     * Thrown when the per-node-tx-provider cant find the node and thus cant event attempt to create a Tx for it
-     */
-    public static class UnknownNodeException extends TxInitiatizationFailedException {
-
-        public UnknownNodeException(final String s, final RuntimeException e) {
-            super(s, e);
-        }
-    }
-
 }

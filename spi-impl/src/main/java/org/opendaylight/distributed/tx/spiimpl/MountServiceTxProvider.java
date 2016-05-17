@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2015 Cisco Systems, Inc. and others.  All rights reserved.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v1.0 which accompanies this distribution,
+ * and is available at http://www.eclipse.org/legal/epl-v10.html
+ */
 package org.opendaylight.distributed.tx.spiimpl;
 
 import com.google.common.base.Optional;
@@ -18,8 +25,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Set;
 
 /**
- * Per node transaction provider SPI. Distributed tx treats every node just as an instance of ReadWriteTransaction.
- * This provider interface hides the details of its creation, whether the per node transactions come from MountPoints or are app specific.
+ * Netconf transaction provider SPI which implements interface TxProvider.
  */
 public class MountServiceTxProvider implements TxProvider, AutoCloseable, BindingAwareConsumer {
 
@@ -27,14 +33,6 @@ public class MountServiceTxProvider implements TxProvider, AutoCloseable, Bindin
     private static final Logger LOG = LoggerFactory.getLogger(MountServiceTxProvider.class);
     private final TxProviderLock txLock = new TxProviderLock();
 
-    /**
-     *
-     * Initialize per node transaction.
-     *
-     * @param path IID for particular node
-     * @return per node tx
-     * @throws TxException.TxInitiatizationFailedException thrown when unable to initialize the tx
-     */
     @Nonnull @Override public ReadWriteTransaction newTx(InstanceIdentifier<?> path) {
         Preconditions.checkState(mountService != null, "MountPoint service dependency no tinitialized");
         final Optional<MountPoint> mountPoint = mountService.getMountPoint(path);
@@ -56,6 +54,7 @@ public class MountServiceTxProvider implements TxProvider, AutoCloseable, Bindin
         return txLock.isDeviceLocked(device);
     }
 
+    /* Exclusive lock implementation */
     @Override
     public boolean lockTransactionDevices(Set<InstanceIdentifier<?>> deviceSet) {
 

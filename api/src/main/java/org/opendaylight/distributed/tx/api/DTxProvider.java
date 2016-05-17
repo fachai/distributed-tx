@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2015 Cisco Systems, Inc. and others.  All rights reserved.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v1.0 which accompanies this distribution,
+ * and is available at http://www.eclipse.org/legal/epl-v10.html
+ */
 package org.opendaylight.distributed.tx.api;
 
 import java.util.Map;
@@ -7,15 +14,13 @@ import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 
 /**
  * Provider of distributed transactions.
- * Applications ask this provider for a distributed transactions over a specified set of nodes.
+ * Applications request the provider for a distributed transaction.
  *
- * Node is identified by its InstanceIdentifier and represented by a ReadWriteTransaction.
- * The node transaction can be provided by e.g. NETCONF Mountpoint
  */
 public interface DTxProvider {
 
     /**
-     * Instantiate a new distributed transaction for NETCONF.
+     * Instantiate a new distributed transaction with only NETCONF provider.
      *
      * @param nodes set of instance IDs for nodes participating in a distributed tx.
      *
@@ -30,6 +35,7 @@ public interface DTxProvider {
      * </ul>
      */
     @Nonnull DTx newTx(@Nonnull Set<InstanceIdentifier<?>> nodes) throws DTxException.DTxInitializationFailedException;
+
     /**
      * Instantiate a new distributed transaction containing different providers.
      *
@@ -38,9 +44,9 @@ public interface DTxProvider {
      * <li> NETCONF_TX_PROVIDER </li>
      * <li>DATASTORE_TX_PROVIDER</li>
      * </ul>
+     * @param nodes Maps of sets of instance IDs for nodes participating in a distributed tx corresponding to each tx providers.
      *
-     * @return new distributed Tx for a set of nodes.
-     * Per node transaction was successfully initialized for each node at this point.
+     * @return new distributed Tx. Per node transaction was successfully initialized for each node at this point.
      *
      * @throws DTxException.DTxInitializationFailedException if:
      * <ul>
