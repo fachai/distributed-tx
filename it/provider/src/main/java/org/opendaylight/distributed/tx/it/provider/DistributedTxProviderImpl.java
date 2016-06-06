@@ -28,6 +28,7 @@ import org.opendaylight.yang.gen.v1.http.cisco.com.ns.yang.cisco.ios.xr.ifmgr.op
 import org.opendaylight.yang.gen.v1.http.cisco.com.ns.yang.cisco.ios.xr.ifmgr.oper.rev150107._interface.table.interfaces.Interface;
 import org.opendaylight.yang.gen.v1.http.cisco.com.ns.yang.cisco.xr.types.rev150119.InterfaceName;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.netconf.node.topology.rev150114.NetconfNode;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.netconf.node.topology.rev150114.netconf.node.connection.status.clustered.connection.status.NodeStatus;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.netconf.node.topology.rev150114.network.topology.topology.topology.types.TopologyNetconf;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.*;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterList;
@@ -716,8 +717,6 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                             .build()).buildFuture();
         }
 
-        LOG.info("Begin the DTx datastore test");
-
         long putsPerTx = input.getPutsPerTx();
         int outerElements = input.getOuterList(), innerElements = input.getInnerList();
         OperationType operation = input.getOperation();
@@ -741,15 +740,13 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
         if (operation == OperationType.DELETE)
             dataStoreListBuilder.buildTestInnerList();
 
-        //write data into datstore via DTx
         List<OuterList> outerLists = dataStoreListBuilder.buildOuterList();
         InstanceIdentifier<DatastoreTestData> nodeId = InstanceIdentifier.create(DatastoreTestData.class);
         long count = 0;
-        //rollback test
         if (input.getType() != TestType.NORMAL) {
             boolean rollbackSucceed = true;
             if (input.getType() == TestType.ROLLBACKONFAILURE) {
-                LOG.info("Begin DTx datastore Rollback on failure test");
+                LOG.info("Begin DTx datastore rollback on failure test");
                 //error InnerList Iid to trigger exception
                 InstanceIdentifier<InnerList> errorInnerIid = InstanceIdentifier.create(DatastoreTestData.class)
                         .child(OuterList.class, new OuterListKey(outerElements))
@@ -875,7 +872,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                         .build()).buildFuture();
             }
         }else {
-            //normal test
+            LOG.info("Begin DTx datastore normal test");
             for (OuterList outerList : outerLists) {
                 for (InnerList innerList : outerList.getInnerList()) {
                     InstanceIdentifier<InnerList> InnerIid = getInstanceIdentifier(outerList, innerList);
@@ -977,7 +974,6 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                     .setStatus(StatusType.TESTINPROGRESS)
                     .build()).buildFuture();
         }
-        LOG.info("Begin the DTx MixedProvider test");
 
         long putsPerTx = input.getPutsPerTx();
         int innerElements = input.getNumberOfTxs(), outerElements = 1;
@@ -1058,7 +1054,6 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                             = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(new InterfaceActive("act"), subIfname));
                     InterfaceConfigurationBuilder interfaceConfigurationBuilder = new InterfaceConfigurationBuilder();
                     interfaceConfigurationBuilder.setInterfaceName(subIfname);
-                    interfaceConfigurationBuilder.setDescription("Mixed provider test " + "-" + input.getOperation() + "-" + i);
                     interfaceConfigurationBuilder.setActive(new InterfaceActive("act"));
                     InterfaceConfiguration config = interfaceConfigurationBuilder.build();
 
@@ -1109,7 +1104,6 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                             = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(new InterfaceActive("act"), subIfname));
                     InterfaceConfigurationBuilder interfaceConfigurationBuilder = new InterfaceConfigurationBuilder();
                     interfaceConfigurationBuilder.setInterfaceName(subIfname);
-                    interfaceConfigurationBuilder.setDescription("Mixed provider test " + "-" + input.getOperation() + "-" + i);
                     interfaceConfigurationBuilder.setActive(new InterfaceActive("act"));
                     InterfaceConfiguration config = interfaceConfigurationBuilder.build();
 
@@ -1192,7 +1186,6 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                         = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(new InterfaceActive("act"), subIfname));
                 final InterfaceConfigurationBuilder interfaceConfigurationBuilder = new InterfaceConfigurationBuilder();
                 interfaceConfigurationBuilder.setInterfaceName(subIfname);
-                interfaceConfigurationBuilder.setDescription("Test description" + "-" + input.getOperation() + "-" + i);
                 interfaceConfigurationBuilder.setActive(new InterfaceActive("act"));
                 InterfaceConfiguration config = interfaceConfigurationBuilder.build();
 
@@ -1314,7 +1307,6 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
 
     public boolean buildTestInterfaces(DataBroker xrNodeBroker, long numberOfIfs)
     {
-        LOG.info("initialize the interface for netconf test");
         WriteTransaction xrNodeWriteTx = null;
         InstanceIdentifier<InterfaceConfigurations> netconfIid = InstanceIdentifier.create(InterfaceConfigurations.class);
         for (int i = 1; i <= numberOfIfs; i++) {
@@ -1341,8 +1333,12 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
 
     @Override
     public Future<RpcResult<NetconfTestOutput>> netconfTest(NetconfTestInput input) {
-        LOG.info("Begin the DTx Netconf test");
-
+        if (netconfExecStatus.compareAndSet(TestStatus.ExecStatus.Idle, TestStatus.ExecStatus.Executing) == false) {
+            LOG.info("netconf IT test in progress");
+            return RpcResultBuilder.success(new NetconfTestOutputBuilder()
+                    .setStatus(StatusType.TESTINPROGRESS)
+                    .build()).buildFuture();
+        }
         long putsPerTx=input.getPutsPerTx();
         OperationType operation=input.getOperation();
 
@@ -1396,7 +1392,6 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                         = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(new InterfaceActive("act"), errorIfName));
                 final InterfaceConfigurationBuilder interfaceConfigurationBuilder = new InterfaceConfigurationBuilder();
                 interfaceConfigurationBuilder.setInterfaceName(errorIfName);
-                interfaceConfigurationBuilder.setDescription("wrong interface name");
                 interfaceConfigurationBuilder.setActive(new InterfaceActive("act"));
                 InterfaceConfiguration errorConfig = interfaceConfigurationBuilder.build();
 
@@ -1406,7 +1401,6 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                             = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(new InterfaceActive("act"), subIfname));
                     final InterfaceConfigurationBuilder interfaceConfigurationBuilder2 = new InterfaceConfigurationBuilder();
                     interfaceConfigurationBuilder2.setInterfaceName(subIfname);
-                    interfaceConfigurationBuilder2.setDescription("Test description" + "-" + input.getOperation() + "-" + i);
                     interfaceConfigurationBuilder2.setActive(new InterfaceActive("act"));
                     InterfaceConfiguration config = interfaceConfigurationBuilder2.build();
 
@@ -1478,7 +1472,6 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                             = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(new InterfaceActive("act"), subIfname));
                     final InterfaceConfigurationBuilder interfaceConfigurationBuilder2 = new InterfaceConfigurationBuilder();
                     interfaceConfigurationBuilder2.setInterfaceName(subIfname);
-                    interfaceConfigurationBuilder2.setDescription("Test description" + "-" + input.getOperation() + "-" + i);
                     interfaceConfigurationBuilder2.setActive(new InterfaceActive("act"));
                     InterfaceConfiguration config = interfaceConfigurationBuilder2.build();
 
@@ -1555,7 +1548,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                         .build()).buildFuture();
             }
         }else {
-            //normal test
+            LOG.info("Begin DTx Netconf normal test");
             DTx dtx = dTxProvider.newTx(txIidSet);
             boolean testSucceed = true;
             for (int i = 1; i <= input.getNumberOfTxs(); i++) {
@@ -1564,7 +1557,6 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                         = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(new InterfaceActive("act"), subIfname));
                 final InterfaceConfigurationBuilder interfaceConfigurationBuilder2 = new InterfaceConfigurationBuilder();
                 interfaceConfigurationBuilder2.setInterfaceName(subIfname);
-                interfaceConfigurationBuilder2.setDescription("Test description" + "-" + input.getOperation() + "-" + i);
                 interfaceConfigurationBuilder2.setActive(new InterfaceActive("act"));
                 InterfaceConfiguration config = interfaceConfigurationBuilder2.build();
 
@@ -1632,6 +1624,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                     }
                 }
             }
+            netconfExecStatus.set(TestStatus.ExecStatus.Idle);
             if (testSucceed) {
                 return RpcResultBuilder.success(new NetconfTestOutputBuilder()
                         .setStatus(StatusType.OK)

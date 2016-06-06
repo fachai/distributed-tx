@@ -18,9 +18,9 @@ import java.util.Set;
 import static org.junit.Assert.fail;
 
 public class RollbackImplTest {
-    InstanceIdentifier<TestData1> identifier1 = InstanceIdentifier.create(TestData1.class); // data identifier
+    InstanceIdentifier<TestData1> identifier1 = InstanceIdentifier.create(TestData1.class);
     InstanceIdentifier<TestData2> identifier2 = InstanceIdentifier.create(TestData2.class);
-    InstanceIdentifier<TestNode1> node1 = InstanceIdentifier.create(TestNode1.class);  //nodeId identifier
+    InstanceIdentifier<TestNode1> node1 = InstanceIdentifier.create(TestNode1.class);
     InstanceIdentifier<TestNode2> node2 = InstanceIdentifier.create(TestNode2.class);
 
     private class TestData1 implements DataObject {
@@ -52,8 +52,7 @@ public class RollbackImplTest {
     }
 
     /**
-     *put data in node1 and node2
-     *invoke rollback
+     *put data in node1 and node2, invoke rollback
      *rollback succeed
      *no data in all the nodes
      */
@@ -62,8 +61,8 @@ public class RollbackImplTest {
         final DTXTestTransaction testTransaction1 = new DTXTestTransaction();
         final DTXTestTransaction testTransaction2 = new DTXTestTransaction();
 
-        final CachingReadWriteTx cachingReadWriteTx1 = new CachingReadWriteTx(testTransaction1); //nodeId1 caching transaction
-        final CachingReadWriteTx cachingReadWriteTx2 = new CachingReadWriteTx(testTransaction2); //nodeId2 caching transaction
+        final CachingReadWriteTx cachingReadWriteTx1 = new CachingReadWriteTx(testTransaction1);
+        final CachingReadWriteTx cachingReadWriteTx2 = new CachingReadWriteTx(testTransaction2);
 
         CheckedFuture<Void, DTxException> f1 = cachingReadWriteTx1.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
         CheckedFuture<Void, DTxException> f2 = cachingReadWriteTx1.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier2, new TestData2());
@@ -77,18 +76,17 @@ public class RollbackImplTest {
             f3.checkedGet();
             f4.checkedGet();
 
-            //check if all the data has been put into the transactions
-            Assert.assertEquals("can't put the data into the identifier1 of testTransaction1", 1,testTransaction1.getTxDataSize(identifier1));
-            Assert.assertEquals("can't put the data into the identifier2 of testTransaction1", 1,testTransaction1.getTxDataSize(identifier2));
-            Assert.assertEquals("can't put the data into the identifier1 of testTransaction2", 1,testTransaction2.getTxDataSize(identifier1));
-            Assert.assertEquals("can't put the data into the identifier2 of testTransaction2", 1,testTransaction2.getTxDataSize(identifier2));
+            Assert.assertEquals("can't put the data into the identifier1 of testTransaction1", 1,testTransaction1.getTxDataSizeByIid(identifier1));
+            Assert.assertEquals("can't put the data into the identifier2 of testTransaction1", 1,testTransaction1.getTxDataSizeByIid(identifier2));
+            Assert.assertEquals("can't put the data into the identifier1 of testTransaction2", 1,testTransaction2.getTxDataSizeByIid(identifier1));
+            Assert.assertEquals("can't put the data into the identifier2 of testTransaction2", 1,testTransaction2.getTxDataSizeByIid(identifier2));
         }catch (Exception e)
         {
             fail("get the unexpected exception from the asyncPut");
         }
 
-        Set<InstanceIdentifier<?>> s = Sets.newHashSet(node1, node2); //set of test nodes
-        Map<InstanceIdentifier<?>, ? extends CachingReadWriteTx> perNodeCaches; //this map store every node cached data
+        Set<InstanceIdentifier<?>> s = Sets.newHashSet(node1, node2);
+        Map<InstanceIdentifier<?>, ? extends CachingReadWriteTx> perNodeCaches;
         perNodeCaches = Maps.toMap(s, new Function<InstanceIdentifier<?>, CachingReadWriteTx>() {
             @Nullable
             @Override
@@ -97,7 +95,7 @@ public class RollbackImplTest {
             }
         });
 
-        Map<InstanceIdentifier<?>, ReadWriteTransaction> perNodeRollbackTxs; //this map store every node rollback transaction
+        Map<InstanceIdentifier<?>, ReadWriteTransaction> perNodeRollbackTxs;
         perNodeRollbackTxs = Maps.toMap(s, new Function<InstanceIdentifier<?>, ReadWriteTransaction>() {
             @Nullable
             @Override
@@ -117,43 +115,44 @@ public class RollbackImplTest {
            fail("get the unexpected exception from the rollback method");
         }
 
-        int expectedDataNumInNode1Ident1 = 0, expectedDataNumInNode1Ident2 = 0, expectedDataNumInNode2Ident1 = 0, expectedDataNumInNode2Ident2 = 0;
-        Assert.assertEquals("size of identifier1 data in transaction1 is wrong", expectedDataNumInNode1Ident1,testTransaction1.getTxDataSize(identifier1));
-        Assert.assertEquals("size of identifier2 data in transaction1 is wrong", expectedDataNumInNode1Ident2,testTransaction1.getTxDataSize(identifier2));
-        Assert.assertEquals("size of identifier1 data in transaction2 is wrong", expectedDataNumInNode2Ident1,testTransaction2.getTxDataSize(identifier1));
-        Assert.assertEquals("size of identifier2 data in transaction2 is wrong", expectedDataNumInNode2Ident2,testTransaction2.getTxDataSize(identifier2));
+        int  expectedDataNumInNode1Identifier1 = 0,
+             expectedDataNumInNode1Identifier2 = 0,
+             expectedDataNumInNode2Identifier1 = 0,
+             expectedDataNumInNode2Identifier2 = 0;
+        Assert.assertEquals("size of identifier1 data in transaction1 is wrong", expectedDataNumInNode1Identifier1,testTransaction1.getTxDataSizeByIid(identifier1));
+        Assert.assertEquals("size of identifier2 data in transaction1 is wrong", expectedDataNumInNode1Identifier2,testTransaction1.getTxDataSizeByIid(identifier2));
+        Assert.assertEquals("size of identifier1 data in transaction2 is wrong", expectedDataNumInNode2Identifier1,testTransaction2.getTxDataSizeByIid(identifier1));
+        Assert.assertEquals("size of identifier2 data in transaction2 is wrong", expectedDataNumInNode2Identifier2,testTransaction2.getTxDataSizeByIid(identifier2));
     }
 
      /**
       *put data in node1
       *invoke rollback
       *delete exception occurs the rollback fail
+      *get DTx.RollbackFailedException
       */
     @Test
     public void testRollbackFailWithDeleteException() {
         DTXTestTransaction testTransaction = new DTXTestTransaction();
-        CachingReadWriteTx cachingReadWriteTx = new CachingReadWriteTx(testTransaction); // node1 caching transaction
+        CachingReadWriteTx cachingReadWriteTx = new CachingReadWriteTx(testTransaction);
 
         CheckedFuture<Void, DTxException> f = cachingReadWriteTx.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1,new TestData1());
         try
         {
             f.checkedGet();
-            Assert.assertEquals("can't put the data into the test transaction", 1, testTransaction.getTxDataSize(identifier1));
+            Assert.assertEquals("can't put the data into the test transaction", 1, testTransaction.getTxDataSizeByIid(identifier1));
         }catch (Exception e)
         {
             fail("get unexpected exception from the AsyncPut");
         }
 
-        //perNodeCaches a map store every node cached data
         Map<InstanceIdentifier<?>, CachingReadWriteTx> perNodeCaches = Maps.newHashMap();
         perNodeCaches.put(node1, cachingReadWriteTx);
 
-        //delete exception occur rollback fail
-        testTransaction.setDeleteException(identifier1,true);
-
         Map<InstanceIdentifier<?>, ReadWriteTransaction> perNodeRollbackTxs = Maps.newHashMap();
-        perNodeRollbackTxs.put(node1, testTransaction); // perNodeRollbackTxs store each rollback transaction
+        perNodeRollbackTxs.put(node1, testTransaction);
 
+        testTransaction.setDeleteExceptionByIid(identifier1,true);
         RollbackImpl testRollback = new RollbackImpl();
         CheckedFuture<Void, DTxException.RollbackFailedException> rollbackFuture =  testRollback.rollback(perNodeCaches,perNodeRollbackTxs);
 
@@ -169,33 +168,31 @@ public class RollbackImplTest {
     /**
      *put data in node1 and node2
      *invoke rollback
-     *submit fail rollback fail
+     *submit exception occurs and rollback fail
+     *get DTxException.RollbackFailedException exception
      */
     @Test
     public void testRollbackFailWithSubmitException() {
         DTXTestTransaction testTransaction = new DTXTestTransaction();
-        CachingReadWriteTx cachingReadWriteTx = new CachingReadWriteTx(testTransaction); // node1 caching transaction
+        CachingReadWriteTx cachingReadWriteTx = new CachingReadWriteTx(testTransaction);
 
         CheckedFuture<Void, DTxException> f = cachingReadWriteTx.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
         try
         {
             f.checkedGet();
-            Assert.assertEquals("can't put the data into the test transaction", 1, testTransaction.getTxDataSize(identifier1));
+            Assert.assertEquals("can't put the data into the test transaction", 1, testTransaction.getTxDataSizeByIid(identifier1));
         }catch (Exception e)
         {
             fail("get unexpected exception from the AsyncPut");
         }
 
-        //perNodeCaches a map store every node cached data
         Map<InstanceIdentifier<?>, CachingReadWriteTx> perNodeCaches = Maps.newHashMap();
         perNodeCaches.put(node1, cachingReadWriteTx);
 
-        //submit exception occur rollback fail
-        testTransaction.setSubmitException(true);
-
         Map<InstanceIdentifier<?>, ReadWriteTransaction> perNodeRollbackTxs = Maps.newHashMap();
-        perNodeRollbackTxs.put(node1, testTransaction); // perNodeRollbackTxs store each rollback transaction
+        perNodeRollbackTxs.put(node1, testTransaction);
 
+        testTransaction.setSubmitException(true);
         RollbackImpl testRollback = new RollbackImpl();
         CheckedFuture<Void, DTxException.RollbackFailedException> rollbackFuture =  testRollback.rollback(perNodeCaches,perNodeRollbackTxs);
 

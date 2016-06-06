@@ -112,7 +112,7 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
                     public void onFailure(Throwable t) {
                         decreaseOperation();
                         LOG.trace("async delete failure");
-                        retFuture.setException(t);
+                        retFuture.setException(new DTxException.EditFailedException("async delete failure", t));
                     }
                 });
             }
@@ -128,7 +128,8 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
             @Override
             public DTxException apply(@Nullable Exception e) {
                 e =(Exception)e.getCause();
-                return e instanceof DTxException ? (DTxException)e : new DTxException("delete operation failed ", e);
+                return e instanceof DTxException ? (DTxException)e :
+                        new DTxException("delete operation failed ", e);
             }
         });
     }
@@ -176,7 +177,7 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
                     public void onFailure(Throwable t) {
                         decreaseOperation();
                         LOG.trace("async merge failure");
-                        retFuture.setException(t);
+                        retFuture.setException(new DTxException.EditFailedException("async merge failure", t));
                     }
                 });
             }
@@ -192,7 +193,8 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
             @Override
             public DTxException apply(@Nullable Exception e) {
                 e =(Exception)e.getCause();
-                return e instanceof DTxException ? (DTxException)e : new DTxException("merge operation failed", e);
+                return e instanceof DTxException ? (DTxException)e :
+                        new DTxException("merge operation failed", e);
             }
         });
     }
@@ -248,7 +250,7 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
                     public void onFailure(Throwable t) {
                         decreaseOperation();
                         LOG.trace("async put failure");
-                        retFuture.setException(t);
+                        retFuture.setException(new DTxException.EditFailedException("async put failure", t));
                     }
                 });
             }
@@ -265,7 +267,8 @@ public class CachingReadWriteTx implements TxCache, DTXReadWriteTransaction, Clo
             @Override
             public DTxException apply(@Nullable Exception e) {
                 e =(Exception)e.getCause();
-                return e instanceof DTxException ? (DTxException)e : new DTxException("put operation failed", e);
+                return e instanceof DTxException ? (DTxException)e :
+                        new DTxException("put operation failed", e);
             }
         });
     }
