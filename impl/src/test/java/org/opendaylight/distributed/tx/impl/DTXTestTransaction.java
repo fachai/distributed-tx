@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2015 Cisco Systems, Inc. and others.  All rights reserved.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v1.0 which accompanies this distribution,
+ * and is available at http://www.eclipse.org/legal/epl-v10.html
+ */
 package org.opendaylight.distributed.tx.impl;
 
 import com.google.common.base.Function;
@@ -26,7 +33,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     Map<InstanceIdentifier<?>, Boolean> mergeExceptionMap = new ConcurrentHashMap<>();
     Map<InstanceIdentifier<?>, Boolean> deleteExceptionMap = new ConcurrentHashMap<>();
     boolean  submitException = false;
-    static int delayTime = 50;
+    static int delayTime = 20;
 
     private Map<InstanceIdentifier<?>,ConcurrentLinkedDeque<DataObject>> txDataMap = new ConcurrentHashMap<>();
 
@@ -182,6 +189,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
                 txDataMap.get(instanceIdentifier).clear();
         }
         else {
+            System.out.println("delete error");
             setDeleteExceptionByIid(instanceIdentifier,false);
             throw new RuntimeException("delete exception");
         }

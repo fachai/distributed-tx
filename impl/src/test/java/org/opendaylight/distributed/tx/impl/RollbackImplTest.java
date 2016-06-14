@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2015 Cisco Systems, Inc. and others.  All rights reserved.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v1.0 which accompanies this distribution,
+ * and is available at http://www.eclipse.org/legal/epl-v10.html
+ */
 package org.opendaylight.distributed.tx.impl;
 
 import com.google.common.base.Function;
@@ -52,14 +59,17 @@ public class RollbackImplTest {
     }
 
     /**
-     *put data in node1 and node2, invoke rollback
-     *rollback succeed
-     *no data in all the nodes
+     * test rollback method, rollback succeed
+     * put data in identifier1 and identifier2, after that invoking rollback
+     * rollback succeed
+     * no data in all the data IIDs
      */
     @Test
     public void testRollBack() {
         final DTXTestTransaction testTransaction1 = new DTXTestTransaction();
         final DTXTestTransaction testTransaction2 = new DTXTestTransaction();
+        testTransaction1.addInstanceIdentifiers(identifier1, identifier2);
+        testTransaction2.addInstanceIdentifiers(identifier1, identifier2);
 
         final CachingReadWriteTx cachingReadWriteTx1 = new CachingReadWriteTx(testTransaction1);
         final CachingReadWriteTx cachingReadWriteTx2 = new CachingReadWriteTx(testTransaction2);
@@ -75,11 +85,6 @@ public class RollbackImplTest {
             f2.checkedGet();
             f3.checkedGet();
             f4.checkedGet();
-
-            Assert.assertEquals("can't put the data into the identifier1 of testTransaction1", 1,testTransaction1.getTxDataSizeByIid(identifier1));
-            Assert.assertEquals("can't put the data into the identifier2 of testTransaction1", 1,testTransaction1.getTxDataSizeByIid(identifier2));
-            Assert.assertEquals("can't put the data into the identifier1 of testTransaction2", 1,testTransaction2.getTxDataSizeByIid(identifier1));
-            Assert.assertEquals("can't put the data into the identifier2 of testTransaction2", 1,testTransaction2.getTxDataSizeByIid(identifier2));
         }catch (Exception e)
         {
             fail("get the unexpected exception from the asyncPut");
@@ -126,14 +131,16 @@ public class RollbackImplTest {
     }
 
      /**
-      *put data in node1
+      * test rollback method, rollback fail case with write exception case
+      * put data in identifier1
       *invoke rollback
       *delete exception occurs the rollback fail
       *get DTx.RollbackFailedException
       */
     @Test
-    public void testRollbackFailWithDeleteException() {
+    public void testRollbackFailWithWriteException() {
         DTXTestTransaction testTransaction = new DTXTestTransaction();
+        testTransaction.addInstanceIdentifiers(identifier1);
         CachingReadWriteTx cachingReadWriteTx = new CachingReadWriteTx(testTransaction);
 
         CheckedFuture<Void, DTxException> f = cachingReadWriteTx.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1,new TestData1());
@@ -166,14 +173,16 @@ public class RollbackImplTest {
     }
 
     /**
-     *put data in node1 and node2
-     *invoke rollback
-     *submit exception occurs and rollback fail
-     *get DTxException.RollbackFailedException exception
+     * test rollback method, rollback fail with submit exception case
+     * put data in identifier1
+     * invoke rollback
+     * submit exception occurs and rollback fail
+     * get DTxException.RollbackFailedException exception
      */
     @Test
     public void testRollbackFailWithSubmitException() {
         DTXTestTransaction testTransaction = new DTXTestTransaction();
+        testTransaction.addInstanceIdentifiers(identifier1);
         CachingReadWriteTx cachingReadWriteTx = new CachingReadWriteTx(testTransaction);
 
         CheckedFuture<Void, DTxException> f = cachingReadWriteTx.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
