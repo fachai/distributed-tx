@@ -37,24 +37,24 @@ public class DTXTestTransaction implements ReadWriteTransaction {
 
     private Map<InstanceIdentifier<?>,ConcurrentLinkedDeque<DataObject>> txDataMap = new ConcurrentHashMap<>();
 
-    public void setReadExceptionByIid(InstanceIdentifier<?> instanceIdentifier, boolean ept){
-        this.readExceptionMap.put(instanceIdentifier, ept);
+    public void setReadExceptionByIid(InstanceIdentifier<?> instanceIdentifier, boolean exception){
+        this.readExceptionMap.put(instanceIdentifier, exception);
     }
-    public void setPutExceptionByIid(InstanceIdentifier<?> instanceIdentifier, boolean ept)
+    public void setPutExceptionByIid(InstanceIdentifier<?> instanceIdentifier, boolean exception)
     {
-        this.putExceptionMap.put(instanceIdentifier, ept);
+        this.putExceptionMap.put(instanceIdentifier, exception);
     }
-    public void setMergeExceptionByIid(InstanceIdentifier<?> instanceIdentifier, boolean ept)
+    public void setMergeExceptionByIid(InstanceIdentifier<?> instanceIdentifier, boolean exception)
     {
-        this.mergeExceptionMap.put(instanceIdentifier, ept);
+        this.mergeExceptionMap.put(instanceIdentifier, exception);
     }
-    public void setDeleteExceptionByIid(InstanceIdentifier<?> instanceIdentifier, boolean ept)
+    public void setDeleteExceptionByIid(InstanceIdentifier<?> instanceIdentifier, boolean exception)
     {
-        this.deleteExceptionMap.put(instanceIdentifier, ept);
+        this.deleteExceptionMap.put(instanceIdentifier, exception);
     }
-    public void setSubmitException( boolean ept)
+    public void setSubmitException( boolean exception)
     {
-        this.submitException = ept;
+        this.submitException = exception;
     }
 
     public void addInstanceIdentifiers(InstanceIdentifier<?>... iids){
@@ -66,19 +66,18 @@ public class DTXTestTransaction implements ReadWriteTransaction {
             this.txDataMap.put(iid, new ConcurrentLinkedDeque<DataObject>());
         }
     }
-
-
+    
     /**
-     * get the data size of the specific data IID
+     * Get the size of data with the specific data IID
      * @param instanceIdentifier the specific data IID
-     * @return size of data for the specific IID
+     * @return size of data
      */
     public int getTxDataSizeByIid(InstanceIdentifier<?> instanceIdentifier) {
         return this.txDataMap.get(instanceIdentifier).size();
     }
 
     /**
-     * create the data object for the specific data IID
+     * Create the data object with the specific data IID
      * @param instanceIdentifier the specific IID
      */
     public void createObjForIdentifier(InstanceIdentifier<?> instanceIdentifier)
@@ -105,11 +104,10 @@ public class DTXTestTransaction implements ReadWriteTransaction {
                     e.printStackTrace();
                 }
 
-                if (!readExceptionMap.get(instanceIdentifier)){
+                boolean readException = getAndResetExceptionWithInstanceIdentifier(readExceptionMap, instanceIdentifier);
+                if (readException == false){
                     retFuture.set(retOpt);
                 }else {
-                    //ensure the read exception for the IID just occur once
-                    setReadExceptionByIid(instanceIdentifier,false);
                     retFuture.setException(new Throwable("read error"));
                 }
                 retFuture.notifyAll();
@@ -122,7 +120,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
             @Nullable
             @Override
             public ReadFailedException apply(@Nullable Exception e) {
-                return new ReadFailedException("Read failed", e);
+                return new ReadFailedException("read failed", e);
             }
         };
 
@@ -131,50 +129,37 @@ public class DTXTestTransaction implements ReadWriteTransaction {
 
     @Override
     public <T extends DataObject> void put(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t) {
-        if(!putExceptionMap.get(instanceIdentifier)) {
+        boolean putException = getAndResetExceptionWithInstanceIdentifier(putExceptionMap, instanceIdentifier);
+        if(putException == false) {
                txDataMap.get(instanceIdentifier).clear();
                txDataMap.get(instanceIdentifier).add(t);
-        }
-        else {
-           setPutExceptionByIid(instanceIdentifier, false);
-           throw new RuntimeException(" put exception");
+        } else {
+           throw new RuntimeException("put exception");
        }
     }
 
+    @Deprecated
     @Override
     public <T extends DataObject> void put(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, boolean b) {
-        if(!putExceptionMap.get(instanceIdentifier)) {
-                txDataMap.get(instanceIdentifier).clear();
-                txDataMap.get(instanceIdentifier).add(t);
-        }
-        else {
-            setPutExceptionByIid(instanceIdentifier,false);
-            throw new RuntimeException("put exception");
-        }
+        throw new UnsupportedOperationException("Unimplemented");
     }
 
     @Override
     public <T extends DataObject> void merge(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t) {
-        if(!mergeExceptionMap.get(instanceIdentifier)) {
+        boolean exception = getAndResetExceptionWithInstanceIdentifier(mergeExceptionMap, instanceIdentifier);
+        if(exception == false) {
                 txDataMap.get(instanceIdentifier).clear();
                 txDataMap.get(instanceIdentifier).add(t);
         }
         else {
-            setMergeExceptionByIid(instanceIdentifier,false);
-            throw new RuntimeException(" merge exception");
+            throw new RuntimeException("merge exception");
         }
     }
 
+    @Deprecated
     @Override
     public <T extends DataObject> void merge(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, boolean b) {
-        if(!mergeExceptionMap.get(instanceIdentifier)) {
-                txDataMap.get(instanceIdentifier).clear();
-                txDataMap.get(instanceIdentifier).add(t);
-        }
-        else {
-            setMergeExceptionByIid(instanceIdentifier,false);
-            throw new RuntimeException("merge exception");
-        }
+        throw new UnsupportedOperationException("Unimplemented");
     }
 
     @Override
@@ -184,13 +169,12 @@ public class DTXTestTransaction implements ReadWriteTransaction {
 
     @Override
     public void delete(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<?> instanceIdentifier) {
-        if(!deleteExceptionMap.get(instanceIdentifier)) {
+        boolean deleteException = getAndResetExceptionWithInstanceIdentifier(deleteExceptionMap, instanceIdentifier);
+        if(deleteException == false) {
             if (txDataMap.get(instanceIdentifier).size() > 0)
                 txDataMap.get(instanceIdentifier).clear();
         }
         else {
-            System.out.println("delete error");
-            setDeleteExceptionByIid(instanceIdentifier,false);
             throw new RuntimeException("delete exception");
         }
     }
@@ -203,7 +187,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
             @Override
             public void run() {
                 try {
-                    Thread.sleep(5);
+                    Thread.sleep(delayTime);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -234,6 +218,14 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     @Override
     public ListenableFuture<RpcResult<TransactionStatus>> commit() {
         return null;
+    }
+
+    public boolean getAndResetExceptionWithInstanceIdentifier(Map<InstanceIdentifier<?>, Boolean> exceptionMap, InstanceIdentifier<?> iid){
+        synchronized (this){
+            boolean exception = exceptionMap.get(iid);
+            exceptionMap.put(iid, false);
+            return exception;
+        }
     }
 
     @Override
