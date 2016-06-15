@@ -162,23 +162,19 @@ public class DistributedTxProviderTest {
     }
 
     /**
-     * two thread try to get DTx from the DTxProvider
-     * but they have some nodes in common
-     * one of the threads will get the exception
+     * Test netTx(). Two threads get DTx instances from DTxProvider
      */
     @Test
-    public void testNewTx()
-    {
-          threadPool = Executors.newFixedThreadPool(2);
+    public void testNewTx() {
+        int expectedExceptionOccurNum = 1;
+        threadPool = Executors.newFixedThreadPool(2);
           threadPool.execute(new Task1());
           threadPool.execute(new Task2());
           threadPool.shutdown();
-          while(!threadPool.isTerminated())
-          {
+          while(!threadPool.isTerminated()) {
               Thread.yield();
           }
-          int expectedExceptionOccurNum = 1;
-          Assert.assertEquals("number of exception is wrong", expectedExceptionOccurNum, exceptionOccurNum);
+          Assert.assertEquals("Number of exception is wrong", expectedExceptionOccurNum, exceptionOccurNum);
     }
 
     @Test

@@ -66,7 +66,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
             this.txDataMap.put(iid, new ConcurrentLinkedDeque<DataObject>());
         }
     }
-    
+
     /**
      * Get the size of data with the specific data IID
      * @param instanceIdentifier the specific data IID

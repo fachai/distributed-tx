@@ -59,17 +59,16 @@ public class RollbackImplTest {
     }
 
     /**
-     * test rollback method, rollback succeed
-     * put data in identifier1 and identifier2, after that invoking rollback
-     * rollback succeed
-     * no data in all the data IIDs
+     * Test rollback() with successful rollback
      */
     @Test
     public void testRollBack() {
+        int  expectedDataNumInNode1Identifier1 = 0, expectedDataNumInNode1Identifier2 = 0, expectedDataNumInNode2Identifier1 = 0, expectedDataNumInNode2Identifier2 = 0;
         final DTXTestTransaction testTransaction1 = new DTXTestTransaction();
         final DTXTestTransaction testTransaction2 = new DTXTestTransaction();
         testTransaction1.addInstanceIdentifiers(identifier1, identifier2);
         testTransaction2.addInstanceIdentifiers(identifier1, identifier2);
+
 
         final CachingReadWriteTx cachingReadWriteTx1 = new CachingReadWriteTx(testTransaction1);
         final CachingReadWriteTx cachingReadWriteTx2 = new CachingReadWriteTx(testTransaction2);
@@ -79,15 +78,13 @@ public class RollbackImplTest {
         CheckedFuture<Void, DTxException> f3 = cachingReadWriteTx2.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
         CheckedFuture<Void, DTxException> f4 = cachingReadWriteTx2.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier2, new TestData2());
 
-        try
-        {
+        try {
             f1.checkedGet();
             f2.checkedGet();
             f3.checkedGet();
             f4.checkedGet();
-        }catch (Exception e)
-        {
-            fail("get the unexpected exception from the asyncPut");
+        }catch (Exception e) {
+            fail("Get exception");
         }
 
         Set<InstanceIdentifier<?>> s = Sets.newHashSet(node1, node2);
@@ -112,30 +109,20 @@ public class RollbackImplTest {
         RollbackImpl testRollBack = new RollbackImpl();
         CheckedFuture<Void, DTxException.RollbackFailedException> rollBackFut = testRollBack.rollback(perNodeCaches, perNodeRollbackTxs);
 
-        try
-        {
+        try {
            rollBackFut.checkedGet();
-        }catch (Exception e)
-        {
-           fail("get the unexpected exception from the rollback method");
+        }catch (Exception e) {
+           fail("Get rollback exception");
         }
 
-        int  expectedDataNumInNode1Identifier1 = 0,
-             expectedDataNumInNode1Identifier2 = 0,
-             expectedDataNumInNode2Identifier1 = 0,
-             expectedDataNumInNode2Identifier2 = 0;
-        Assert.assertEquals("size of identifier1 data in transaction1 is wrong", expectedDataNumInNode1Identifier1,testTransaction1.getTxDataSizeByIid(identifier1));
-        Assert.assertEquals("size of identifier2 data in transaction1 is wrong", expectedDataNumInNode1Identifier2,testTransaction1.getTxDataSizeByIid(identifier2));
-        Assert.assertEquals("size of identifier1 data in transaction2 is wrong", expectedDataNumInNode2Identifier1,testTransaction2.getTxDataSizeByIid(identifier1));
-        Assert.assertEquals("size of identifier2 data in transaction2 is wrong", expectedDataNumInNode2Identifier2,testTransaction2.getTxDataSizeByIid(identifier2));
+        Assert.assertEquals("Data size in identifier1 of tx1 is wrong", expectedDataNumInNode1Identifier1,testTransaction1.getTxDataSizeByIid(identifier1));
+        Assert.assertEquals("Data size in identifier2 of tx1 is wrong", expectedDataNumInNode1Identifier2,testTransaction1.getTxDataSizeByIid(identifier2));
+        Assert.assertEquals("Data size in identifier1 of tx2 is wrong", expectedDataNumInNode2Identifier1,testTransaction2.getTxDataSizeByIid(identifier1));
+        Assert.assertEquals("Data size in identifier2 of tx2 is wrong", expectedDataNumInNode2Identifier2,testTransaction2.getTxDataSizeByIid(identifier2));
     }
 
      /**
-      * test rollback method, rollback fail case with write exception case
-      * put data in identifier1
-      *invoke rollback
-      *delete exception occurs the rollback fail
-      *get DTx.RollbackFailedException
+      * test rollback(). Rollback fail with write exception
       */
     @Test
     public void testRollbackFailWithWriteException() {
@@ -144,13 +131,10 @@ public class RollbackImplTest {
         CachingReadWriteTx cachingReadWriteTx = new CachingReadWriteTx(testTransaction);
 
         CheckedFuture<Void, DTxException> f = cachingReadWriteTx.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1,new TestData1());
-        try
-        {
+        try {
             f.checkedGet();
-            Assert.assertEquals("can't put the data into the test transaction", 1, testTransaction.getTxDataSizeByIid(identifier1));
-        }catch (Exception e)
-        {
-            fail("get unexpected exception from the AsyncPut");
+        }catch (Exception e) {
+            fail("Get exception");
         }
 
         Map<InstanceIdentifier<?>, CachingReadWriteTx> perNodeCaches = Maps.newHashMap();
@@ -165,19 +149,14 @@ public class RollbackImplTest {
 
         try{
             rollbackFuture.checkedGet();
-            fail("can't get the exception from the failed rollback");
-        }catch (Exception e)
-        {
-            Assert.assertTrue("type of exception is wrong", e instanceof DTxException.RollbackFailedException);
+            fail("Can't get rollback exception");
+        }catch (Exception e) {
+            Assert.assertTrue("Can't get RollbackFailedException", e instanceof DTxException.RollbackFailedException);
         }
     }
 
     /**
-     * test rollback method, rollback fail with submit exception case
-     * put data in identifier1
-     * invoke rollback
-     * submit exception occurs and rollback fail
-     * get DTxException.RollbackFailedException exception
+     * test rollback(). Rollback fail fro submit exception
      */
     @Test
     public void testRollbackFailWithSubmitException() {
@@ -186,13 +165,10 @@ public class RollbackImplTest {
         CachingReadWriteTx cachingReadWriteTx = new CachingReadWriteTx(testTransaction);
 
         CheckedFuture<Void, DTxException> f = cachingReadWriteTx.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
-        try
-        {
+        try {
             f.checkedGet();
-            Assert.assertEquals("can't put the data into the test transaction", 1, testTransaction.getTxDataSizeByIid(identifier1));
-        }catch (Exception e)
-        {
-            fail("get unexpected exception from the AsyncPut");
+        }catch (Exception e) {
+            fail("Get exception");
         }
 
         Map<InstanceIdentifier<?>, CachingReadWriteTx> perNodeCaches = Maps.newHashMap();
@@ -207,10 +183,9 @@ public class RollbackImplTest {
 
         try{
             rollbackFuture.checkedGet();
-            fail("can't get the exception from the failed rollback");
-        }catch (Exception e)
-        {
-            Assert.assertTrue("type of exception is wrong", e instanceof DTxException.RollbackFailedException);
+            fail("Can't get the rollback exception");
+        }catch (Exception e) {
+            Assert.assertTrue("Can't get RollbackFailedException", e instanceof DTxException.RollbackFailedException);
         }
     }
 }
