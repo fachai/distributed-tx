@@ -156,7 +156,7 @@ public class RollbackImplTest {
     }
 
     /**
-     * test rollback(). Rollback fail fro submit exception
+     * test rollback(). Rollback fail for submit exception
      */
     @Test
     public void testRollbackFailWithSubmitException() {

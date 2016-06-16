@@ -52,7 +52,7 @@ public class CachingReadWriteTxTest {
             readData = readResult.checkedGet();
         }catch (Exception e)
         {
-            fail("Get exception from read()");
+            fail("Get unexpected exception from read()");
         }
 
         Assert.assertTrue("Can't read from the transaction", readData.isPresent());
@@ -93,7 +93,7 @@ public class CachingReadWriteTxTest {
                 cf.checkedGet();
             }catch (Exception e)
             {
-                fail("Get exception from asyncPut()");
+                fail("Get unexpected exception from asyncPut()");
             }
         }
 
@@ -102,7 +102,7 @@ public class CachingReadWriteTxTest {
     }
 
     /**
-     * Test asyncPut() with failing tx provider read()
+     * Test asyncPut() with failed tx provider read()
      */
     @Test
     public void testAsyncPutWithNonExistingObjReadFail() {
@@ -125,7 +125,7 @@ public class CachingReadWriteTxTest {
     }
 
     /**
-     * Test asyncPut() with failing tx provider put()
+     * Test asyncPut() with failed tx provider put()
      */
     @Test
     public void testAsyncPutWithNonExistingObjPutFail() {
@@ -162,7 +162,7 @@ public class CachingReadWriteTxTest {
                 cf.checkedGet();
             }catch (Exception e)
             {
-                fail("Get exception from asyncMerge()");
+                fail("Get unexpected exception from asyncMerge()");
             }
         }
 
@@ -171,7 +171,7 @@ public class CachingReadWriteTxTest {
     }
 
     /**
-     * Test asyncMerge() with failing tx provider read()
+     * Test asyncMerge() with failed tx provider read()
      */
     @Test
     public void testAsyncMergeWithNonExistingObjReadFail() {
@@ -198,7 +198,7 @@ public class CachingReadWriteTxTest {
     }
 
     /**
-     * Test asyncMerge() with failing tx provider merge()
+     * Test asyncMerge() with failed tx provider merge()
      */
     @Test
     public void testAsyncMergeWithNonExistingObjMergeFail() {
@@ -237,7 +237,7 @@ public class CachingReadWriteTxTest {
            f.checkedGet();
         }catch (Exception e)
         {
-            fail("Get exception from asyncDelete()");
+            fail("Get unexpected exception from asyncDelete()");
         }
 
         Assert.assertEquals("Cache size is wrong", expectedCacheDataSize, cacheRWTx.getSizeOfCache());
@@ -245,7 +245,7 @@ public class CachingReadWriteTxTest {
     }
 
     /**
-     * Test asyncDelete() with failing tx provider read()
+     * Test asyncDelete() with failed tx provider read()
      */
     @Test
     public void testAsyncDeleteWithExistingObjReadFail() {
@@ -268,7 +268,7 @@ public class CachingReadWriteTxTest {
     }
 
     /**
-     * Test asyncDelete() with failing tx provider delete()
+     * Test asyncDelete() with failed tx provider delete()
      */
     @Test
     public void testAsyncDeleteWithExistingObjDeleteFail() {
@@ -299,12 +299,12 @@ public class CachingReadWriteTxTest {
         try {
             cf.checkedGet();
         } catch (Exception e) {
-            fail("Get exception from submit()");
+            fail("Get unexpected exception from submit()");
         }
     }
 
     /**
-     * Test submit() with failing tx provider submit()
+     * Test submit() with failed tx provider submit()
      */
     @Test
     public void testSubmitFail() {
