@@ -24,30 +24,23 @@ import java.util.List;
 public class DataBrokerDataStoreWriter extends AbstractDataWriter{
     private DataBroker dataBroker;
 
-    public DataBrokerDataStoreWriter(BenchmarkTestInput input, DataBroker db)
-    {
+    public DataBrokerDataStoreWriter(BenchmarkTestInput input, DataBroker db) {
         super(input);
         this.dataBroker = db;
     }
     @Override
     public void writeData() {
-        long putsPerTx = input.getPutsPerTx();
+        int putsPerTx = input.getPutsPerTx();
         DataStoreListBuilder dataStoreListBuilder = new DataStoreListBuilder(dataBroker, input.getOuterList(), input.getInnerList());
 
-        //when the operation is delete we should put the test data first
-        if (input.getOperation() == OperationType.DELETE)
-        {
-            boolean buildTestData = dataStoreListBuilder.buildTestInnerList();//build the test data for the operation
-            if (!buildTestData)
-            {
-                return;
-            }
+        if (input.getOperation() == OperationType.DELETE) {
+            dataStoreListBuilder.buildTestInnerList();
         }
 
         WriteTransaction tx = dataBroker.newWriteOnlyTransaction();
         List<OuterList> outerLists = dataStoreListBuilder.buildOuterList();
+        int counter = 0;
         startTime = System.nanoTime();
-        long counter = 0;
         for ( OuterList outerList : outerLists ) {
             for (InnerList innerList : outerList.getInnerList()) {
                 InstanceIdentifier<InnerList> innerIid = InstanceIdentifier.create(DatastoreTestData.class)
@@ -67,8 +60,7 @@ public class DataBrokerDataStoreWriter extends AbstractDataWriter{
                     try{
                         submitFut.checkedGet();
                         txSucceed++;
-                    }catch (Exception e)
-                    {
+                    }catch (Exception e) {
                         txError++;
                     }
                     counter = 0;
@@ -78,15 +70,12 @@ public class DataBrokerDataStoreWriter extends AbstractDataWriter{
         }
         CheckedFuture<Void, TransactionCommitFailedException> restSubmitFuture = tx.submit();
 
-        try
-        {
+        try {
             restSubmitFuture.checkedGet();
             txSucceed++;
-            endTime = System.nanoTime();
-
-        }catch (Exception e)
-        {
+        }catch (Exception e) {
             txError++;
         }
+        endTime = System.nanoTime();
     }
 }

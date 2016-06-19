@@ -25,8 +25,6 @@ import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distribu
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.OuterList;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.datastore.test.data.outer.list.InnerList;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,7 +34,6 @@ import java.util.Set;
 public class DtxDataStoreAsyncWriter extends AbstractDataWriter {
     private DTx dtx;
     private DTxProvider dTxProvider;
-    private static final Logger LOG = LoggerFactory.getLogger(DtxDataStoreAsyncWriter.class);
     private Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap;
     private DataBroker dataBroker;
 
@@ -49,21 +46,15 @@ public class DtxDataStoreAsyncWriter extends AbstractDataWriter {
     }
     @Override
     public void writeData() {
-        long putsPerTx = input.getPutsPerTx();
+        int putsPerTx = input.getPutsPerTx();
         DataStoreListBuilder dataStoreListBuilder = new DataStoreListBuilder(dataBroker, input.getOuterList(), input.getInnerList());
 
-        //when the operation is delete we should build the test data first
-        if (input.getOperation() == OperationType.DELETE)
-        {
-            boolean buildTestData = dataStoreListBuilder.buildTestInnerList();//build the test data for the operation
-            if (!buildTestData)
-            {
-                return;
-            }
+        if (input.getOperation() == OperationType.DELETE) {
+            dataStoreListBuilder.buildTestInnerList();
         }
 
         InstanceIdentifier<DatastoreTestData> nodeId = InstanceIdentifier.create(DatastoreTestData.class);
-        List<ListenableFuture<Void>> putFutures = new ArrayList<ListenableFuture<Void>>((int) putsPerTx); //store all the put futures
+        List<ListenableFuture<Void>> putFutures = new ArrayList<ListenableFuture<Void>>((int) putsPerTx);
 
         int counter = 0;
         List<OuterList> outerLists = dataStoreListBuilder.buildOuterList();
@@ -86,9 +77,8 @@ public class DtxDataStoreAsyncWriter extends AbstractDataWriter {
                 putFutures.add(writeFuture);
                 counter++;
 
-                if (counter == putsPerTx)
-                {
-                    //aggregate all the put futures into a listenable future, this future can make sure all the Async write has finish caching the data
+                if (counter == putsPerTx) {
+                    //aggregate all the put futures into a listenable future which can ensure all the Async write has finished
                     ListenableFuture<Void> aggregatePutFuture = Futures.transform(Futures.allAsList(putFutures), new Function<List<Void>, Void>() {
                         @Nullable
                         @Override
@@ -103,25 +93,21 @@ public class DtxDataStoreAsyncWriter extends AbstractDataWriter {
                         try{
                             submitFuture.checkedGet();
                             txSucceed++;
-                        }catch (TransactionCommitFailedException e)
-                        {
-                            LOG.info("DTX Async submit failed");
+                        }catch (TransactionCommitFailedException e) {
                             txError++;
                         }
-                    }catch (Exception e)
-                    {
-                        LOG.info("DTX Async put failed");
+                    }catch (Exception e) {
                         txError++;
                         dtx.cancel();
                     }
 
                     counter = 0;
-                    dtx = dTxProvider.newTx(nodesMap); //after each submit we should get new Dtx
-                    putFutures = new ArrayList<ListenableFuture<Void>>((int) putsPerTx);
+                    dtx = dTxProvider.newTx(nodesMap);
+                    putFutures = new ArrayList<ListenableFuture<Void>>(putsPerTx);
                 }
             }
         }
-        //submit the outstanding transactions
+
         ListenableFuture<Void> aggregatePutFuture = Futures.transform(Futures.allAsList(putFutures), new Function<List<Void>, Void>() {
             @Nullable
             @Override
@@ -133,18 +119,15 @@ public class DtxDataStoreAsyncWriter extends AbstractDataWriter {
         try{
             aggregatePutFuture.get();
             CheckedFuture<Void, TransactionCommitFailedException> restSubmitFuture = dtx.submit();
-            try
-            {
+            try {
                 restSubmitFuture.checkedGet();
                 txSucceed++;
-                endTime = System.nanoTime();
-            }catch (Exception e)
-            {
+            }catch (Exception e) {
                 txError ++;
             }
-        }catch (Exception e)
-        {
+        }catch (Exception e) {
             txError ++;
         }
+        endTime = System.nanoTime();
     }
 }

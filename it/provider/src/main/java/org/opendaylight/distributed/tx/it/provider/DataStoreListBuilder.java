@@ -28,20 +28,18 @@ public class DataStoreListBuilder {
     int outerElements;
     int innerElements;
 
-    public DataStoreListBuilder(DataBroker dataBroker, int outerElements, int innerElements)
-    {
+    public DataStoreListBuilder(DataBroker dataBroker, int outerElements, int innerElements) {
         this.dataBroker = dataBroker;
         this.outerElements = outerElements;
         this.innerElements = innerElements;
     }
     /**
-     * this method is used to build the test data for the delete operation
+     * this method is used to build the test data for delete operation
      */
     public boolean buildTestInnerList() {
         List<OuterList> outerLists = buildOuterList();
         WriteTransaction transaction = dataBroker.newWriteOnlyTransaction();
-        for ( OuterList outerList : outerLists)
-        {
+        for ( OuterList outerList : outerLists) {
             InstanceIdentifier<OuterList> outerListIid = InstanceIdentifier.create(DatastoreTestData.class)
                     .child(OuterList.class, outerList.getKey());
 
@@ -50,8 +48,7 @@ public class DataStoreListBuilder {
 
             try{
                 submitFuture.checkedGet();
-            }catch (Exception e)
-            {
+            }catch (Exception e) {
                 return false;
             }
             transaction = dataBroker.newWriteOnlyTransaction();

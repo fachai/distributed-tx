@@ -20,7 +20,7 @@ public abstract class AbstractDataWriter {
     }
 
     /*
-     *writing data into the data store or the netconf devices
+     * writing data into the data store or the netconf devices
      */
     public abstract void writeData();
 

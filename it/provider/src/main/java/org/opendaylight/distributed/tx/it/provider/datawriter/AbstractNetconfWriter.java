@@ -27,13 +27,13 @@ import org.opendaylight.yang.gen.v1.urn.tbd.params.xml.ns.yang.network.topology.
 import org.opendaylight.yang.gen.v1.urn.tbd.params.xml.ns.yang.network.topology.rev131021.network.topology.TopologyKey;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.opendaylight.yangtools.yang.binding.KeyedInstanceIdentifier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import java.util.*;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Set;
 
 public abstract class AbstractNetconfWriter extends AbstractDataWriter {
     DataBroker xrNodeBroker = null;
-    private static final Logger LOG = LoggerFactory.getLogger(AbstractNetconfWriter.class);
     Set<NodeId> nodeIdSet;
     Map<NodeId, List<InterfaceName>> nodeIfList = new HashMap<>();
     public static final InstanceIdentifier<Topology> NETCONF_TOPO_IID = InstanceIdentifier
@@ -49,15 +49,14 @@ public abstract class AbstractNetconfWriter extends AbstractDataWriter {
         this.nodeIfList = nodeiflist;
     }
 
-    public boolean configInterface() {
+    public void configInterface() {
         WriteTransaction xrNodeWriteTx = null;
         for (int i = 1; i <= input.getLoop(); i++) {
             xrNodeWriteTx = xrNodeBroker.newWriteOnlyTransaction();
-            LOG.info("new TX"+i);
             InterfaceName subIfname = new InterfaceName("GigabitEthernet0/0/0/1." + i);
-            final KeyedInstanceIdentifier<InterfaceConfiguration, InterfaceConfigurationKey> specificInterfaceCfgIid
+            KeyedInstanceIdentifier<InterfaceConfiguration, InterfaceConfigurationKey> specificInterfaceCfgIid
                     = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(new InterfaceActive("act"), subIfname));
-            final InterfaceConfigurationBuilder interfaceConfigurationBuilder = new InterfaceConfigurationBuilder();
+            InterfaceConfigurationBuilder interfaceConfigurationBuilder = new InterfaceConfigurationBuilder();
             interfaceConfigurationBuilder.setInterfaceName(subIfname);
             interfaceConfigurationBuilder.setDescription("Test description" + "-" + input.getOperation());
             interfaceConfigurationBuilder.setActive(new InterfaceActive("act"));
@@ -70,6 +69,5 @@ public abstract class AbstractNetconfWriter extends AbstractDataWriter {
                 continue;
             }
         }
-        return true;
     }
 }

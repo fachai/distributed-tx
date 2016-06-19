@@ -32,8 +32,7 @@ public class DtxDataStoreSyncWriter extends AbstractDataWriter {
     private Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap;
     private DataBroker dataBroker;
 
-    public DtxDataStoreSyncWriter(BenchmarkTestInput input, DTxProvider dTxProvider, DataBroker dataBroker, Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap)
-    {
+    public DtxDataStoreSyncWriter(BenchmarkTestInput input, DTxProvider dTxProvider, DataBroker dataBroker, Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap) {
         super(input);
         this.dTxProvider = dTxProvider;
         this.nodesMap = nodesMap;
@@ -44,22 +43,18 @@ public class DtxDataStoreSyncWriter extends AbstractDataWriter {
     public void writeData() {
         long putsPerTx = input.getPutsPerTx();
         DataStoreListBuilder dataStoreListBuilder = new DataStoreListBuilder(dataBroker, input.getOuterList(), input.getInnerList());
-        //when the operation is delete we should build the test data first
+
         if (input.getOperation() == OperationType.DELETE)
         {
-            boolean buildTestData = dataStoreListBuilder.buildTestInnerList();//build the test data for the operation
-            if (!buildTestData)
-            {
-                return;
-            }
+            dataStoreListBuilder.buildTestInnerList();
         }
 
         InstanceIdentifier<DatastoreTestData> nodeId = InstanceIdentifier.create(DatastoreTestData.class);
 
         int counter = 0;
         List<OuterList> outerLists = dataStoreListBuilder.buildOuterList();
-        startTime = System.nanoTime();
         dtx = dTxProvider.newTx(nodesMap);
+        startTime = System.nanoTime();
         for ( OuterList outerList : outerLists ) {
             for (InnerList innerList : outerList.getInnerList() ) {
                 InstanceIdentifier<InnerList> innerIid = InstanceIdentifier.create(DatastoreTestData.class)
@@ -69,10 +64,8 @@ public class DtxDataStoreSyncWriter extends AbstractDataWriter {
                 CheckedFuture<Void, DTxException> writeFuture ;
                 if (input.getOperation() == OperationType.PUT) {
                     writeFuture = dtx.putAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION, innerIid, innerList, nodeId);
-
                 }else if (input.getOperation() == OperationType.MERGE){
                     writeFuture = dtx.mergeAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION, innerIid, innerList, nodeId);
-
                 }else{
                     writeFuture = dtx.deleteAndRollbackOnFailure(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, LogicalDatastoreType.CONFIGURATION, innerIid, nodeId);
                 }
@@ -80,22 +73,19 @@ public class DtxDataStoreSyncWriter extends AbstractDataWriter {
 
                 try{
                     writeFuture.checkedGet();
-                }catch (Exception e)
-                {
+                }catch (Exception e) {
                     txError++;
                     counter = 0;
                     dtx = dTxProvider.newTx(nodesMap);
                     continue;
                 }
 
-                if (counter == putsPerTx)
-                {
+                if (counter == putsPerTx) {
                     CheckedFuture<Void, TransactionCommitFailedException> submitFuture = dtx.submit();
                     try{
                         submitFuture.checkedGet();
                         txSucceed++;
-                    }catch (TransactionCommitFailedException e)
-                    {
+                    }catch (TransactionCommitFailedException e) {
                         txError++;
                     }
                     counter = 0;
@@ -103,16 +93,14 @@ public class DtxDataStoreSyncWriter extends AbstractDataWriter {
                 }
             }
         }
-        //submit the outstanding transactions
+
         CheckedFuture<Void, TransactionCommitFailedException> restSubmitFuture = dtx.submit();
-        try
-        {
+        try {
             restSubmitFuture.checkedGet();
-            endTime = System.nanoTime();
             txSucceed++;
-        }catch (Exception e)
-        {
+        }catch (Exception e) {
             txError++;
         }
+        endTime = System.nanoTime();
     }
 }
