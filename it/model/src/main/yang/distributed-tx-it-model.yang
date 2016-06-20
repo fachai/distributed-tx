@@ -118,6 +118,7 @@ module distributed-tx-it-model{
                       }
                       leaf loop {
                           type int32;
+                          default 1;
                           description
                              "The times of the test";
                       }

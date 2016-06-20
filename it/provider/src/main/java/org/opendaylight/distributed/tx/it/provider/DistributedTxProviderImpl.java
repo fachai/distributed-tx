@@ -471,7 +471,6 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                             try {
                                 submitFuture.checkedGet();
                                 testSucceed = false;
-                                break;
                             } catch (Exception e) {
                                 LOG.info("Get submit exception {}", e.toString());
                             }
@@ -539,8 +538,6 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                     }
                 }
             }
-
-            dsTestStatus.set(TestStatus.ExecStatus.Idle);
         }else {
             LOG.info("DTx datastore normal test begin");
             for (OuterList outerList : outerLists) {
@@ -591,15 +588,10 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                     }
                     if (operation != OperationType.DELETE) {
                         if (!result.isPresent()) {
-                            LOG.info("DTx write data failed");
-                            dsTestStatus.set(TestStatus.ExecStatus.Idle);
-                            return RpcResultBuilder.success(new DatastoreTestOutputBuilder()
-                                    .setStatus(StatusType.FAILED)
-                                    .build()).buildFuture();
+                            testSucceed = false;
                         }
                     } else {
                         if ( result.isPresent()) {
-                            LOG.info("DTx delete data failed");
                             testSucceed = false;
                         }
                     }
@@ -607,14 +599,13 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
             }
         }
         LOG.info("DTx datastore test finish");
+        dsTestStatus.set(TestStatus.ExecStatus.Idle);
         if (testSucceed == true){
-            dsTestStatus.set(TestStatus.ExecStatus.Idle);
             return RpcResultBuilder.success(new DatastoreTestOutputBuilder()
                     .setStatus(StatusType.OK)
                     .build()).buildFuture();
         }
         else {
-            dsTestStatus.set(TestStatus.ExecStatus.Idle);
             return RpcResultBuilder.success(new DatastoreTestOutputBuilder()
                     .setStatus(StatusType.FAILED)
                     .build()).buildFuture();
@@ -762,6 +753,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                         CheckedFuture<Void, TransactionCommitFailedException> submitFuture = dtx.submit();
                         try {
                             submitFuture.checkedGet();
+                            testSucceed = false;
                         } catch (TransactionCommitFailedException e) {
                             LOG.info("Get submit exception {}", e.toString());
                         }
@@ -853,7 +845,6 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
 
                 if (input.getOperation() != OperationType.DELETE) {
                     if (netconfResult.isPresent() || datastoreResult.isPresent()) {
-
                         testSucceed = false;
                     }
                 } else {
@@ -1060,7 +1051,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                                 .build()).buildFuture();
             }
 
-        if (!buildTestInterfaces(xrNodeBroker2, input.getNumberOfTxs())){
+            if (!buildTestInterfaces(xrNodeBroker2, input.getNumberOfTxs())){
                 LOG.info("Can't build test subInterfaces for DTx netconf node2");
                 netConfTestStatus.set(TestStatus.ExecStatus.Idle);
                 return RpcResultBuilder
@@ -1164,7 +1155,6 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                     restSubmitFuture.checkedGet();
                 }catch (Exception e){
                     LOG.info("Outstanding submit failed for {}", e.toString());
-                    testSucceed = false;
                 }
             }
             for (int i = 1; i <= input.getNumberOfTxs(); i++) {
@@ -1184,12 +1174,10 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                 }
                 if (operation != OperationType.DELETE) {
                     if (netconfResult1.isPresent()) {
-                        LOG.info("DTx Rollback failed");
                         testSucceed = false;
                     }
                 } else {
                     if (!netconfResult1.isPresent()) {
-                        LOG.info("DTx Rollback failed");
                         testSucceed = false;
                     }
                 }
