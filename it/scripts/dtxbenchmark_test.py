@@ -1,4 +1,5 @@
 #default host is localhost, use --host [ip] as the python argument to change the host ip
+# example to how to run the script
 
 import argparse
 import requests

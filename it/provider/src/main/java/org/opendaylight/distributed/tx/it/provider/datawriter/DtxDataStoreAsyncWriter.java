@@ -31,11 +31,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Data Writer using distributed-tx API to asynchronously write to datastore
+ */
 public class DtxDataStoreAsyncWriter extends AbstractDataWriter {
     private DTx dtx;
     private DTxProvider dTxProvider;
     private Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap;
     private DataBroker dataBroker;
+    private DataStoreListBuilder dataStoreListBuilder;
 
     public DtxDataStoreAsyncWriter(BenchmarkTestInput input, DTxProvider dTxProvider, DataBroker dataBroker, Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap)
     {
@@ -43,21 +47,25 @@ public class DtxDataStoreAsyncWriter extends AbstractDataWriter {
         this.dTxProvider = dTxProvider;
         this.nodesMap = nodesMap;
         this.dataBroker = dataBroker;
+        dataStoreListBuilder = new DataStoreListBuilder(dataBroker, input.getOuterList(), input.getInnerList());
     }
+
+    /**
+     * Asynchronously write to datastore with distributed-tx API
+     */
     @Override
     public void writeData() {
         int putsPerTx = input.getPutsPerTx();
-        DataStoreListBuilder dataStoreListBuilder = new DataStoreListBuilder(dataBroker, input.getOuterList(), input.getInnerList());
+        int counter = 0;
+
+        InstanceIdentifier<DatastoreTestData> nodeId = InstanceIdentifier.create(DatastoreTestData.class);
+        List<ListenableFuture<Void>> putFutures = new ArrayList<ListenableFuture<Void>>((int) putsPerTx);
+        List<OuterList> outerLists = dataStoreListBuilder.buildOuterList();
 
         if (input.getOperation() == OperationType.DELETE) {
             dataStoreListBuilder.buildTestInnerList();
         }
 
-        InstanceIdentifier<DatastoreTestData> nodeId = InstanceIdentifier.create(DatastoreTestData.class);
-        List<ListenableFuture<Void>> putFutures = new ArrayList<ListenableFuture<Void>>((int) putsPerTx);
-
-        int counter = 0;
-        List<OuterList> outerLists = dataStoreListBuilder.buildOuterList();
         dtx = dTxProvider.newTx(nodesMap);
         startTime = System.nanoTime();
         for ( OuterList outerList : outerLists ) {
@@ -78,7 +86,7 @@ public class DtxDataStoreAsyncWriter extends AbstractDataWriter {
                 counter++;
 
                 if (counter == putsPerTx) {
-                    //aggregate all the put futures into a listenable future which can ensure all the Async write has finished
+                    //Aggregate all the put futures into a listenable future which can ensure all asynchronous writes has been finished
                     ListenableFuture<Void> aggregatePutFuture = Futures.transform(Futures.allAsList(putFutures), new Function<List<Void>, Void>() {
                         @Nullable
                         @Override
@@ -123,10 +131,10 @@ public class DtxDataStoreAsyncWriter extends AbstractDataWriter {
                 restSubmitFuture.checkedGet();
                 txSucceed++;
             }catch (Exception e) {
-                txError ++;
+                txError++;
             }
         }catch (Exception e) {
-            txError ++;
+            txError++;
         }
         endTime = System.nanoTime();
     }

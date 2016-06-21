@@ -27,6 +27,8 @@ import org.opendaylight.yang.gen.v1.urn.tbd.params.xml.ns.yang.network.topology.
 import org.opendaylight.yang.gen.v1.urn.tbd.params.xml.ns.yang.network.topology.rev131021.network.topology.TopologyKey;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.opendaylight.yangtools.yang.binding.KeyedInstanceIdentifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
@@ -41,6 +43,8 @@ public abstract class AbstractNetconfWriter extends AbstractDataWriter {
                     Topology.class, new TopologyKey(new TopologyId(TopologyNetconf.QNAME
                             .getLocalName())));
     InstanceIdentifier<InterfaceConfigurations> netconfIid = InstanceIdentifier.create(InterfaceConfigurations.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractNetconfWriter.class);
+
 
     public AbstractNetconfWriter(BenchmarkTestInput input, DataBroker xrNodeBroker, Set nodeidset, Map<NodeId, List<InterfaceName>> nodeiflist) {
         super(input);
@@ -53,20 +57,23 @@ public abstract class AbstractNetconfWriter extends AbstractDataWriter {
         WriteTransaction xrNodeWriteTx = null;
         for (int i = 1; i <= input.getLoop(); i++) {
             xrNodeWriteTx = xrNodeBroker.newWriteOnlyTransaction();
-            InterfaceName subIfname = new InterfaceName("GigabitEthernet0/0/0/1." + i);
+
+            InterfaceName subIfName = new InterfaceName(Constants.INTERFACE_NAME_PREFIX + i);
             KeyedInstanceIdentifier<InterfaceConfiguration, InterfaceConfigurationKey> specificInterfaceCfgIid
-                    = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(new InterfaceActive("act"), subIfname));
+                    = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(
+                    new InterfaceActive(Constants.INTERFACE_ACTIVE), subIfName));
+
             InterfaceConfigurationBuilder interfaceConfigurationBuilder = new InterfaceConfigurationBuilder();
-            interfaceConfigurationBuilder.setInterfaceName(subIfname);
-            interfaceConfigurationBuilder.setDescription("Test description" + "-" + input.getOperation());
-            interfaceConfigurationBuilder.setActive(new InterfaceActive("act"));
+            interfaceConfigurationBuilder.setInterfaceName(subIfName);
+            interfaceConfigurationBuilder.setActive(new InterfaceActive(Constants.INTERFACE_ACTIVE));
             InterfaceConfiguration config = interfaceConfigurationBuilder.build();
+
             xrNodeWriteTx.put(LogicalDatastoreType.CONFIGURATION, specificInterfaceCfgIid, config);
             CheckedFuture<Void, TransactionCommitFailedException> submitFut = xrNodeWriteTx.submit();
             try {
                 submitFut.checkedGet();
             } catch (TransactionCommitFailedException e) {
-                continue;
+                LOG.trace("Can't build interface {}", subIfName.toString());
             }
         }
     }

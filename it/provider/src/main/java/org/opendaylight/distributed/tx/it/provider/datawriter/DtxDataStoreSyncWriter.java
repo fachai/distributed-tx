@@ -26,33 +26,39 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Data writer using distributed-tx API to synchronously write to datastore
+ */
 public class DtxDataStoreSyncWriter extends AbstractDataWriter {
     private DTx dtx;
     private DTxProvider dTxProvider;
     private Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap;
     private DataBroker dataBroker;
+    private DataStoreListBuilder dataStoreListBuilder;
 
     public DtxDataStoreSyncWriter(BenchmarkTestInput input, DTxProvider dTxProvider, DataBroker dataBroker, Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap) {
         super(input);
         this.dTxProvider = dTxProvider;
         this.nodesMap = nodesMap;
         this.dataBroker = dataBroker;
+        dataStoreListBuilder = new DataStoreListBuilder(dataBroker, input.getOuterList(), input.getInnerList());
     }
 
+    /**
+     * Synchronously write to datastore with distributed-tx API
+     */
     @Override
     public void writeData() {
-        long putsPerTx = input.getPutsPerTx();
-        DataStoreListBuilder dataStoreListBuilder = new DataStoreListBuilder(dataBroker, input.getOuterList(), input.getInnerList());
+        int putsPerTx = input.getPutsPerTx();
+        int counter = 0;
+        List<OuterList> outerLists = dataStoreListBuilder.buildOuterList();
 
-        if (input.getOperation() == OperationType.DELETE)
-        {
+        if (input.getOperation() == OperationType.DELETE) {
             dataStoreListBuilder.buildTestInnerList();
         }
 
         InstanceIdentifier<DatastoreTestData> nodeId = InstanceIdentifier.create(DatastoreTestData.class);
 
-        int counter = 0;
-        List<OuterList> outerLists = dataStoreListBuilder.buildOuterList();
         dtx = dTxProvider.newTx(nodesMap);
         startTime = System.nanoTime();
         for ( OuterList outerList : outerLists ) {

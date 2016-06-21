@@ -59,19 +59,21 @@ public class RollbackImplTest {
     }
 
     /**
-     * Test rollback() with successful rollback
+     * Test successful rollback().
      */
     @Test
     public void testRollBack() {
         int  expectedDataNumInNodeIdentifier = 0;
         final DTXTestTransaction testTransaction1 = new DTXTestTransaction();
         final DTXTestTransaction testTransaction2 = new DTXTestTransaction();
-        testTransaction1.addInstanceIdentifiers(identifier1, identifier2);
-        testTransaction2.addInstanceIdentifiers(identifier1, identifier2);
-
-
         final CachingReadWriteTx cachingReadWriteTx1 = new CachingReadWriteTx(testTransaction1);
         final CachingReadWriteTx cachingReadWriteTx2 = new CachingReadWriteTx(testTransaction2);
+        Set<InstanceIdentifier<?>> s = Sets.newHashSet(node1, node2);
+        Map<InstanceIdentifier<?>, ? extends CachingReadWriteTx> perNodeCaches;
+        Map<InstanceIdentifier<?>, ReadWriteTransaction> perNodeRollbackTxs;
+
+        testTransaction1.addInstanceIdentifiers(identifier1, identifier2);
+        testTransaction2.addInstanceIdentifiers(identifier1, identifier2);
 
         CheckedFuture<Void, DTxException> writeFuture1 = cachingReadWriteTx1.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
         CheckedFuture<Void, DTxException> writeFuture2 = cachingReadWriteTx1.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier2, new TestData2());
@@ -87,8 +89,6 @@ public class RollbackImplTest {
             fail("Caught unexpected exception");
         }
 
-        Set<InstanceIdentifier<?>> s = Sets.newHashSet(node1, node2);
-        Map<InstanceIdentifier<?>, ? extends CachingReadWriteTx> perNodeCaches;
         perNodeCaches = Maps.toMap(s, new Function<InstanceIdentifier<?>, CachingReadWriteTx>() {
             @Nullable
             @Override
@@ -97,7 +97,6 @@ public class RollbackImplTest {
             }
         });
 
-        Map<InstanceIdentifier<?>, ReadWriteTransaction> perNodeRollbackTxs;
         perNodeRollbackTxs = Maps.toMap(s, new Function<InstanceIdentifier<?>, ReadWriteTransaction>() {
             @Nullable
             @Override
@@ -122,7 +121,7 @@ public class RollbackImplTest {
     }
 
      /**
-      * test rollback(). Rollback fail with write exception
+      * Test rollback() with write exception.
       */
     @Test
     public void testRollbackFailWithWriteException() {
@@ -156,13 +155,15 @@ public class RollbackImplTest {
     }
 
     /**
-     * test rollback(). Rollback fail with submit exception
+     * Test rollback() with submit exception
      */
     @Test
     public void testRollbackFailWithSubmitException() {
         DTXTestTransaction testTransaction = new DTXTestTransaction();
         testTransaction.addInstanceIdentifiers(identifier1);
         CachingReadWriteTx cachingReadWriteTx = new CachingReadWriteTx(testTransaction);
+        Map<InstanceIdentifier<?>, CachingReadWriteTx> perNodeCaches = Maps.newHashMap();
+        Map<InstanceIdentifier<?>, ReadWriteTransaction> perNodeRollbackTxs = Maps.newHashMap();
 
         CheckedFuture<Void, DTxException> writeFuture = cachingReadWriteTx.asyncPut(LogicalDatastoreType.OPERATIONAL, identifier1, new TestData1());
         try {
@@ -171,12 +172,8 @@ public class RollbackImplTest {
             fail("Caught unexpected exception");
         }
 
-        Map<InstanceIdentifier<?>, CachingReadWriteTx> perNodeCaches = Maps.newHashMap();
         perNodeCaches.put(node1, cachingReadWriteTx);
-
-        Map<InstanceIdentifier<?>, ReadWriteTransaction> perNodeRollbackTxs = Maps.newHashMap();
         perNodeRollbackTxs.put(node1, testTransaction);
-
         testTransaction.setSubmitException(true);
         RollbackImpl testRollback = new RollbackImpl();
         CheckedFuture<Void, DTxException.RollbackFailedException> rollbackFuture =  testRollback.rollback(perNodeCaches,perNodeRollbackTxs);

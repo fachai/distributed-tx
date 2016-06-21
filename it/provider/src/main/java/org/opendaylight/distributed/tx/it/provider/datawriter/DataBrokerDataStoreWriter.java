@@ -21,25 +21,34 @@ import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distribu
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import java.util.List;
 
+/**
+ * Data writer using MD-SAL datastore transaction provider API to write to datastore
+ */
 public class DataBrokerDataStoreWriter extends AbstractDataWriter{
     private DataBroker dataBroker;
+    private DataStoreListBuilder dataStoreListBuilder;
 
     public DataBrokerDataStoreWriter(BenchmarkTestInput input, DataBroker db) {
         super(input);
         this.dataBroker = db;
+        dataStoreListBuilder = new DataStoreListBuilder(db, input.getOuterList(), input.getInnerList());
     }
+
+    /**
+     * write to datastore with MD-SAL datastore transaction provider API
+     */
     @Override
     public void writeData() {
+        int counter = 0;
         int putsPerTx = input.getPutsPerTx();
-        DataStoreListBuilder dataStoreListBuilder = new DataStoreListBuilder(dataBroker, input.getOuterList(), input.getInnerList());
+        List<OuterList> outerLists = dataStoreListBuilder.buildOuterList();
 
         if (input.getOperation() == OperationType.DELETE) {
             dataStoreListBuilder.buildTestInnerList();
         }
 
         WriteTransaction tx = dataBroker.newWriteOnlyTransaction();
-        List<OuterList> outerLists = dataStoreListBuilder.buildOuterList();
-        int counter = 0;
+
         startTime = System.nanoTime();
         for ( OuterList outerList : outerLists ) {
             for (InnerList innerList : outerList.getInnerList()) {

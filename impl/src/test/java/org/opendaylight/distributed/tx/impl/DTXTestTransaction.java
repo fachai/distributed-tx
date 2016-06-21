@@ -152,7 +152,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
                 txDataMap.get(instanceIdentifier).add(t);
         }
         else {
-            throw new RuntimeException("merge exception");
+            throw new RuntimeException("Merge exception");
         }
     }
 

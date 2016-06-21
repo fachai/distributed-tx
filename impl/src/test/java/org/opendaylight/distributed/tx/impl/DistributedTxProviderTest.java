@@ -131,7 +131,7 @@ public class DistributedTxProviderTest {
             }catch (Exception e)
             {
                 exceptionOccurNum++;
-                Assert.assertTrue("get the wrong kind of exception", e instanceof DTxException.DTxInitializationFailedException);
+                Assert.assertTrue("Get wrong exception", e instanceof DTxException.DTxInitializationFailedException);
             }
         }
     }
@@ -146,13 +146,13 @@ public class DistributedTxProviderTest {
             }catch (Exception e)
             {
                 exceptionOccurNum++;
-                Assert.assertTrue("get the wrong kind of exception", e instanceof DTxException.DTxInitializationFailedException);
+                Assert.assertTrue("Get wrong exception", e instanceof DTxException.DTxInitializationFailedException);
             }
         }
     }
 
     /**
-     * initiate the DTxProvider
+     * Initiate DTxProvider
      */
     @Before
     public void testOnSessionInitiated() {
@@ -162,7 +162,7 @@ public class DistributedTxProviderTest {
     }
 
     /**
-     * Test netTx(). Two threads get DTx instances from DTxProvider
+     * Test the concurrency of newTx().
      */
     @Test
     public void testNewTx() {
@@ -174,15 +174,14 @@ public class DistributedTxProviderTest {
           while(!threadPool.isTerminated()) {
               Thread.yield();
           }
-          Assert.assertEquals("Number of exception is wrong", expectedExceptionOccurNum, exceptionOccurNum);
+          Assert.assertEquals("Should only get one exception", expectedExceptionOccurNum, exceptionOccurNum);
     }
 
     @Test
     public void testClose() throws Exception {
         m.put(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, txProvider);
         DTxProviderImpl provider = new DTxProviderImpl(m);
-        // ensure no exceptions
-        // currently this method is empty
+        // Ensure no exceptions
         provider.close();
     }
 }

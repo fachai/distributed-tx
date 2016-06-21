@@ -12,7 +12,7 @@ import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distribu
 public abstract class AbstractDataWriter {
     long startTime, endTime;
     BenchmarkTestInput input;
-    long txSucceed = 0, txError = 0;
+    int txSucceed = 0, txError = 0;
 
     public AbstractDataWriter(BenchmarkTestInput input)
     {
@@ -20,20 +20,20 @@ public abstract class AbstractDataWriter {
     }
 
     /*
-     * writing data into the data store or the netconf devices
+     * Writing data into the data store or the netconf devices
      */
     public abstract void writeData();
 
     /**
-     * get the number of successful transactions
+     * Get the number of successful transactions
      * @return number of successful transactions
      */
-    public long getTxSucceed(){
+    public int getTxSucceed(){
         return txSucceed;
     }
 
     /**
-     * get executing time
+     * Get executing time
      * @return executing time
      */
     public long getExecTime()

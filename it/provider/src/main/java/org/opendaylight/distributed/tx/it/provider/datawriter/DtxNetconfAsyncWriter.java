@@ -35,6 +35,9 @@ import java.util.Set;
 import java.util.HashSet;
 import java.util.ArrayList;
 
+/**
+ * Data writer using distributed-tx API to asynchronously write to NetConf devices
+ */
 public class DtxNetconfAsyncWriter extends AbstractNetconfWriter {
     private DTx dtx;
     private DTxProvider dTxProvider;
@@ -44,44 +47,54 @@ public class DtxNetconfAsyncWriter extends AbstractNetconfWriter {
         this.dTxProvider = dTxProvider;
     }
 
+    /**
+     * Asynchronously write configuration to NetConf device with distributed-tx API
+     */
     @Override
     public void writeData() {
-        long putsPerTx = input.getPutsPerTx();
-
-        if (input.getOperation() == OperationType.DELETE) {
-           configInterface();
-        }
-
-        List<ListenableFuture<Void>> putFutures = new ArrayList<ListenableFuture<Void>>((int) putsPerTx);
+        int putsPerTx = input.getPutsPerTx();
+        int counter = 0;
+        List<ListenableFuture<Void>> putFutures = new ArrayList<ListenableFuture<Void>>(putsPerTx);
         List<NodeId> nodeIdList = new ArrayList(this.nodeIdSet);
         Set<InstanceIdentifier<?>> txIidSet = new HashSet<>();
-        NodeId n = nodeIdList.get(0);
-        InstanceIdentifier msNodeId = NETCONF_TOPO_IID.child(Node.class, new NodeKey(n));
+        NodeId nodeId = nodeIdList.get(0);
+        InstanceIdentifier msNodeId = NETCONF_TOPO_IID.child(Node.class, new NodeKey(nodeId));
+        InterfaceName ifName = nodeIfList.get(nodeId).get(0);
+
+        if (input.getOperation() == OperationType.DELETE) {
+            //Build subInterfaces for delete operation
+            configInterface();
+        }
+
         txIidSet.add(msNodeId);
         dtx = dTxProvider.newTx(txIidSet);
-        int counter = 0;
-        InterfaceName ifname = nodeIfList.get(n).get(0);
         startTime = System.nanoTime();
         for(int i=1;i<=input.getLoop();i++){
             KeyedInstanceIdentifier<InterfaceConfiguration, InterfaceConfigurationKey> specificInterfaceCfgIid
-                    = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(new InterfaceActive("act"), ifname));
+                    = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(new InterfaceActive(
+                    Constants.INTERFACE_ACTIVE), ifName));
+
             InterfaceConfigurationBuilder interfaceConfigurationBuilder = new InterfaceConfigurationBuilder();
-            interfaceConfigurationBuilder.setInterfaceName(ifname);
-            interfaceConfigurationBuilder.setDescription("Test description" + "-" + input.getOperation()+"-"+i);
-            interfaceConfigurationBuilder.setActive(new InterfaceActive("act"));
+            interfaceConfigurationBuilder.setInterfaceName(ifName);
+            interfaceConfigurationBuilder.setDescription(Constants.TEST_DESCRIPTION + input.getOperation() + i);
+            interfaceConfigurationBuilder.setActive(new InterfaceActive(Constants.INTERFACE_ACTIVE));
             InterfaceConfiguration config = interfaceConfigurationBuilder.build();
 
             CheckedFuture<Void, DTxException> writeFuture = null;
             if (input.getOperation() == OperationType.PUT) {
+                //Put configuration to the same interface
                 writeFuture = dtx.putAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER,
                         LogicalDatastoreType.CONFIGURATION, specificInterfaceCfgIid, config, msNodeId);
             } else if (input.getOperation() == OperationType.MERGE) {
+                //Merge configuration to the same interface
                 writeFuture = dtx.mergeAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER,
                         LogicalDatastoreType.CONFIGURATION, specificInterfaceCfgIid, config, msNodeId);
             } else {
-                InterfaceName subIfname = new InterfaceName("GigabitEthernet0/0/0/1." + i);
+                //Delete subInterfaces
+                InterfaceName subIfName = new InterfaceName(Constants.INTERFACE_NAME_PREFIX + i);
                 KeyedInstanceIdentifier<InterfaceConfiguration, InterfaceConfigurationKey> subSpecificInterfaceCfgIid
-                        = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(new InterfaceActive("act"), subIfname));
+                        = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(
+                        new InterfaceActive(Constants.INTERFACE_ACTIVE), subIfName));
                 writeFuture = dtx.deleteAndRollbackOnFailure(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER,
                         LogicalDatastoreType.CONFIGURATION, subSpecificInterfaceCfgIid, msNodeId);
             }
