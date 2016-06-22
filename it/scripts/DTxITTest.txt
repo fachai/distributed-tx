@@ -48,7 +48,7 @@ netconf test case
     \    log    Netconf rollback on failure ${operation} test
     \    DTx Netconf Test    ${operation}    1    4    ROLLBACK-ON-FAILURE
     log    netconf rollback function test
-    :FOR    ${operation}    IN    @{operations}
+    : FOR    ${operation}    IN    @{operations}
     \    log    Netconf rollback function ${operation} test
     \    DTx Netconf Test    ${operation}    1    4    ROLLBACK
 

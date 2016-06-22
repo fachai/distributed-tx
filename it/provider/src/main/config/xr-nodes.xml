@@ -14,7 +14,7 @@
                 <module>
                     <type xmlns:prefix="urn:opendaylight:params:xml:ns:yang:controller:md:sal:connector:netconf">prefix:sal-netconf-connector</type>
                     <name>sdn-1</name>
-                    <address xmlns="urn:opendaylight:params:xml:ns:yang:controller:md:sal:connector:netconf">192.61.99.3</address>
+                    <address xmlns="urn:opendaylight:params:xml:ns:yang:controller:md:sal:connector:netconf">192.246.120.2</address>
                     <port xmlns="urn:opendaylight:params:xml:ns:yang:controller:md:sal:connector:netconf">830</port>
                     <username xmlns="urn:opendaylight:params:xml:ns:yang:controller:md:sal:connector:netconf">root</username>
                     <password xmlns="urn:opendaylight:params:xml:ns:yang:controller:md:sal:connector:netconf">cisco123</password>
@@ -43,7 +43,7 @@
                 <module>
                     <type xmlns:prefix="urn:opendaylight:params:xml:ns:yang:controller:md:sal:connector:netconf">prefix:sal-netconf-connector</type>
                     <name>sdn-2</name>
-                    <address xmlns="urn:opendaylight:params:xml:ns:yang:controller:md:sal:connector:netconf">192.113.200.2</address>
+                    <address xmlns="urn:opendaylight:params:xml:ns:yang:controller:md:sal:connector:netconf">192.104.0.2</address>
                     <port xmlns="urn:opendaylight:params:xml:ns:yang:controller:md:sal:connector:netconf">830</port>
                     <username xmlns="urn:opendaylight:params:xml:ns:yang:controller:md:sal:connector:netconf">root</username>
                     <password xmlns="urn:opendaylight:params:xml:ns:yang:controller:md:sal:connector:netconf">cisco123</password>

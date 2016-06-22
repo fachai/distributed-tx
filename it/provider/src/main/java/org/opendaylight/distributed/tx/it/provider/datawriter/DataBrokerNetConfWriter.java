@@ -45,12 +45,13 @@ public class DataBrokerNetConfWriter extends AbstractNetconfWriter {
         List<NodeId> nodeIdList = new ArrayList(nodeIdSet);
         NodeId nodeId = nodeIdList.get(0);
         InterfaceName ifName = nodeIfList.get(nodeId).get(0) ;
-        WriteTransaction xrNodeWriteTx = xrNodeBroker.newWriteOnlyTransaction();
 
         if (input.getOperation() == OperationType.DELETE) {
             //Build subInterfaces for delete operation
             configInterface();
         }
+
+        WriteTransaction xrNodeWriteTx = xrNodeBroker.newWriteOnlyTransaction();
 
         startTime = System.nanoTime();
         for (int i = 1; i<= input.getLoop(); i++){

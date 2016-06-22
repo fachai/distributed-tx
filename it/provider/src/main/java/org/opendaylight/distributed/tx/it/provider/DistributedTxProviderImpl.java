@@ -187,7 +187,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
     }
 
     public boolean initializeDataStoreTestData(int outerElements) {
-        LOG.info("Initialize datastore data tree for performance test");
+        LOG.info("Initialize datastore data tree");
         InstanceIdentifier<DatastoreTestData> iid = InstanceIdentifier.create(DatastoreTestData.class);
 
         WriteTransaction transaction = this.dataBroker.newWriteOnlyTransaction();
@@ -407,11 +407,9 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
 
     /**
      * DTx datastore integration test
-     * <ul>
-     *     <li>NORMAL: test DTx ability to write to the datastore</li>
-     *     <li>ROLLBACKONFAILURE: test DTx ability to rollback with submit exception</li>
-     *     <li>ROLLBACK: test DTx ability to rollback when it is needed</li>
-     * </ul>
+     * normal test: DTx can write to the datastore
+     * rollback-on-failure test: DTx can rollback when submit fails
+     * rollback test: DTx can rollback manually before submit
      */
     @Override
     public Future<RpcResult<DatastoreTestOutput>> datastoreTest(DatastoreTestInput input) {
@@ -639,8 +637,8 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
 
     /**
      * Get instance identifier with outerList and innerList
-     * @param outerList
-     * @param innerList
+     * @param outerList testing outerList
+     * @param innerList testing innerList
      * @return corresponding instance identifier
      */
     private InstanceIdentifier<InnerList> getInstanceIdentifier(OuterList outerList, InnerList innerList) {
@@ -664,11 +662,9 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
 
     /**
      * DTx mixed providers integration test
-     * <ul>
-     *     <li>NORMAL: test DTx ability to write to the datastore and netconf device at the same time</li>
-     *     <li>ROLLBACKONFAILURE: test DTx ability to rollback with submit exception</li>
-     *     <li>ROLLBACK: test DTx ability to rollback when it is needed</li>
-     * </ul>
+     * normal test: DTx can write to netconf and datastore nodes at the same time
+     * rollback-on-failure test: DTx can rollback upon netconf and datastore nodes when submit fails
+     * rollback: DTx can rollback manually before submit
      */
     @Override
     public Future<RpcResult<MixedProviderTestOutput>> mixedProviderTest(MixedProviderTestInput input) {
@@ -702,7 +698,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
 
         DataBroker xrNodeBroker = xrNodeBrokerMap.get(Constants.XRV_NAME1);
 
-        LOG.info("DTx mixed providers test begin");
+        LOG.info("Start DTx mixed providers test");
         if (mixedProviderTestStatus.compareAndSet(TestStatus.ExecStatus.Idle, TestStatus.ExecStatus.Executing) == false) {
             return RpcResultBuilder.success(new MixedProviderTestOutputBuilder()
                     .setStatus(StatusType.TESTINPROGRESS)
@@ -992,9 +988,9 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                 }
             }
         }
-
+        LOG.info("DTx mixed providers test finishs");
         mixedProviderTestStatus.set(TestStatus.ExecStatus.Idle);
-        if (testSucceed) {
+        if (testSucceed == true) {
             return RpcResultBuilder.success(new MixedProviderTestOutputBuilder()
                     .setStatus(StatusType.OK)
                     .build()).buildFuture();
@@ -1076,11 +1072,9 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
 
     /**
      * DTx netconf integration test
-     * <ul>
-     *     <li>NORMAL: test DTx ability to write to the netconf devices</li>
-     *     <li>ROLLBACKONFAILURE: test DTx ability to rollback with writing exception</li>
-     *     <li>ROLLBACK: test DTx ability to rollback when it is needed</li>
-     * </ul>
+     * normal test: DTx can write to multiple netconf nodes
+     * rollback-on-failure test: DTx can rollback upon all netconf nodes when operation fails
+     * rollback test: DTx can rollback manually before submit
      */
     @Override
     public Future<RpcResult<NetconfTestOutput>> netconfTest(NetconfTestInput input) {
@@ -1139,7 +1133,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                 LOG.info("Start DTx netconf rollback on failure test");
                 deleteInterfaces(xrNodeBroker2, 1);
                 DTx dtx = dTxProvider.newTx(txIidSet);
-                InterfaceName errorIfName = new InterfaceName(Constants.INTERFACE_NAME_PREFIX);
+                InterfaceName errorIfName = new InterfaceName(Constants.INTERFACE_NAME_PREFIX + 1);
                 KeyedInstanceIdentifier<InterfaceConfiguration, InterfaceConfigurationKey> errorSpecificInterfaceCfgIid
                         = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(
                         new InterfaceActive(Constants.INTERFACE_ACTIVE), errorIfName));
@@ -1244,8 +1238,8 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                 try {
                     netconfResult1 = netconfReadFuture1.checkedGet();
                 } catch (ReadFailedException e) {
+                    testSucceed = false;
                     LOG.info("Can't read the data from the device");
-                    break;
                 }
                 if (operation != OperationType.DELETE) {
                     if (netconfResult1.isPresent()) {
@@ -1279,14 +1273,12 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                 try {
                     writeFuture1.checkedGet();
                 } catch (Exception e) {
-                    testSucceed = false;
                     LOG.trace("Write to netConf node1 failed for {}", e.toString());
                 }
 
                 try {
                     writeFuture2.checkedGet();
                 }catch (Exception e){
-                    testSucceed = false;
                     LOG.trace("Write to netConf node2 failed for {}", e.toString());
                 }
 
@@ -1296,7 +1288,6 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                         submitFuture.checkedGet();
                     } catch (Exception e) {
                         LOG.trace("Submit failed for {}", e.toString());
-                        testSucceed = false;
                     }
                     counter = 0;
                     dtx = dTxProvider.newTx(txIidSet);
@@ -1333,6 +1324,7 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                     netconfResult2 = netconfReadFuture2.checkedGet();
                 }catch (ReadFailedException e){
                     LOG.trace("Can't read data from netconf node2");
+                    testSucceed = false;
                 }
                 if (operation != OperationType.DELETE) {
                     if (!netonfResult1.isPresent() && !netconfResult2.isPresent()) {
@@ -1345,8 +1337,9 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
                 }
             }
         }
+        LOG.info("DTx netconf test finishs");
         netConfTestStatus.set(TestStatus.ExecStatus.Idle);
-        if (testSucceed) {
+        if (testSucceed == true) {
             return RpcResultBuilder.success(new NetconfTestOutputBuilder()
                     .setStatus(StatusType.OK)
                     .build()).buildFuture();
