@@ -1,5 +1,6 @@
 #default host is localhost, use --host [ip] as the python argument to change the host ip
-# example to how to run the script
+#example to run the script
+#python dtxbenchmark_test.py --outerList 100 --innerList 10 --loop 10
 
 import argparse
 import requests

@@ -405,6 +405,14 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
         }
     }
 
+    /**
+     * DTx datastore integration test
+     * <ul>
+     *     <li>NORMAL: test DTx ability to write to the datastore</li>
+     *     <li>ROLLBACKONFAILURE: test DTx ability to rollback with submit exception</li>
+     *     <li>ROLLBACK: test DTx ability to rollback when it is needed</li>
+     * </ul>
+     */
     @Override
     public Future<RpcResult<DatastoreTestOutput>> datastoreTest(DatastoreTestInput input) {
         int putsPerTx = input.getPutsPerTx();
@@ -654,6 +662,14 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
         return writeFuture;
     }
 
+    /**
+     * DTx mixed providers integration test
+     * <ul>
+     *     <li>NORMAL: test DTx ability to write to the datastore and netconf device at the same time</li>
+     *     <li>ROLLBACKONFAILURE: test DTx ability to rollback with submit exception</li>
+     *     <li>ROLLBACK: test DTx ability to rollback when it is needed</li>
+     * </ul>
+     */
     @Override
     public Future<RpcResult<MixedProviderTestOutput>> mixedProviderTest(MixedProviderTestInput input) {
         int putsPerTx = input.getPutsPerTx();
@@ -990,8 +1006,8 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
     }
 
     /**
-     * This method is used to initialize netconf configurations
-     * Tt will check whether the subInterfaces exit and delete the subInterfaces
+     * Initialize netconf configurations
+     * delete the subInterface if it exists
      * @param numberOfTxs number of test subInterfaces
      */
     public void deleteInterfaces( DataBroker xrNodeBroker, int numberOfTxs){
@@ -1025,6 +1041,12 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
         }
     }
 
+    /**
+     * Build test subInterfaces for delete operation
+     * @param xrNodeBroker xrNodeBroker of corresponding netconf device
+     * @param numberOfIfs number of test subInterfaces
+     * @return true if successfully build the test subInterfaces else false
+     */
     public boolean buildTestInterfaces(DataBroker xrNodeBroker, long numberOfIfs)
     {
         WriteTransaction xrNodeWriteTx = null;
@@ -1052,6 +1074,14 @@ public class DistributedTxProviderImpl implements DistributedTxItModelService, D
         return true;
     }
 
+    /**
+     * DTx netconf integration test
+     * <ul>
+     *     <li>NORMAL: test DTx ability to write to the netconf devices</li>
+     *     <li>ROLLBACKONFAILURE: test DTx ability to rollback with writing exception</li>
+     *     <li>ROLLBACK: test DTx ability to rollback when it is needed</li>
+     * </ul>
+     */
     @Override
     public Future<RpcResult<NetconfTestOutput>> netconfTest(NetconfTestInput input) {
         int putsPerTx=input.getPutsPerTx();
