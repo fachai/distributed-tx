@@ -674,7 +674,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test netConf only putAndRollbackOnFailure() with successful put
+     * Test netconf putAndRollbackOnFailure() with successful put
      */
     @Test
     public void testPutAndRollbackOnFailureInNetConfOnlyDTx() {
@@ -714,7 +714,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test netConf only putAndRollbackOnFailure() with failed read and successful rollback
+     * Test netconf putAndRollbackOnFailure() with failed read and successful rollback
      */
     @Test
     public void testPutAndRollbackOnFailureReadFailRollbackSucceedInNetConfOnlyDTx() {
@@ -731,7 +731,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test netConf only putAndRollbackOnFailure() with failed put and successful rollback
+     * Test netconf putAndRollbackOnFailure() with failed put and successful rollback
      */
     @Test
     public void testPutAndRollbackOnFailurePutFailRollbackSucceedInNetConfOnlyDTx() {
@@ -786,7 +786,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test netConf only putAndRollbackOnFailure() with failed rollback
+     * Test netconf putAndRollbackOnFailure() with failed rollback
      */
     @Test
     public void testPutAndRollbackOnFailureRollbackFailInNetConfOnlyDTx() {
@@ -814,7 +814,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test thread safety of netConf only putAndRollbackOnFailure()
+     * Test thread safety of netconf putAndRollbackOnFailure()
      */
     @Test
     public void testConcurrentPutAndRollbackOnFailureInNetConfOnlyDTx(){
@@ -823,7 +823,7 @@ public class DtxImplTest{
         testClass.testConcurrentWriteAndRollbackOnFailure(ProviderType.NETCONF, OperationType.PUT, numOfThreads);
         Assert.assertEquals("Wrong cache size in netConf tx1 ",numOfThreads, netConfOnlyDTx.getSizeofCacheByNodeId(netConfNodeId1));
         for (int i = 0; i < numOfThreads; i++) {
-            Assert.assertEquals("Wrong data size in identifier", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(identifiers.get(i)));
+            Assert.assertEquals("Wrong data size ", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(identifiers.get(i)));
         }
     }
 
@@ -845,7 +845,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test thread safety of netConf only putAndRollbackOnFailure() with failed read and successful rollback for different iids
+     * Test thread safety of netconf putAndRollbackOnFailure() with failed read and successful rollback for different iids
      */
     @Test
     public void testConcurrentPutAndRollbackOnFailureReadFailRollbackSucceedInNetConfOnlyDTx(){
@@ -855,7 +855,7 @@ public class DtxImplTest{
                 OperationType.READ, numOfThreads);
         Assert.assertEquals("Wrong cache size",numOfThreads - 1, netConfOnlyDTx.getSizeofCacheByNodeId(netConfNodeId1));
         for (int i = 0; i < numOfThreads; i++) {
-            Assert.assertEquals("Wrong data size in identifier", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(identifiers.get(i)));
+            Assert.assertEquals("Wrong data size ", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(identifiers.get(i)));
         }
     }
 
@@ -880,7 +880,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test netConf only putAndRollbackOnFailure(). One of threads fail to read and DTx rollback successfully for same iid
+     * Test netconf putAndRollbackOnFailure(). One of threads fail to read and DTx rollback successfully for same iid
      */
     @Test
     public void testConcurrentPutToSameIidReadFailRollbackSucceedInNetConfOnlyDTx(){
@@ -888,10 +888,10 @@ public class DtxImplTest{
         int expectedDataSizeInIdentifier = 0;
         testClass.testConcurrentWriteToSameIidRollbackSucceed(ProviderType.NETCONF, OperationType.PUT, OperationType.READ, numOfThreads);
         Assert.assertEquals("Wrong cache size", numOfThreads - 1, netConfOnlyDTx.getSizeofCacheByNodeId(netConfNodeId1));
-        Assert.assertEquals("Wrong data size in identifier", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(iid1));
+        Assert.assertEquals("Wrong data size ", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(iid1));
     }
     /**
-     * Test netConf only putAndRollbackOnFailure(). One of threads fail to put and DTx rollback successfully for same iid
+     * Test netconf putAndRollbackOnFailure(). One of threads fail to put and DTx rollback successfully for same iid
      */
     @Test
     public void testConcurrentPutToSameIidPutFailRollbackSucceedInNetConfOnlyDTx(){
@@ -899,7 +899,7 @@ public class DtxImplTest{
         int expectedDataSizeInIdentifier = 0;
         testClass.testConcurrentWriteToSameIidRollbackSucceed(ProviderType.NETCONF, OperationType.PUT, OperationType.PUT, numOfThreads);
         Assert.assertEquals("Wrong cache size", numOfThreads, netConfOnlyDTx.getSizeofCacheByNodeId(netConfNodeId1));
-        Assert.assertEquals("Wrong data size in identifier", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(iid1));
+        Assert.assertEquals("Wrong data size ", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(iid1));
     }
 
     /**
@@ -926,12 +926,12 @@ public class DtxImplTest{
         testClass.testConcurrentWriteToSameIidRollbackSucceed(ProviderType.MIX, OperationType.PUT, OperationType.PUT, numOfThreads);
         Assert.assertEquals("Wrong cache size", numOfThreads, mixedDTx.getSizeofCacheByNodeIdAndType
                 (DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, dataStoreNodeId1));
-        Assert.assertEquals("Wrong data size in identifier",
+        Assert.assertEquals("Wrong data size ",
                 expectedDataSizeInIdentifier, internalDtxDataStoreTestTx1.getTxDataSizeByIid(iid1));
     }
 
     /**
-     * Test netConf only mergeAndRollbackOnFailure() with successful merge
+     * Test netconf mergeAndRollbackOnFailure() with successful merge
      */
     @Test
     public void testMergeAndRollbackOnFailureInNetConfOnlyDTx()  {
@@ -971,7 +971,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test netConf only mergeAndRollbackOnFailure() with failed read and successful rollback
+     * Test netconf mergeAndRollbackOnFailure() with failed read and successful rollback
      */
     @Test
     public void testMergeAndRollbackOnFailureReadFailRollbackSucceedInNetConfOnlyDTx() {
@@ -988,7 +988,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test netConf only mergeAndRollbackOnFailure() with failed merge and successful rollback
+     * Test netconf mergeAndRollbackOnFailure() with failed merge and successful rollback
      */
     @Test
     public void testMergeAndRollbackOnFailureMergeFailRollbackSucceedInNetConfOnlyDTx() {
@@ -1043,7 +1043,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test netConf only mergeAndRollbackOnFailure() with failed rollback
+     * Test netconf mergeAndRollbackOnFailure() with failed rollback
      */
     @Test
     public void testMergeAndRollbackOnFailureRollbackFailInNetConfOnlyDTx() {
@@ -1071,7 +1071,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test thread safety of netConf only mergeAndRollbackOnFailure()
+     * Test thread safety of netconf mergeAndRollbackOnFailure()
      */
     @Test
     public void testConcurrentMergeAndRollbackOnFailureInNetConfOnlyDTx() {
@@ -1080,7 +1080,7 @@ public class DtxImplTest{
         testClass.testConcurrentWriteAndRollbackOnFailure(ProviderType.NETCONF, OperationType.MERGE, numOfThreads);
         Assert.assertEquals("Wrong cache size",numOfThreads, netConfOnlyDTx.getSizeofCacheByNodeId(netConfNodeId1));
         for (int i = 0; i < numOfThreads; i++) {
-            Assert.assertEquals("Wrong data size in identifier", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(identifiers.get(i)));
+            Assert.assertEquals("Wrong data size", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(identifiers.get(i)));
         }
     }
 
@@ -1095,12 +1095,12 @@ public class DtxImplTest{
         Assert.assertEquals("Wrong cache size",
                 numOfThreads, mixedDTx.getSizeofCacheByNodeIdAndType(DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, dataStoreNodeId1));
         for (int i = 0; i < numOfThreads; i++) {
-            Assert.assertEquals("Wrong data size in identifier", expectedDataSizeInIdentifier, internalDtxDataStoreTestTx1.getTxDataSizeByIid(identifiers.get(i)));
+            Assert.assertEquals("Wrong data size", expectedDataSizeInIdentifier, internalDtxDataStoreTestTx1.getTxDataSizeByIid(identifiers.get(i)));
         }
     }
 
     /**
-     * Test thread safety of netConf only mergeAndRollbackOnFailure() with failed read and successful rollback for different iids
+     * Test thread safety of netconf mergeAndRollbackOnFailure() with failed read and successful rollback for different iids
      */
     @Test
     public void testConcurrentMergeAndRollbackOnFailureReadFailRollbackSucceedInNetConfOnlyDTx() {
@@ -1133,7 +1133,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test netConf only mergeAndRollbackOnFailure(). One of threads fail to read and DTx rollback successfully for same iid
+     * Test netconf mergeAndRollbackOnFailure(). One of threads fail to read and DTx rollback successfully for same iid
      */
     @Test
     public void testConcurrentMergeToSameIidReadFailRollbackSucceedInNetConfOnlyDTx(){
@@ -1142,11 +1142,11 @@ public class DtxImplTest{
         testClass.testConcurrentWriteToSameIidRollbackSucceed(ProviderType.NETCONF, OperationType.MERGE,
                 OperationType.READ, numOfThreads);
         Assert.assertEquals("Wrong cache size", numOfThreads - 1, netConfOnlyDTx.getSizeofCacheByNodeId(netConfNodeId1));
-        Assert.assertEquals("Wrong data size in identifier", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(iid1));
+        Assert.assertEquals("Wrong data size", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(iid1));
     }
 
     /**
-     * Test netConf only mergeAndRollbackOnFailure(). One of threads fail to merge and DTx rollback successfully for same iid
+     * Test netconf mergeAndRollbackOnFailure(). One of threads fail to merge and DTx rollback successfully for same iid
      */
     @Test
     public void testConcurrentMergeToSameIidMergeFailRollbackSucceedInNetConfOnlyDTx(){
@@ -1155,7 +1155,7 @@ public class DtxImplTest{
         testClass.testConcurrentWriteToSameIidRollbackSucceed(ProviderType.NETCONF, OperationType.MERGE,
                 OperationType.MERGE, numOfThreads);
         Assert.assertEquals("Wrong cache size", numOfThreads, netConfOnlyDTx.getSizeofCacheByNodeId(netConfNodeId1));
-        Assert.assertEquals("Wrong data size in identifier", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(iid1));
+        Assert.assertEquals("Wrong data size", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(iid1));
     }
 
     /**
@@ -1169,7 +1169,7 @@ public class DtxImplTest{
                 OperationType.READ, numOfThreads);
         Assert.assertEquals("Wrong cache size", numOfThreads - 1, mixedDTx.getSizeofCacheByNodeIdAndType(
                 DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, dataStoreNodeId1));
-        Assert.assertEquals("Wrong data size in identifier", expectedDataSizeInIdentifier, internalDtxDataStoreTestTx1.getTxDataSizeByIid(iid1));
+        Assert.assertEquals("Wrong data size", expectedDataSizeInIdentifier, internalDtxDataStoreTestTx1.getTxDataSizeByIid(iid1));
     }
 
     /**
@@ -1183,11 +1183,11 @@ public class DtxImplTest{
                 OperationType.MERGE, numOfThreads);
         Assert.assertEquals("Wrong cache size", numOfThreads, mixedDTx.getSizeofCacheByNodeIdAndType(
                 DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, dataStoreNodeId1));
-        Assert.assertEquals("Wrong data size in identifier", expectedDataSizeInIdentifier, internalDtxDataStoreTestTx1.getTxDataSizeByIid(iid1));
+        Assert.assertEquals("Wrong data size", expectedDataSizeInIdentifier, internalDtxDataStoreTestTx1.getTxDataSizeByIid(iid1));
     }
 
     /**
-     * Test netConf only deleteAndRollbackOnFailure() with successful delete
+     * Test netconf deleteAndRollbackOnFailure() with successful delete
      */
     @Test
     public void testDeleteAndRollbackOnFailureInNetConfOnlyDTx() {
@@ -1227,7 +1227,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test netConf only deleteAndRollbackOnFailure() with failed read and successful rollback
+     * Test netconf deleteAndRollbackOnFailure() with failed read and successful rollback
      */
     @Test
     public void testDeleteAndRollbackOnFailureReadFailRollbackSucceedInNetConfOnlyDTx() {
@@ -1244,7 +1244,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test netConf only deleteAndRollbackOnFailure () with failed delete and successful rollback
+     * Test netconf deleteAndRollbackOnFailure () with failed delete and successful rollback
      */
     @Test
     public void testDeleteAndRollbackOnFailureDeleteFailRollbackSucceedInNetConfOnlyDTx() {
@@ -1299,7 +1299,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test netConf only deleteAndRollbackOnFailure() with failed rollback
+     * Test netconf deleteAndRollbackOnFailure() with failed rollback
      */
     @Test
     public void testDeleteAndRollbackOnFailureRollbackFailInNetConfOnlyDTx() {
@@ -1317,7 +1317,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test thread safety of netConf only deleteAndRollbackOnFailure()
+     * Test thread safety of netconf deleteAndRollbackOnFailure()
      */
     @Test
     public void testConcurrentDeleteAndRollbackOnFailureInNetConfOnlyDTx(){
@@ -1326,7 +1326,7 @@ public class DtxImplTest{
         testClass.testConcurrentWriteAndRollbackOnFailure(ProviderType.NETCONF, OperationType.DELETE, numOfThreads);
         Assert.assertEquals("Wrong cache size",numOfThreads, netConfOnlyDTx.getSizeofCacheByNodeId(netConfNodeId1));
         for (int i = 0; i < numOfThreads; i++) {
-            Assert.assertEquals("Wrong data size in identifier", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(identifiers.get(i)));
+            Assert.assertEquals("Wrong data size", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(identifiers.get(i)));
         }
     }
 
@@ -1350,7 +1350,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test thread safety of netConf only deleteAndRollbackOnFailure() with failed read and successful rollback for different iids
+     * Test thread safety of netconf deleteAndRollbackOnFailure() with failed read and successful rollback for different iids
      */
     @Test
     public void testConcurrentDeleteAndRollbackOnFailureReadFailRollbackSucceedInNetConfOnlyDTx(){
@@ -1385,7 +1385,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test netConf only deleteAndRollbackOnFailure(). One of threads fail to read and DTx rollback successfully for same iid
+     * Test netconf deleteAndRollbackOnFailure(). One of threads fail to read and DTx rollback successfully for same iid
      */
     @Test
     public void testConcurrentDeleteToSameIidReadFailRollbackSucceedInNetConfDTx(){
@@ -1394,7 +1394,7 @@ public class DtxImplTest{
         testClass.testConcurrentWriteToSameIidRollbackSucceed(ProviderType.NETCONF, OperationType.DELETE,
                 OperationType.READ, numOfThreads);
         Assert.assertEquals("Wrong cache size", numOfThreads - 1 , netConfOnlyDTx.getSizeofCacheByNodeId(netConfNodeId1));
-        Assert.assertEquals("Wrong data size in identifier", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(iid1));
+        Assert.assertEquals("Wrong data size", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(iid1));
     }
 
     /**
@@ -1408,11 +1408,11 @@ public class DtxImplTest{
                 OperationType.READ, numOfThreads);
         Assert.assertEquals("Wrong cache size", numOfThreads - 1, mixedDTx.getSizeofCacheByNodeIdAndType(
                 DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, dataStoreNodeId1));
-        Assert.assertEquals("Wrong data size in identifier", expectedDataSizeInIdentifier, internalDtxDataStoreTestTx1.getTxDataSizeByIid(iid1));
+        Assert.assertEquals("Wrong data size", expectedDataSizeInIdentifier, internalDtxDataStoreTestTx1.getTxDataSizeByIid(iid1));
     }
 
     /**
-     * Test netConf only deleteAndRollbackOnFailure(). One of threads fail to delete and DTx rollback successfully
+     * Test netconf deleteAndRollbackOnFailure(). One of threads fail to delete and DTx rollback successfully
      */
     @Test
     public void testConcurrentDeleteToSameIidDeleteFailRollbackSucceedInNetConfOnlyDTx(){
@@ -1421,7 +1421,7 @@ public class DtxImplTest{
         testClass.testConcurrentWriteToSameIidRollbackSucceed(ProviderType.NETCONF, OperationType.DELETE,
                 OperationType.DELETE, numOfThreads);
         Assert.assertEquals("Wrong cache size", numOfThreads, netConfOnlyDTx.getSizeofCacheByNodeId(netConfNodeId1));
-        Assert.assertEquals("Wrong data size in identifier", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(iid1));
+        Assert.assertEquals("Wrong data size", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(iid1));
     }
 
     /**
@@ -1435,11 +1435,11 @@ public class DtxImplTest{
                 OperationType.DELETE, numOfThreads);
         Assert.assertEquals("Wrong cache size", numOfThreads, mixedDTx.getSizeofCacheByNodeIdAndType(
                 DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, dataStoreNodeId1));
-        Assert.assertEquals("Wrong data size in identifier", expectedDataSizeInIdentifier, internalDtxDataStoreTestTx1.getTxDataSizeByIid(iid1));
+        Assert.assertEquals("Wrong data size", expectedDataSizeInIdentifier, internalDtxDataStoreTestTx1.getTxDataSizeByIid(iid1));
     }
 
     /**
-     * Test netConf only submit() with multiple threads to successfully put data to nodes
+     * Test netconf submit() with multiple threads to successfully put data to nodes
      */
     @Test
     public void testConcurrentPutAndSubmitInNetConfOnlyDTx(){
@@ -1450,7 +1450,7 @@ public class DtxImplTest{
         for (final InstanceIdentifier<?> nodeIid : netconfNodes) {
             Assert.assertEquals("Wrong cache size", numOfThreads, netConfOnlyDTx.getSizeofCacheByNodeId(nodeIid));
             for (int i = 0; i < numOfThreads; i++) {
-                Assert.assertEquals("Wrong data size in identifier", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(identifiers.get(i)));
+                Assert.assertEquals("Wrong data size", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(identifiers.get(i)));
             }
         }
     }
@@ -1483,7 +1483,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test netConf only submit() with multiple threads to successfully merge data to nodes
+     * Test netconf submit() with multiple threads to successfully merge data to nodes
      */
     @Test
     public void testConcurrentMergeAndSubmitInNetConfOnlyDTx(){
@@ -1494,7 +1494,7 @@ public class DtxImplTest{
         for (final InstanceIdentifier<?> nodeIid : netconfNodes) {
             Assert.assertEquals("Wrong cache size", numOfThreads, netConfOnlyDTx.getSizeofCacheByNodeId(nodeIid));
             for (int i = 0; i < numOfThreads; i++) {
-                Assert.assertEquals("Wrong data size in identifier", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(identifiers.get(i)));
+                Assert.assertEquals("Wrong data size", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(identifiers.get(i)));
             }
         }
     }
@@ -1527,7 +1527,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test netConf only submit() with multiple threads to successfully delete data in nodes
+     * Test netconf submit() with multiple threads to successfully delete data in nodes
      */
     @Test
     public void testConcurrentDeleteAndSubmitInNetConfOnlyDTx(){
@@ -1572,7 +1572,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test netConf only rollback() with successful rollback
+     * Test netconf rollback() with successful rollback
      */
     @Test
     public void testRollbackInNetConfOnlyDTx() {
@@ -1630,7 +1630,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test netConf only rollback() with failed rollback
+     * Test netconf rollback() with failed rollback
      */
     @Test
     public void testRollbackFailInNetConfOnlyDTx()
@@ -1683,7 +1683,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test rollback(). NetConf only DTx wait for all put actions to finish before performing rollback
+     * Test rollback(). netconf DTx wait for all put actions to finish before performing rollback
      */
     @Test
     public void testConcurrentPutAndRollbackInNetConfOnlyDTx() {
@@ -1698,7 +1698,7 @@ public class DtxImplTest{
         }
         Assert.assertEquals("Wrong cache size", numOfThreads, netConfOnlyDTx.getSizeofCacheByNodeId(netConfNodeId1));
         for (int i = 0; i < numOfThreads; i++) {
-            Assert.assertEquals("Wrong data size in identifier", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(identifiers.get(i)));
+            Assert.assertEquals("Wrong data size ", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(identifiers.get(i)));
         }
     }
 
@@ -1726,7 +1726,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test rollback(). NetConf only DTx wait for all merge actions to finish before performing rollback
+     * Test rollback(). netconf DTx wait for all merge actions to finish before performing rollback
      */
     @Test
     public void testConcurrentMergeAndRollbackInNetConfOnlyDTx() {
@@ -1741,7 +1741,7 @@ public class DtxImplTest{
         }
         Assert.assertEquals("Wrong cache size", numOfThreads, netConfOnlyDTx.getSizeofCacheByNodeId(netConfNodeId1));
         for (int i = 0; i < numOfThreads; i++) {
-            Assert.assertEquals("Wrong data size in identifier", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(identifiers.get(i)));
+            Assert.assertEquals("Wrong data size", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(identifiers.get(i)));
         }
     }
 
@@ -1770,7 +1770,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test rollback(). NetConf only DTx  wait for all delete actions finish before performing rollback
+     * Test rollback(). netconf DTx  wait for all delete actions finish before performing rollback
      */
     @Test
     public void testConcurrentDeleteAndRollbackInNetConfOnlyDTx() {
@@ -1785,7 +1785,7 @@ public class DtxImplTest{
         }
         Assert.assertEquals("Wrong cache size", numOfThreads, netConfOnlyDTx.getSizeofCacheByNodeId(netConfNodeId1));
         for (int i = 0; i < numOfThreads; i++) {
-            Assert.assertEquals("Wrong data size in identifier", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(identifiers.get(i)));
+            Assert.assertEquals("Wrong data size", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(identifiers.get(i)));
         }
     }
 
@@ -1807,13 +1807,13 @@ public class DtxImplTest{
         Assert.assertEquals("Wrong cache size in dataStore tx", numOfThreads, mixedDTx.getSizeofCacheByNodeIdAndType(
                 DTXLogicalTXProviderType.DATASTORE_TX_PROVIDER, dataStoreNodeId1));
         for (int i = 0; i < numOfThreads; i++) {
-            Assert.assertEquals("Wrong cache size in netConf tx1 ", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(identifiers.get(i)));
+            Assert.assertEquals("Wrong cache size in netConf tx1", expectedDataSizeInIdentifier, internalDtxNetconfTestTx1.getTxDataSizeByIid(identifiers.get(i)));
             Assert.assertEquals("Wrong cache size in dataStore tx1", expectedDataSizeInIdentifier, internalDtxDataStoreTestTx1.getTxDataSizeByIid(identifiers.get(i)));
         }
     }
 
     /**
-     * Test netConf only submit() with successful submit
+     * Test netconf submit() with successful submit
      */
     @Test
     public void testSubmitInNetConfOnlyDTx() {
@@ -1839,7 +1839,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test netConf only submit() with failed submit and successful rollback
+     * Test netconf submit() with failed submit and successful rollback
      */
     @Test
     public void testSubmitRollbackSucceedInNetConfOnlyDTx()  {
@@ -1898,7 +1898,7 @@ public class DtxImplTest{
     }
 
     /**
-     * Test netConf only submit() with failed rollback
+     * Test netconf submit() with failed rollback
      */
     @Test
     public void testSubmitRollbackFailInNetConfOnlyDTx()

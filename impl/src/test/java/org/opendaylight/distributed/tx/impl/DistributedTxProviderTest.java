@@ -119,7 +119,7 @@ public class DistributedTxProviderTest {
         }
     }
 
-    //Task1 get the DTx from the dtxProvider for node1, node2 and node3
+    //Task1 gets DTx from the dtxProvider for node1, node2 and node3
     private class Task1 implements Runnable{
 
         @Override
@@ -135,7 +135,7 @@ public class DistributedTxProviderTest {
             }
         }
     }
-   //Task2 get the DTx from the dtxProvider for node3, node4, node5
+   //Task2 gets DTx from the dtxProvider for node3, node4, node5
     private class Task2 implements Runnable{
 
         @Override
@@ -162,7 +162,7 @@ public class DistributedTxProviderTest {
     }
 
     /**
-     * Test the concurrency of newTx().
+     * Test concurrency of newTx().
      */
     @Test
     public void testNewTx() {

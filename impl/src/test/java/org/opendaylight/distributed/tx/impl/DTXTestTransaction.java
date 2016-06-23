@@ -108,7 +108,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
                 if (readException == false){
                     retFuture.set(retOpt);
                 }else {
-                    retFuture.setException(new Throwable("read error"));
+                    retFuture.setException(new Throwable("Read error"));
                 }
                 retFuture.notifyAll();
             }
@@ -120,7 +120,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
             @Nullable
             @Override
             public ReadFailedException apply(@Nullable Exception e) {
-                return new ReadFailedException("read failed", e);
+                return new ReadFailedException("Read failed", e);
             }
         };
 
@@ -134,7 +134,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
                txDataMap.get(instanceIdentifier).clear();
                txDataMap.get(instanceIdentifier).add(t);
         } else {
-           throw new RuntimeException("put exception");
+           throw new RuntimeException("Put exception");
        }
     }
 
@@ -175,7 +175,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
                 txDataMap.get(instanceIdentifier).clear();
         }
         else {
-            throw new RuntimeException("delete exception");
+            throw new RuntimeException("Delete exception");
         }
     }
 
@@ -196,7 +196,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
                   retFuture.set(null);
                 }else {
                     setSubmitException(false);
-                    retFuture.setException(new RuntimeException("submit error"));
+                    retFuture.setException(new RuntimeException("Submit error"));
                 }
                 retFuture.notifyAll();
             }
@@ -208,7 +208,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
             @Nullable
             @Override
             public TransactionCommitFailedException apply(@Nullable Exception e) {
-                return new TransactionCommitFailedException("submit failed", e);
+                return new TransactionCommitFailedException("Submit failed", e);
             }
         };
 

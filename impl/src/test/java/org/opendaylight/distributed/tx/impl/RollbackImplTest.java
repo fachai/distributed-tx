@@ -114,10 +114,10 @@ public class RollbackImplTest {
            fail("Get rollback exception");
         }
 
-        Assert.assertEquals("Data size in identifier1 of tx1 is wrong", expectedDataNumInNodeIdentifier,testTransaction1.getTxDataSizeByIid(identifier1));
-        Assert.assertEquals("Data size in identifier2 of tx1 is wrong", expectedDataNumInNodeIdentifier,testTransaction1.getTxDataSizeByIid(identifier2));
-        Assert.assertEquals("Data size in identifier1 of tx2 is wrong", expectedDataNumInNodeIdentifier,testTransaction2.getTxDataSizeByIid(identifier1));
-        Assert.assertEquals("Data size in identifier2 of tx2 is wrong", expectedDataNumInNodeIdentifier,testTransaction2.getTxDataSizeByIid(identifier2));
+        Assert.assertEquals("Data size in tx1 is wrong", expectedDataNumInNodeIdentifier,testTransaction1.getTxDataSizeByIid(identifier1));
+        Assert.assertEquals("Data size in tx1 is wrong", expectedDataNumInNodeIdentifier,testTransaction1.getTxDataSizeByIid(identifier2));
+        Assert.assertEquals("Data size in tx2 is wrong", expectedDataNumInNodeIdentifier,testTransaction2.getTxDataSizeByIid(identifier1));
+        Assert.assertEquals("Data size in tx2 is wrong", expectedDataNumInNodeIdentifier,testTransaction2.getTxDataSizeByIid(identifier2));
     }
 
      /**
