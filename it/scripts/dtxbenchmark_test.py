@@ -30,17 +30,17 @@ args = parser.parse_args()
 #Base url for the test
 BASE_URL = "http://%s:%d/restconf/" % (args.host, args.port)
 
-#test the performance of DTx
+#Test the performance of DTx
 def benchmark_test(logicalTxType, operation, putsPerTx, loop, outerList = 0, innerList = 0):
     """
-    send a test request to the DTx it test model to start a DTx performance test
+    Send a test request to DTx it model to start performance test
     :param logicalTxType: DATASTORE, NETCONF
     :param operaton:PUT, MERGE, DELETE
-    :param putsPerTx: number of the operaton per transaction
+    :param putsPerTx: number of the operation per transaction
     :param loop: test time
     :param outerList:size of outer Elements
     :param innerList:size of inner Elements
-    :return: the execution time of the test
+    :return: execution time of the test
     """
     url = BASE_URL + "operations/distributed-tx-it-model:benchmark-test"
     postheaders =  {'content-type': 'application/json', 'Accept': 'application/json'}
@@ -64,7 +64,7 @@ def benchmark_test(logicalTxType, operation, putsPerTx, loop, outerList = 0, inn
         print 'Error %s, %s' % (r.status_code, r.content)
     return result;
 
-#get the test parameter from the argument
+#Get test parameter from the argument
 logicalTxTypes = args.logicalTxType
 operations = args.operation
 putsPerTxs = args.putsPerTx
@@ -90,7 +90,7 @@ try:
                                  'putsPerTx', 'outerList', 'innerList', 'dbExecTime(us)', 'dtxSyncExecTime(us)', 'dbSubmitOk', 'dtxSyncSubmitOk'))
                 for putsPerTx in putsPerTxs:
                     if putsPerTx < 1000:
-                        #when putsPerTx is small the input should be small or it will take a long time to finish the test
+                        #When putsPerTx is small the input should be small or it will take a long time to finish the test
                         outerList = 100
                         innerList = 10
                     else:
