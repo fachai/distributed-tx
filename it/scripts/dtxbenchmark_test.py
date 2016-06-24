@@ -14,7 +14,7 @@ parser.add_argument("--host", default = "localhost", help = "The IP of the host 
 parser.add_argument("--port", default = 8181, type = int, help = "The port number of the host")
 
 #Test Parameters
-parser.add_argument("--logicalTxType", choices = ["DATASTORE", "NETCONF"], nargs = "+", default = ["DATASTORE"],
+parser.add_argument("--logicalTxType", choices = ["DATASTORE", "NETCONF"], nargs = "+", default = ["DATASTORE", "NETCONF"],
                     help = "The transaction type of the test")
 parser.add_argument("--operation", choices = ["PUT", "MERGE", "DELETE"], nargs = "+", default = ["PUT", "MERGE", "DELETE"],
                     help = "The operation type of the transaction")
@@ -24,7 +24,7 @@ parser.add_argument("--putsPerTxNetconf", default = [1,3,6,9,12,15,18,21],type =
                     help = "Number of operations per transaction")
 parser.add_argument("--outerList", default = 1000, type = int, help = "The size of outer Elements")
 parser.add_argument("--innerList", default = 100, type = int, help = "The size of inner Elements")
-parser.add_argument("--loop", default =50, type = int, help = "test time")
+parser.add_argument("--loop", default =1, type = int, help = "test time")
 args = parser.parse_args()
 
 #Base url for the test
@@ -77,6 +77,7 @@ try:
     writer = csv.writer(f)
     #Iterate over all the tx types: DATASTORE and NETCONF
     #get the performance results and write to the result.csv file
+    print "Performance test will take around 30 mins to finish"
     for logicalTxType in logicalTxTypes:
         print "#############################################################################"
         print "DTx %s performance test begins" % logicalTxType
@@ -125,7 +126,7 @@ try:
                         result["execTime"], result["dtxSyncExecTime"], result["dtxAsyncExecTime"], result['dbOk'], result['dTxSyncOk'], result["dTxAsyncOk"])
 
         print "#############################################################################"
-        print "DTx %s performance test end" % logicalTxType
+        print "DTx %s performance test ends" % logicalTxType
         print "#############################################################################"
 finally:
     f.close()

@@ -10,7 +10,7 @@ package org.opendaylight.distributed.tx.it.provider.datawriter;
 /**
  * Constants for DTx performance test and integrated test
  */
-public class Constants {
+public class DTXITConstants {
     public static String INTERFACE_NAME_PREFIX = "GigabitEthernet0/0/0/1.";
     public static String XRV_NAME_SUBSTRING = "sdn";
     public static String INTERFACE_ACTIVE = "act";

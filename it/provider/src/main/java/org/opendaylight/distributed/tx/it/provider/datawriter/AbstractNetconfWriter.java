@@ -58,14 +58,14 @@ public abstract class AbstractNetconfWriter extends AbstractDataWriter {
         for (int i = 1; i <= input.getLoop(); i++) {
             xrNodeWriteTx = xrNodeBroker.newWriteOnlyTransaction();
 
-            InterfaceName subIfName = new InterfaceName(Constants.INTERFACE_NAME_PREFIX + i);
+            InterfaceName subIfName = new InterfaceName(DTXITConstants.INTERFACE_NAME_PREFIX + i);
             KeyedInstanceIdentifier<InterfaceConfiguration, InterfaceConfigurationKey> specificInterfaceCfgIid
                     = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(
-                    new InterfaceActive(Constants.INTERFACE_ACTIVE), subIfName));
+                    new InterfaceActive(DTXITConstants.INTERFACE_ACTIVE), subIfName));
 
             InterfaceConfigurationBuilder interfaceConfigurationBuilder = new InterfaceConfigurationBuilder();
             interfaceConfigurationBuilder.setInterfaceName(subIfName);
-            interfaceConfigurationBuilder.setActive(new InterfaceActive(Constants.INTERFACE_ACTIVE));
+            interfaceConfigurationBuilder.setActive(new InterfaceActive(DTXITConstants.INTERFACE_ACTIVE));
             InterfaceConfiguration config = interfaceConfigurationBuilder.build();
 
             xrNodeWriteTx.put(LogicalDatastoreType.CONFIGURATION, specificInterfaceCfgIid, config);

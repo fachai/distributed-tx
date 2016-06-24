@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Data writer using distributed-tx API to synchronously write to datastore
+ * Data write using distributed-tx API to synchronously write to datastore
  */
 public class DtxDataStoreSyncWriter extends AbstractDataWriter {
     private DTx dtx;

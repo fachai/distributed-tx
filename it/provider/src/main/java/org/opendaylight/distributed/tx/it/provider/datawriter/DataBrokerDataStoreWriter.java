@@ -22,7 +22,7 @@ import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import java.util.List;
 
 /**
- * Data writer using MD-SAL datastore transaction provider API to write to datastore
+ * Data write using MD-SAL datastore transaction provider API to write to datastore
  */
 public class DataBrokerDataStoreWriter extends AbstractDataWriter{
     private DataBroker dataBroker;
@@ -35,7 +35,7 @@ public class DataBrokerDataStoreWriter extends AbstractDataWriter{
     }
 
     /**
-     * write to datastore with MD-SAL datastore transaction provider API
+     * Write to datastore with MD-SAL datastore transaction provider API
      */
     @Override
     public void writeData() {

@@ -27,7 +27,7 @@ import java.util.Set;
 import java.util.ArrayList;
 
 /**
- * Data writer using MD-SAL NetConf transaction provider API to write to NetConf device
+ * Data write using MD-SAL NetConf transaction provider API to write to NetConf device
  */
 public class DataBrokerNetConfWriter extends AbstractNetconfWriter {
 
@@ -57,12 +57,12 @@ public class DataBrokerNetConfWriter extends AbstractNetconfWriter {
         for (int i = 1; i<= input.getLoop(); i++){
             KeyedInstanceIdentifier<InterfaceConfiguration, InterfaceConfigurationKey> specificInterfaceCfgIid
                     = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(
-                    new InterfaceActive(Constants.INTERFACE_ACTIVE), ifName));
+                    new InterfaceActive(DTXITConstants.INTERFACE_ACTIVE), ifName));
 
             InterfaceConfigurationBuilder interfaceConfigurationBuilder = new InterfaceConfigurationBuilder();
             interfaceConfigurationBuilder.setInterfaceName(ifName);
-            interfaceConfigurationBuilder.setDescription(Constants.TEST_DESCRIPTION + input.getOperation() + i);
-            interfaceConfigurationBuilder.setActive(new InterfaceActive(Constants.INTERFACE_ACTIVE));
+            interfaceConfigurationBuilder.setDescription(DTXITConstants.TEST_DESCRIPTION + input.getOperation() + i);
+            interfaceConfigurationBuilder.setActive(new InterfaceActive(DTXITConstants.INTERFACE_ACTIVE));
             InterfaceConfiguration config = interfaceConfigurationBuilder.build();
 
             if (input.getOperation() == OperationType.PUT) {
@@ -73,7 +73,7 @@ public class DataBrokerNetConfWriter extends AbstractNetconfWriter {
                 xrNodeWriteTx.merge(LogicalDatastoreType.CONFIGURATION, specificInterfaceCfgIid, config);
             } else {
                 //Delete subInterfaces
-                InterfaceName subIfName = new InterfaceName(Constants.INTERFACE_NAME_PREFIX + i);
+                InterfaceName subIfName = new InterfaceName(DTXITConstants.INTERFACE_NAME_PREFIX + i);
                 KeyedInstanceIdentifier<InterfaceConfiguration, InterfaceConfigurationKey> subSpecificInterfaceCfgIid
                         = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(new InterfaceActive("act"), subIfName));
                 xrNodeWriteTx.delete(LogicalDatastoreType.CONFIGURATION, subSpecificInterfaceCfgIid);

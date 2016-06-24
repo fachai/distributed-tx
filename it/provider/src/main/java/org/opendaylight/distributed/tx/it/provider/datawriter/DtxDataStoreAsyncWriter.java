@@ -32,7 +32,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Data Writer using distributed-tx API to asynchronously write to datastore
+ * Data write using distributed-tx API to asynchronously write to datastore
  */
 public class DtxDataStoreAsyncWriter extends AbstractDataWriter {
     private DTx dtx;

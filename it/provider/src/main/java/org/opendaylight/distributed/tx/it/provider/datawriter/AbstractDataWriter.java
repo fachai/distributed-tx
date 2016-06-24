@@ -26,7 +26,6 @@ public abstract class AbstractDataWriter {
 
     /**
      * Get the number of successful transactions
-     * @return number of successful transactions
      */
     public int getTxSucceed(){
         return txSucceed;
@@ -34,7 +33,6 @@ public abstract class AbstractDataWriter {
 
     /**
      * Get executing time
-     * @return executing time
      */
     public long getExecTime()
     {

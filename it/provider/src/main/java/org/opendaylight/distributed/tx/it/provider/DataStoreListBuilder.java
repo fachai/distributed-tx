@@ -34,7 +34,7 @@ public class DataStoreListBuilder {
         this.innerElements = innerElements;
     }
     /**
-     * This method builds the test data for delete operation
+     * This method builds test data for delete operation
      */
     public boolean buildTestInnerList() {
         List<OuterList> outerLists = buildOuterList();
