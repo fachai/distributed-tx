@@ -1,6 +1,6 @@
 #default host is localhost, use --host [ip] as the python argument to change the host ip
 #example to run the script
-#python dtxbenchmark_test.py --outerList 100 --innerList 10 --loop 10
+#python dtxbenchmark_test.py --host 127.0.0.1 --logicalTxType NETCONF --loop 40
 
 import argparse
 import requests
@@ -18,9 +18,9 @@ parser.add_argument("--logicalTxType", choices = ["DATASTORE", "NETCONF"], nargs
                     help = "The transaction type of the test")
 parser.add_argument("--operation", choices = ["PUT", "MERGE", "DELETE"], nargs = "+", default = ["PUT", "MERGE", "DELETE"],
                     help = "The operation type of the transaction")
-parser.add_argument("--putsPerTx", default = [1, 10, 100, 1000, 5000, 10000, 50000, 100000],type = int, nargs = "+",
+parser.add_argument("--putsPerTx", default = [1, 10, 100, 1000, 5000, 10000, 100000],type = int, nargs = "+",
                     help = "Number of operations per transaction")
-parser.add_argument("--putsPerTxNetconf", default = [1,3,6,9,12,15,18,21],type = int, nargs = "+",
+parser.add_argument("--putsPerTxNetconf", default = [1, 3, 6, 9, 12, 15, 18],type = int, nargs = "+",
                     help = "Number of operations per transaction")
 parser.add_argument("--outerList", default = 1000, type = int, help = "The size of outer Elements")
 parser.add_argument("--innerList", default = 100, type = int, help = "The size of inner Elements")
@@ -77,7 +77,7 @@ try:
     writer = csv.writer(f)
     #Iterate over all the tx types: DATASTORE and NETCONF
     #get the performance results and write to the result.csv file
-    print "Performance test will take around 30 mins to finish"
+    print "Performance test will take around 35 mins to finish"
     for logicalTxType in logicalTxTypes:
         print "#############################################################################"
         print "DTx %s performance test begins" % logicalTxType
@@ -107,6 +107,7 @@ try:
                     print "dbExecTime : %d, dtxSyncTime : %d, dbSubmitOk : %d, dtxSyncSubmitOk : %d " % (
                         result["execTime"], result["dtxSyncExecTime"], result['dbOk'], result['dTxSyncOk'])
         else:
+            loop = 40
             for operation in operations:
                 print "*****************************************************************************"
                 print "Operation : %s" % operation
