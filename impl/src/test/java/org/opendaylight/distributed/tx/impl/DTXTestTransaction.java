@@ -1,8 +1,14 @@
+/*
+ * Copyright (c) 2015 Cisco Systems, Inc. and others.  All rights reserved.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v1.0 which accompanies this distribution,
+ * and is available at http://www.eclipse.org/legal/epl-v10.html
+ */
 package org.opendaylight.distributed.tx.impl;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
-import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.CheckedFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -17,68 +23,74 @@ import org.opendaylight.yangtools.yang.binding.DataObject;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.opendaylight.yangtools.yang.common.RpcResult;
 import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Map;
-
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 public class DTXTestTransaction implements ReadWriteTransaction {
-    Map<InstanceIdentifier<?>, Boolean> readExceptionMap = new HashMap<>();
-    Map<InstanceIdentifier<?>, Boolean> putExceptionMap = new HashMap<>();
-    Map<InstanceIdentifier<?>, Boolean> mergeExceptionMap = new HashMap<>();
-    Map<InstanceIdentifier<?>, Boolean> deleteExceptionMap = new HashMap<>();
-    boolean submitException = false;
+    Map<InstanceIdentifier<?>, Boolean> readExceptionMap = new ConcurrentHashMap<>();
+    Map<InstanceIdentifier<?>, Boolean> putExceptionMap = new ConcurrentHashMap<>();
+    Map<InstanceIdentifier<?>, Boolean> mergeExceptionMap = new ConcurrentHashMap<>();
+    Map<InstanceIdentifier<?>, Boolean> deleteExceptionMap = new ConcurrentHashMap<>();
+    boolean  submitException = false;
+    static int delayTime = 20;
 
-    private Map<InstanceIdentifier<?>,ArrayList<DataObject>> txDataMap = new HashMap<>();
+    private Map<InstanceIdentifier<?>,ConcurrentLinkedDeque<DataObject>> txDataMap = new ConcurrentHashMap<>();
 
-    public void setReadException(InstanceIdentifier<?> instanceIdentifier, boolean ept){
-        this.readExceptionMap.put(instanceIdentifier, ept);
+    public void setReadExceptionByIid(InstanceIdentifier<?> instanceIdentifier, boolean exception){
+        this.readExceptionMap.put(instanceIdentifier, exception);
     }
-    public void setPutException(InstanceIdentifier<?> instanceIdentifier, boolean ept)
+    public void setPutExceptionByIid(InstanceIdentifier<?> instanceIdentifier, boolean exception)
     {
-        this.putExceptionMap.put(instanceIdentifier, ept);
+        this.putExceptionMap.put(instanceIdentifier, exception);
     }
-    public void setMergeException(InstanceIdentifier<?> instanceIdentifier, boolean ept)
+    public void setMergeExceptionByIid(InstanceIdentifier<?> instanceIdentifier, boolean exception)
     {
-        this.mergeExceptionMap.put(instanceIdentifier, ept);
+        this.mergeExceptionMap.put(instanceIdentifier, exception);
     }
-    public void setDeleteException(InstanceIdentifier<?> instanceIdentifier, boolean ept)
+    public void setDeleteExceptionByIid(InstanceIdentifier<?> instanceIdentifier, boolean exception)
     {
-        this.deleteExceptionMap.put(instanceIdentifier, ept);
+        this.deleteExceptionMap.put(instanceIdentifier, exception);
     }
-    public void setSubmitException( boolean ept)
+    public void setSubmitException( boolean exception)
     {
-        this.submitException = ept;
+        this.submitException = exception;
+    }
+
+    public void addInstanceIdentifiers(InstanceIdentifier<?>... iids){
+        for (InstanceIdentifier<?> iid : iids) {
+            this.readExceptionMap.put(iid, false);
+            this.deleteExceptionMap.put(iid, false);
+            this.putExceptionMap.put(iid, false);
+            this.mergeExceptionMap.put(iid, false);
+            this.txDataMap.put(iid, new ConcurrentLinkedDeque<DataObject>());
+        }
     }
 
     /**
-     * this method is used to get the data size of the specific instanceIdentifier
-     * @param instanceIdentifier the specific identifier
-     * @return the size of data
+     * Get the size of data with the specific data IID
+     * @param instanceIdentifier the specific data IID
+     * @return size of data
      */
-    public int getTxDataSize(InstanceIdentifier<?> instanceIdentifier) {
-        return this.txDataMap.containsKey(instanceIdentifier)?
-                this.txDataMap.get(instanceIdentifier).size() : 0;
+    public int getTxDataSizeByIid(InstanceIdentifier<?> instanceIdentifier) {
+        return this.txDataMap.get(instanceIdentifier).size();
     }
 
     /**
-     * this method is used to manually create the data object for the specific instanceIdentifier
-     * @param instanceIdentifier the specific identifier
+     * Create the data object with the specific data IID
+     * @param instanceIdentifier the specific IID
      */
     public void createObjForIdentifier(InstanceIdentifier<?> instanceIdentifier)
     {
-        txDataMap.put(instanceIdentifier, new ArrayList<DataObject>(Sets.newHashSet(new myDataObj())));
+        txDataMap.get(instanceIdentifier).add(new myDataObj());
     }
 
     @Override
     public <T extends DataObject> CheckedFuture<Optional<T>, ReadFailedException> read(LogicalDatastoreType logicalDatastoreType, final InstanceIdentifier<T> instanceIdentifier) {
         T obj = null;
 
-        if(txDataMap.containsKey(instanceIdentifier) && txDataMap.get(instanceIdentifier).size() > 0)
-            obj = (T)txDataMap.get(instanceIdentifier).get(0);
-
-        if(!readExceptionMap.containsKey(instanceIdentifier))
-            readExceptionMap.put(instanceIdentifier, false);
+        if(txDataMap.get(instanceIdentifier).size() > 0)
+            obj = (T)txDataMap.get(instanceIdentifier).getFirst();
 
         final Optional<T> retOpt = Optional.fromNullable(obj);
 
@@ -87,16 +99,16 @@ public class DTXTestTransaction implements ReadWriteTransaction {
             @Override
             public void run() {
                 try {
-                    Thread.sleep(5);
+                    Thread.sleep(delayTime);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
 
-                if (!readExceptionMap.get(instanceIdentifier)){
+                boolean readException = getAndResetExceptionWithInstanceIdentifier(readExceptionMap, instanceIdentifier);
+                if (readException == false){
                     retFuture.set(retOpt);
                 }else {
-                    setReadException(instanceIdentifier,false); //it ensure all the exception will occur once
-                    retFuture.setException(new Throwable("simulated error"));
+                    retFuture.setException(new Throwable("Read error"));
                 }
                 retFuture.notifyAll();
             }
@@ -108,7 +120,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
             @Nullable
             @Override
             public ReadFailedException apply(@Nullable Exception e) {
-                return new ReadFailedException("Merge failed and rollback", e);
+                return new ReadFailedException("Read failed", e);
             }
         };
 
@@ -117,75 +129,37 @@ public class DTXTestTransaction implements ReadWriteTransaction {
 
     @Override
     public <T extends DataObject> void put(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t) {
-       if(!txDataMap.containsKey(instanceIdentifier))
-           txDataMap.put(instanceIdentifier, new ArrayList<DataObject>());
-
-       if(!putExceptionMap.containsKey(instanceIdentifier))
-           putExceptionMap.put(instanceIdentifier,false);
-
-       if(!putExceptionMap.get(instanceIdentifier)) {
-           txDataMap.get(instanceIdentifier).clear();
-           txDataMap.get(instanceIdentifier).add(t);
-       }
-        else {
-           setPutException(instanceIdentifier, false);
-           throw new RuntimeException(" put exception");
+        boolean putException = getAndResetExceptionWithInstanceIdentifier(putExceptionMap, instanceIdentifier);
+        if(putException == false) {
+               txDataMap.get(instanceIdentifier).clear();
+               txDataMap.get(instanceIdentifier).add(t);
+        } else {
+           throw new RuntimeException("Put exception");
        }
     }
 
+    @Deprecated
     @Override
     public <T extends DataObject> void put(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, boolean b) {
-        if(!txDataMap.containsKey(instanceIdentifier))
-            txDataMap.put(instanceIdentifier, new ArrayList<DataObject>());
-
-        if(!putExceptionMap.containsKey(instanceIdentifier))
-            putExceptionMap.put(instanceIdentifier,false);
-
-        if(!putExceptionMap.get(instanceIdentifier))
-        {
-            txDataMap.get(instanceIdentifier).clear();
-            txDataMap.get(instanceIdentifier).add(t);
-        }
-        else {
-            setPutException(instanceIdentifier,false);
-            throw new RuntimeException("put exception");
-        }
+        throw new UnsupportedOperationException("Unimplemented");
     }
 
     @Override
     public <T extends DataObject> void merge(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t) {
-        if(!txDataMap.containsKey(instanceIdentifier))
-            txDataMap.put(instanceIdentifier, new ArrayList<DataObject>());
-
-        if(!mergeExceptionMap.containsKey(instanceIdentifier))
-            mergeExceptionMap.put(instanceIdentifier, false);
-
-        if(!mergeExceptionMap.get(instanceIdentifier)) {
-            txDataMap.get(instanceIdentifier).clear();
-            txDataMap.get(instanceIdentifier).add(t);
+        boolean exception = getAndResetExceptionWithInstanceIdentifier(mergeExceptionMap, instanceIdentifier);
+        if(exception == false) {
+                txDataMap.get(instanceIdentifier).clear();
+                txDataMap.get(instanceIdentifier).add(t);
         }
         else {
-            setMergeException(instanceIdentifier,false);
-            throw new RuntimeException(" merge exception");
+            throw new RuntimeException("Merge exception");
         }
     }
 
+    @Deprecated
     @Override
     public <T extends DataObject> void merge(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<T> instanceIdentifier, T t, boolean b) {
-        if(!txDataMap.containsKey(instanceIdentifier))
-            txDataMap.put(instanceIdentifier, new ArrayList<DataObject>());
-
-        if(!mergeExceptionMap.containsKey(instanceIdentifier))
-            mergeExceptionMap.put(instanceIdentifier, false);
-
-        if(!mergeExceptionMap.get(instanceIdentifier)) {
-            txDataMap.get(instanceIdentifier).clear();
-            txDataMap.get(instanceIdentifier).add(t);
-        }
-        else {
-            setMergeException(instanceIdentifier,false);
-            throw new RuntimeException("merge exception");
-        }
+        throw new UnsupportedOperationException("Unimplemented");
     }
 
     @Override
@@ -195,22 +169,13 @@ public class DTXTestTransaction implements ReadWriteTransaction {
 
     @Override
     public void delete(LogicalDatastoreType logicalDatastoreType, InstanceIdentifier<?> instanceIdentifier) {
-        if(!txDataMap.containsKey(instanceIdentifier))
-            return;
-
-        if(!deleteExceptionMap.containsKey(instanceIdentifier))
-            deleteExceptionMap.put(instanceIdentifier, false);
-
-        if(!deleteExceptionMap.get(instanceIdentifier))
-            if(txDataMap.get(instanceIdentifier).size()>0)
+        boolean deleteException = getAndResetExceptionWithInstanceIdentifier(deleteExceptionMap, instanceIdentifier);
+        if(deleteException == false) {
+            if (txDataMap.get(instanceIdentifier).size() > 0)
                 txDataMap.get(instanceIdentifier).clear();
-            else {
-                setDeleteException(instanceIdentifier,false);
-                return;
-            }
+        }
         else {
-            setDeleteException(instanceIdentifier,false);
-            throw new RuntimeException(" delete exception");
+            throw new RuntimeException("Delete exception");
         }
     }
 
@@ -222,7 +187,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
             @Override
             public void run() {
                 try {
-                    Thread.sleep(5);
+                    Thread.sleep(delayTime);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -231,7 +196,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
                   retFuture.set(null);
                 }else {
                     setSubmitException(false);
-                    retFuture.setException(new RuntimeException("submit error"));
+                    retFuture.setException(new RuntimeException("Submit error"));
                 }
                 retFuture.notifyAll();
             }
@@ -243,7 +208,7 @@ public class DTXTestTransaction implements ReadWriteTransaction {
             @Nullable
             @Override
             public TransactionCommitFailedException apply(@Nullable Exception e) {
-                return new TransactionCommitFailedException("submit failed", e);
+                return new TransactionCommitFailedException("Submit failed", e);
             }
         };
 
@@ -253,6 +218,14 @@ public class DTXTestTransaction implements ReadWriteTransaction {
     @Override
     public ListenableFuture<RpcResult<TransactionStatus>> commit() {
         return null;
+    }
+
+    public boolean getAndResetExceptionWithInstanceIdentifier(Map<InstanceIdentifier<?>, Boolean> exceptionMap, InstanceIdentifier<?> iid){
+        synchronized (this){
+            boolean exception = exceptionMap.get(iid);
+            exceptionMap.put(iid, false);
+            return exception;
+        }
     }
 
     @Override

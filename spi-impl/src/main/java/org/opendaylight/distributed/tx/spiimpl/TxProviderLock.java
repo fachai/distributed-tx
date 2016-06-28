@@ -19,6 +19,7 @@ public class TxProviderLock {
     final private Set<InstanceIdentifier<?>> lockSet = new HashSet<>();
 
     public boolean isDeviceLocked(InstanceIdentifier<?> device) {
+
         boolean ret ;
         synchronized (TxProviderLock.this) {
             ret = lockSet.contains(device);

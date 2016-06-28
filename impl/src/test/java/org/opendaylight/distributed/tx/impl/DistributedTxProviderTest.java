@@ -20,6 +20,7 @@ import org.opendaylight.yangtools.yang.binding.DataContainer;
 import org.opendaylight.yangtools.yang.binding.DataObject;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -29,8 +30,8 @@ public class DistributedTxProviderTest {
     private TxProvider txProvider;
     private DTxProviderImpl dTxProvider;
     private ExecutorService threadPool;
-    private volatile int exceptionOccurNum = 0; //Number of exceptions got from the provider
-    //followings are different nodeId
+    private volatile int exceptionOccurNum = 0;
+
     InstanceIdentifier<TestClassNode1> node1 = InstanceIdentifier.create(TestClassNode1.class);
     InstanceIdentifier<TestClassNode2> node2 = InstanceIdentifier.create(TestClassNode2.class);
     InstanceIdentifier<TestClassNode3> node3 = InstanceIdentifier.create(TestClassNode3.class);
@@ -39,7 +40,7 @@ public class DistributedTxProviderTest {
     Map<DTXLogicalTXProviderType, TxProvider> m = new HashMap<>();
 
     private class myTxProvider implements TxProvider{
-        boolean isLocked = true;
+        private final Set<InstanceIdentifier<?>> nodeSet = new HashSet<>();
 
         @Override
         public ReadWriteTransaction newTx(InstanceIdentifier<?> nodeId) throws TxException.TxInitiatizationFailedException {
@@ -48,23 +49,42 @@ public class DistributedTxProviderTest {
 
         @Override
         public boolean isDeviceLocked(InstanceIdentifier<?> device) {
-            return false;
+            boolean lock = false;
+            synchronized (this){
+                if (nodeSet.contains(device))
+                    lock = true;
+            }
+            return lock;
         }
 
         @Override
         public boolean lockTransactionDevices(Set<InstanceIdentifier<?>> deviceSet) {
-            boolean ret = isLocked;
-            this.isLocked = !ret;
+            boolean ret = true;
+
+            synchronized (this) {
+                Set<InstanceIdentifier<?>> s = new HashSet<>();
+                s.addAll(nodeSet);
+
+                s.retainAll(deviceSet);
+
+                if(s.size() > 0)
+                    ret = false;
+                else {
+                    nodeSet.addAll(deviceSet);
+                }
+            }
+
             return ret;
         }
 
         @Override
         public void releaseTransactionDevices(Set<InstanceIdentifier<?>> deviceSet) {
-
+            synchronized (this) {
+                nodeSet.removeAll(deviceSet);
+            }
         }
     }
 
-    //these classes are used to be create the nodeId
     private class TestClassNode1  implements DataObject {
         @Override
         public Class<? extends DataContainer> getImplementedInterface() {
@@ -99,7 +119,7 @@ public class DistributedTxProviderTest {
         }
     }
 
-    //Task1 get the dtx from the dtxProvider for node1, node2 and node3
+    //Task1 gets DTx from the dtxProvider for node1, node2 and node3
     private class Task1 implements Runnable{
 
         @Override
@@ -111,11 +131,11 @@ public class DistributedTxProviderTest {
             }catch (Exception e)
             {
                 exceptionOccurNum++;
-                Assert.assertTrue("get the wrong kind of exception", e instanceof DTxException.DTxInitializationFailedException);
+                Assert.assertTrue("Get wrong exception", e instanceof DTxException.DTxInitializationFailedException);
             }
         }
     }
-   //Task2 get the dtx from the dtxProvider for node3, node4, node5
+   //Task2 gets DTx from the dtxProvider for node3, node4, node5
     private class Task2 implements Runnable{
 
         @Override
@@ -126,13 +146,13 @@ public class DistributedTxProviderTest {
             }catch (Exception e)
             {
                 exceptionOccurNum++;
-                Assert.assertTrue("get the wrong kind of exception", e instanceof DTxException.DTxInitializationFailedException);
+                Assert.assertTrue("Get wrong exception", e instanceof DTxException.DTxInitializationFailedException);
             }
         }
     }
 
     /**
-     * initiate the dtxProvider
+     * Initiate DTxProvider
      */
     @Before
     public void testOnSessionInitiated() {
@@ -142,31 +162,26 @@ public class DistributedTxProviderTest {
     }
 
     /**
-     * two thread try to get Dtx from the DtxProvider
-     * but they have some nodes in common
-     * one of the threads will get the exception
+     * Test concurrency of newTx().
      */
     @Test
-    public void testNewTx()
-    {
-          threadPool = Executors.newFixedThreadPool(2);
+    public void testNewTx() {
+        int expectedExceptionOccurNum = 1;
+        threadPool = Executors.newFixedThreadPool(2);
           threadPool.execute(new Task1());
           threadPool.execute(new Task2());
           threadPool.shutdown();
-          while(!threadPool.isTerminated())
-          {
-              //make sure all the thread has terminate
+          while(!threadPool.isTerminated()) {
+              Thread.yield();
           }
-         //make sure just one exception has occurred the other task successfully get the dtx
-          Assert.assertTrue("no exception occur test fail", exceptionOccurNum == 1);
+          Assert.assertEquals("Should only get one exception", expectedExceptionOccurNum, exceptionOccurNum);
     }
 
     @Test
     public void testClose() throws Exception {
         m.put(DTXLogicalTXProviderType.NETCONF_TX_PROVIDER, txProvider);
         DTxProviderImpl provider = new DTxProviderImpl(m);
-        // ensure no exceptions
-        // currently this method is empty
+        // Ensure no exceptions
         provider.close();
     }
 }

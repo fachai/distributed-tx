@@ -12,21 +12,21 @@ module distributed-tx-it-model{
                enum "PUT" {
                     value 1;
                     description
-                         "The put operation";
+                         "Put operation";
                }
                enum "MERGE" {
                      value 2;
                      description
-                          "The merge operation";
+                          "Merge operation";
                }
                enum "DELETE" {
                      value 3;
                      description
-                           "The delete operation";
+                           "Delete operation";
                }
            }
            description
-              "The operation type of the transaction";
+              "Operation type for the transaction";
         }
 
         typedef status-type{
@@ -45,85 +45,23 @@ module distributed-tx-it-model{
               "Indicates whether the test finished successfully";
         }
 
-        rpc naive-test {
-                input {
-                        leaf name {
-                                type string;
-                        }
-                        leaf rollback{
-                                type boolean;
-                                default false;
-                        }
-                        leaf numberofinterfaces{
-                                type int32;
-                                default 1;
-                        }
-                }
-                output {
-                        leaf result{
-                                type string;
-                        }
-                }
+        typedef test-type{
+          type enumeration {
+              enum "NORMAL" {
+                   value 1;
+              }
+              enum "ROLLBACK-ON-FAILURE"{
+                   value 2;
+              }
+              enum "ROLLBACK" {
+                   value 3;
+              }
+          }
+          description
+              "Stands for the test type, normal test is used to test DTx writing ability,
+               rollback on failure test is used to test neither DTx action rollback or submit rollback,
+               rollback test is used to test DTx rollback ability";
         }
-
-        rpc ds-naive-test {
-                input {
-                        leaf name {
-                                type string;
-                        }
-                        leaf rollback{
-                                type boolean;
-                                default false;
-                        }
-                        leaf numberofinterfaces{
-                                type int32;
-                                default 1;
-                        }
-                }
-                output {
-                        leaf result{
-                                type string;
-                        }
-                }
-        }
-
-        rpc mixed-naive-test {
-                input {
-                        leaf name {
-                                type string;
-                        }
-                        leaf rollback{
-                                type boolean;
-                                default false;
-                        }
-                }
-                output {
-                        leaf result{
-                                type string;
-                        }
-                }
-        }
-
-	    container ds-naive-test-data{
-		    list ds-naive-test-data-entry {
-			    key "name";
-			    leaf name {
-				    type string;
-			    }
-			    leaf value{
-				    type string;
-			    }
-		    }
-	    }
-
-	    container ds-naive-rollback-data{
-		    list ds-naive-rollback-data-entry {
-			    key "name";
-			    leaf name {
-				    type string;
-			    }
-		    }
-	    }
 
         container datastore-test-data {
             config true;
@@ -157,7 +95,7 @@ module distributed-tx-it-model{
                     config false;
                     mandatory true;
                     description
-                        "Indicates whether a test run is in progress; only one test can run at a time";
+                        "Indicates whether the test is in progress, only one test can run at a time";
                 }
         }
 
@@ -169,26 +107,26 @@ module distributed-tx-it-model{
                             enum "DATASTORE" {
                                  value 1;
                                  description
-                                    "operations on datastore nodes";
+                                    "Operations on datastore nodes";
                             }
                             enum "NETCONF" {
                                  value 2;
                                  description
-                                    "operations on netconf nodes";
+                                    "Operations on netconf devices";
                             }
                          }
                       }
                       leaf loop {
-                          type uint32;
-                          default 500000;
+                          type int32;
+                          default 1;
                           description
-                             "The times of the test";
+                             "Times of the test";
                       }
                       leaf operation {
                            type operation-type;
                       }
                       leaf putsPerTx {
-                           type uint32;
+                           type int32;
                            default 1;
                            description
                                 "Number of write operations (PUT, MERGE, or DELETE) per transaction submit";
@@ -217,37 +155,37 @@ module distributed-tx-it-model{
                            type uint32;
                            default 1;
                            description
-                              "The time it took to execute all the transaction via databroker or netconf";
+                              "Time took to execute all the transactions via databroker or netconf";
                       }
                       leaf dtxSyncExecTime {
                            type uint32;
                            default 1;
                            description
-                              "The time it took to synchronously execute all the transaction via dtx";
+                              "Time took to synchronously execute all the transactions via dtx";
                       }
                       leaf dtxAsyncExecTime {
                            type uint32;
                            default 1;
                            description
-                              "The time it took to asynchronously execute all the transaction via dtx";
+                              "Time took to asynchronously execute all the transactions via dtx";
                       }
                       leaf dbOk {
-                           type uint32;
+                           type int32;
                            default 0;
                            description
-                              "The number of successful databroker tests";
+                              "Number of successful databroker tests";
                       }
                       leaf dTxSyncOk {
-                           type uint32;
+                           type int32;
                            default 0;
                            description
-                              "The number of successful dtx sync tests ";
+                              "Number of successful dtx synchronous tests ";
                       }
                       leaf dTxAsyncOk {
-                           type uint32;
+                           type int32;
                            default 0;
                            description
-                              "The number of successful dtx async tests ";
+                              "Number of successful dtx asynchronous tests ";
                       }
                   }
         }
@@ -256,12 +194,13 @@ module distributed-tx-it-model{
               leaf operation {
                   mandatory true;
                   type operation-type;
+                  default "PUT";
                 }
               leaf putsPerTx {
-                 type uint32;
+                 type int32;
                  default 1;
                  description
-                     "number of operations {PUT,MERGE,DELETE} per submit";
+                     "Number of operations {PUT,MERGE,DELETE} per submit";
               }
               leaf outerList {
                  type int32;
@@ -275,11 +214,9 @@ module distributed-tx-it-model{
                  description
                      "Size of innerList";
               }
-              leaf performRollback {
-                 type boolean;
-                 default false;
-                 description
-                     "Indicate whether perform rollback";
+              leaf type {
+                 type test-type;
+                 default "NORMAL";
               }
             }
             output {
@@ -288,31 +225,30 @@ module distributed-tx-it-model{
               }
             }
             description
-               "perform the dtx datastore test";
+               "DTx datastore test";
         }
         rpc netconf-test{
             input {
               leaf operation {
                  mandatory true;
                  type operation-type;
+                 default "PUT";
               }
-              leaf putPerTx {
-                 type uint32;
+              leaf putsPerTx {
+                 type int32;
                  default 1;
                  description
-                    "number of operations {PUT,MERGE,DELETE} per submit";
+                    "Number of operations {PUT,MERGE,DELETE} per submit";
               }
               leaf numberOfTxs {
-                 type uint32;
+                 type int32;
                  default 1;
                  description
-                    "number of transations";
+                    "Number of transations";
               }
-              leaf performRollback {
-                 type boolean;
-                 default false;
-                 description
-                    "Indicate whether perform the rollback";
+              leaf type {
+                 type test-type;
+                 default "NORMAL";
               }
             }
             output {
@@ -321,43 +257,30 @@ module distributed-tx-it-model{
                }
             }
             description
-                "perform dtx netconf test";
+                "DTx netconf test";
         }
         rpc mixed-provider-test{
             input {
                leaf operation {
                    mandatory true;
                    type operation-type;
+                   default "PUT";
                }
                leaf putsPerTx {
-                   type uint32;
+                   type int32;
                    default 1;
                    description
-                       "number of operations {PUT,MERGE,DELETE} per submit";
+                       "Number of operations {PUT,MERGE,DELETE} per submit";
                }
-               leaf outerList {
+               leaf numberOfTxs {
                     type int32;
                     default 10;
                     description
-                        "Size of outerList for datastore test";
+                         "Number of netconf transactions";
                }
-               leaf innerList {
-                    type int32;
-                    default 10;
-                    description
-                         "Size of innerList for datastore test";
-               }
-               leaf numberOfNetConfTxs {
-                    type int32;
-                    default 10;
-                    description
-                         "number of netconf transactions";
-               }
-               leaf performRollback {
-                    type boolean;
-                    default false;
-                    description
-                         "indicate whether perform the rollback";
+               leaf type {
+                    type test-type;
+                    default "NORMAL";
                }
             }
             output {
@@ -366,7 +289,7 @@ module distributed-tx-it-model{
                }
             }
             description
-               "test mixed provider DTx";
+               "DTx mixed providers test";
         }
 }
 

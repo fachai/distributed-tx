@@ -55,7 +55,7 @@ public class DtxImpl implements DTx {
     public DtxImpl(@Nonnull final Map<DTXLogicalTXProviderType, TxProvider> providerMap,
                    @Nonnull final Map<DTXLogicalTXProviderType, Set<InstanceIdentifier<?>>> nodesMap, TransactionLock lock) {
         Preconditions.checkArgument(!nodesMap.values().isEmpty(), "Cannot create distributed tx for 0 nodes");
-        Preconditions.checkArgument(providerMap.keySet().containsAll(nodesMap.keySet()), "logicalType sets of txporiders and nodes are different");
+        Preconditions.checkArgument(providerMap.keySet().containsAll(nodesMap.keySet()), "logicalType sets of txPoviders and nodes are different");
         this.txProviderMap = providerMap;
         perNodeTransactionsbyLogicalType = initializeTransactionsPerLogicalType(providerMap, nodesMap);
         this.deviceLock = lock;
@@ -98,6 +98,14 @@ public class DtxImpl implements DTx {
     {
         Preconditions.checkArgument(containsIid(nodeId), "Unknown node: %s. Not in transaction", nodeId);
         return perNodeTransactionsbyLogicalType.get(type).get(nodeId).getSizeOfCache();
+    }
+
+    private void waitForAllTxsDone(){
+        for (DTXLogicalTXProviderType type : this.perNodeTransactionsbyLogicalType.keySet()) {
+            for (CachingReadWriteTx perNodeTx : this.perNodeTransactionsbyLogicalType.get(type).values()){
+                perNodeTx.waitForAllActiveOperationsDone();
+            }
+        }
     }
 
     @Deprecated
@@ -178,10 +186,10 @@ public class DtxImpl implements DTx {
         throws DTxException.EditFailedException {
 
     }
-
+    //FIXME!! Fangming add double submit comments
     @Override public CheckedFuture<Void, TransactionCommitFailedException> submit()
         throws DTxException.SubmitFailedException, DTxException.RollbackFailedException {
-
+        waitForAllTxsDone();
         int totalSubmitSize = getNumberofNodes();
 
         final Map<InstanceIdentifier<?>, PerNodeTxState> commitStatus = Maps.newHashMapWithExpectedSize(totalSubmitSize);
@@ -238,6 +246,7 @@ public class DtxImpl implements DTx {
     }
 
     private CheckedFuture<Void, DTxException.RollbackFailedException> rollbackUponOperationFailure(){
+        waitForAllTxsDone();
         Rollback rollback = new RollbackImpl();
         Map<InstanceIdentifier<?>, CachingReadWriteTx> perNodeCache = new HashMap<>();
 
@@ -348,7 +357,7 @@ public class DtxImpl implements DTx {
             Futures.addCallback(txProviderFuture, new FutureCallback() {
                 @Override
                 public void onSuccess(@Nullable Object result) {
-                    LOG.trace("Per node new tx succefully");
+                    LOG.trace("Per node new tx successfully");
                 }
 
                 @Override
@@ -412,7 +421,7 @@ public class DtxImpl implements DTx {
                     }
                     case SUCCESS: {
                         this.releaseTx();
-                        deviceLock.releaseDevices(logicalTxProviderType, this.commitStatus.keySet());
+                        dtxReleaseDevices();
                         distributedSubmitFuture.set(null);
                         return;
                     }
@@ -425,13 +434,13 @@ public class DtxImpl implements DTx {
                 Futures.addCallback(rollbackUponCommitFailure(commitStatus), new FutureCallback<Void>() {
                     @Override public void onSuccess(@Nullable final Void result) {
                         LOG.trace("Distributed tx failed for {}. Rollback was successful", perNodeTx.getKey());
-                        deviceLock.releaseDevices(logicalTxProviderType, commitStatus.keySet());
+                        dtxReleaseDevices();
                         distributedSubmitFuture.setException(e);
                     }
 
                     @Override public void onFailure(final Throwable t) {
                         LOG.warn("Distributed tx filed. Rollback FAILED. Device(s) state is unknown", t);
-                        deviceLock.releaseDevices(logicalTxProviderType, commitStatus.keySet());
+                        dtxReleaseDevices();
                         distributedSubmitFuture.setException(t);
                     }
                 });
@@ -550,7 +559,9 @@ public class DtxImpl implements DTx {
     }
 
     public CheckedFuture<Void, DTxException.RollbackFailedException>  rollback(){
-        return this.rollbackUponOperationFailure();
+        CheckedFuture<Void, DTxException.RollbackFailedException> rollbackFuture = this.rollbackUponOperationFailure();
+        this.dtxReleaseDevices();
+        return rollbackFuture;
     }
 
     @Override
@@ -586,7 +597,7 @@ public class DtxImpl implements DTx {
                             @Override
                             public void onFailure(Throwable throwable) {
                                 dtxReleaseDevices();
-                                retFuture.setException(throwable);
+                                retFuture.setException(new DTxException.RollbackFailedException(throwable));
                             }
                         });
                     }
@@ -640,7 +651,7 @@ public class DtxImpl implements DTx {
                             @Override
                             public void onFailure(Throwable t) {
                                 dtxReleaseDevices();
-                                retFuture.setException(t);
+                                retFuture.setException(new DTxException.RollbackFailedException(t));
                             }
                         });
                     }
@@ -694,7 +705,7 @@ public class DtxImpl implements DTx {
                             @Override
                             public void onFailure(Throwable throwable) {
                                 dtxReleaseDevices();
-                                retFuture.setException(throwable);
+                                retFuture.setException(new DTxException.RollbackFailedException(throwable));
                             }
                         });
 

@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2015 Cisco Systems, Inc. and others.  All rights reserved.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v1.0 which accompanies this distribution,
+ * and is available at http://www.eclipse.org/legal/epl-v10.html
+ */
 package org.opendaylight.distributed.tx.it.provider;
 
 import com.google.common.util.concurrent.CheckedFuture;
@@ -21,20 +28,18 @@ public class DataStoreListBuilder {
     int outerElements;
     int innerElements;
 
-    public DataStoreListBuilder(DataBroker dataBroker, int outerElements, int innerElements)
-    {
+    public DataStoreListBuilder(DataBroker dataBroker, int outerElements, int innerElements) {
         this.dataBroker = dataBroker;
         this.outerElements = outerElements;
         this.innerElements = innerElements;
     }
     /**
-     * this method is used to build the test data for the delete operation
+     * This method builds test data for delete operation
      */
-    public boolean writeTestList() {
+    public boolean buildTestInnerList() {
         List<OuterList> outerLists = buildOuterList();
         WriteTransaction transaction = dataBroker.newWriteOnlyTransaction();
-        for ( OuterList outerList : outerLists)
-        {
+        for ( OuterList outerList : outerLists) {
             InstanceIdentifier<OuterList> outerListIid = InstanceIdentifier.create(DatastoreTestData.class)
                     .child(OuterList.class, outerList.getKey());
 
@@ -43,8 +48,7 @@ public class DataStoreListBuilder {
 
             try{
                 submitFuture.checkedGet();
-            }catch (Exception e)
-            {
+            }catch (Exception e) {
                 return false;
             }
             transaction = dataBroker.newWriteOnlyTransaction();

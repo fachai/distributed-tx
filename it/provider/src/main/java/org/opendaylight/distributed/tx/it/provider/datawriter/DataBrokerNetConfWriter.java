@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2015 Cisco Systems, Inc. and others.  All rights reserved.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v1.0 which accompanies this distribution,
+ * and is available at http://www.eclipse.org/legal/epl-v10.html
+ */
 package org.opendaylight.distributed.tx.it.provider.datawriter;
 
 import org.opendaylight.controller.md.sal.binding.api.DataBroker;
@@ -14,57 +21,61 @@ import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distribu
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distributed.tx.it.model.rev150105.OperationType;
 import org.opendaylight.yang.gen.v1.urn.tbd.params.xml.ns.yang.network.topology.rev131021.NodeId;
 import org.opendaylight.yangtools.yang.binding.KeyedInstanceIdentifier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import java.util.*;
+import java.util.Map;
+import java.util.List;
+import java.util.Set;
+import java.util.ArrayList;
 
-public class DataBrokerNetconfWriter extends AbstractNetconfWriter {
-    private static final Logger LOG = LoggerFactory.getLogger(DataBrokerNetconfWriter.class);
+/**
+ * Data write using MD-SAL NetConf transaction provider API to write to NetConf device
+ */
+public class DataBrokerNetConfWriter extends AbstractNetconfWriter {
 
-    public DataBrokerNetconfWriter(BenchmarkTestInput input, DataBroker db, Set nodeidset, Map<NodeId, List<InterfaceName>> nodeiflist) {
-        super(input, db, nodeidset, nodeiflist);
+    public DataBrokerNetConfWriter(BenchmarkTestInput input, DataBroker db, Set nodeIdSet, Map<NodeId, List<InterfaceName>> nodeIfList) {
+        super(input, db, nodeIdSet, nodeIfList);
     }
 
+    /**
+     * Write configuration to NetConf devices with MD-SAL NetConf transaction provider API
+     */
     @Override
     public void writeData() {
-        long putsPerTx = input.getPutsPerTx();
-        //if the operation is delete,we should create sub-interface first
-        if (input.getOperation() ==OperationType.DELETE) {
-            boolean buildTestConfig = configInterface();
-            if (!buildTestConfig) {
-                LOG.info("can't initialize the interface configuration");
-                return;
-            }
-        }
-
+        int putsPerTx = input.getPutsPerTx();
         int counter = 0;
         List<NodeId> nodeIdList = new ArrayList(nodeIdSet);
-        LOG.info("Native Netconf API {} test begin", input.getOperation());
-        //create databroker writeTransactio
+        NodeId nodeId = nodeIdList.get(0);
+        InterfaceName ifName = nodeIfList.get(nodeId).get(0) ;
+
+        if (input.getOperation() == OperationType.DELETE) {
+            //Build subInterfaces for delete operation
+            configInterface();
+        }
+
         WriteTransaction xrNodeWriteTx = xrNodeBroker.newWriteOnlyTransaction();
+
         startTime = System.nanoTime();
-        //show the node we are going to operate
-        NodeId n = nodeIdList.get(0);
-        LOG.info("nodeIdList {}", nodeIdList);
-        LOG.info("nodeIfList {}", nodeIfList);
-        InterfaceName ifname =nodeIfList.get(n).get(0) ;
-        for (int i=1;i<=input.getLoop();i++){
-            final KeyedInstanceIdentifier<InterfaceConfiguration, InterfaceConfigurationKey> specificInterfaceCfgIid
-                    = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(new InterfaceActive("act"), ifname));
-            final InterfaceConfigurationBuilder interfaceConfigurationBuilder = new InterfaceConfigurationBuilder();
-            interfaceConfigurationBuilder.setInterfaceName(ifname);
-            interfaceConfigurationBuilder.setDescription("Test description" + "-" + input.getOperation()+"-"+i);
-            interfaceConfigurationBuilder.setActive(new InterfaceActive("act"));
+        for (int i = 1; i<= input.getLoop(); i++){
+            KeyedInstanceIdentifier<InterfaceConfiguration, InterfaceConfigurationKey> specificInterfaceCfgIid
+                    = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(
+                    new InterfaceActive(DTXITConstants.INTERFACE_ACTIVE), ifName));
+
+            InterfaceConfigurationBuilder interfaceConfigurationBuilder = new InterfaceConfigurationBuilder();
+            interfaceConfigurationBuilder.setInterfaceName(ifName);
+            interfaceConfigurationBuilder.setDescription(DTXITConstants.TEST_DESCRIPTION + input.getOperation() + i);
+            interfaceConfigurationBuilder.setActive(new InterfaceActive(DTXITConstants.INTERFACE_ACTIVE));
             InterfaceConfiguration config = interfaceConfigurationBuilder.build();
 
             if (input.getOperation() == OperationType.PUT) {
+                //Put configuration to the same interface
                 xrNodeWriteTx.put(LogicalDatastoreType.CONFIGURATION, specificInterfaceCfgIid, config);
             } else if (input.getOperation() == OperationType.MERGE) {
+                //Merge configuration to the same interface
                 xrNodeWriteTx.merge(LogicalDatastoreType.CONFIGURATION, specificInterfaceCfgIid, config);
             } else {
-                InterfaceName subIfname = new InterfaceName("GigabitEthernet0/0/0/1." + i);
-                final KeyedInstanceIdentifier<InterfaceConfiguration, InterfaceConfigurationKey> subSpecificInterfaceCfgIid
-                        = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(new InterfaceActive("act"), subIfname));
+                //Delete subInterfaces
+                InterfaceName subIfName = new InterfaceName(DTXITConstants.INTERFACE_NAME_PREFIX + i);
+                KeyedInstanceIdentifier<InterfaceConfiguration, InterfaceConfigurationKey> subSpecificInterfaceCfgIid
+                        = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(new InterfaceActive("act"), subIfName));
                 xrNodeWriteTx.delete(LogicalDatastoreType.CONFIGURATION, subSpecificInterfaceCfgIid);
             }
             counter++;
@@ -77,7 +88,6 @@ public class DataBrokerNetconfWriter extends AbstractNetconfWriter {
                 }catch (Exception e){
                     txError++;
                 }
-
                 counter = 0;
                 xrNodeWriteTx=xrNodeBroker.newReadWriteTransaction();
             }
@@ -88,12 +98,10 @@ public class DataBrokerNetconfWriter extends AbstractNetconfWriter {
         {
             restSubmitFuture.checkedGet();
             txSucceed++;
-            LOG.info("Netconf native rest test submit success");
-            endTime = System.nanoTime();
-        }catch (Exception e)
-        {
+        }catch (Exception e) {
             txError++;
         }
+        endTime = System.nanoTime();
     }
 }
 

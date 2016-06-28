@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2015 Cisco Systems, Inc. and others.  All rights reserved.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v1.0 which accompanies this distribution,
+ * and is available at http://www.eclipse.org/legal/epl-v10.html
+ */
 package org.opendaylight.distributed.tx.it.provider.datawriter;
 
 import com.google.common.util.concurrent.CheckedFuture;
@@ -14,33 +21,35 @@ import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.distribu
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import java.util.List;
 
+/**
+ * Data write using MD-SAL datastore transaction provider API to write to datastore
+ */
 public class DataBrokerDataStoreWriter extends AbstractDataWriter{
     private DataBroker dataBroker;
+    private DataStoreListBuilder dataStoreListBuilder;
 
-    public DataBrokerDataStoreWriter(BenchmarkTestInput input, DataBroker db)
-    {
+    public DataBrokerDataStoreWriter(BenchmarkTestInput input, DataBroker db) {
         super(input);
         this.dataBroker = db;
+        dataStoreListBuilder = new DataStoreListBuilder(db, input.getOuterList(), input.getInnerList());
     }
+
+    /**
+     * Write to datastore with MD-SAL datastore transaction provider API
+     */
     @Override
     public void writeData() {
-        long putsPerTx = input.getPutsPerTx();
-        DataStoreListBuilder dataStoreListBuilder = new DataStoreListBuilder(dataBroker, input.getOuterList(), input.getInnerList());
+        int counter = 0;
+        int putsPerTx = input.getPutsPerTx();
+        List<OuterList> outerLists = dataStoreListBuilder.buildOuterList();
 
-        //when the operation is delete we should put the test data first
-        if (input.getOperation() == OperationType.DELETE)
-        {
-            boolean buildTestData = dataStoreListBuilder.writeTestList();//build the test data for the operation
-            if (!buildTestData)
-            {
-                return;
-            }
+        if (input.getOperation() == OperationType.DELETE) {
+            dataStoreListBuilder.buildTestInnerList();
         }
 
         WriteTransaction tx = dataBroker.newWriteOnlyTransaction();
-        List<OuterList> outerLists = dataStoreListBuilder.buildOuterList();
+
         startTime = System.nanoTime();
-        long counter = 0;
         for ( OuterList outerList : outerLists ) {
             for (InnerList innerList : outerList.getInnerList()) {
                 InstanceIdentifier<InnerList> innerIid = InstanceIdentifier.create(DatastoreTestData.class)
@@ -60,8 +69,7 @@ public class DataBrokerDataStoreWriter extends AbstractDataWriter{
                     try{
                         submitFut.checkedGet();
                         txSucceed++;
-                    }catch (Exception e)
-                    {
+                    }catch (Exception e) {
                         txError++;
                     }
                     counter = 0;
@@ -71,15 +79,12 @@ public class DataBrokerDataStoreWriter extends AbstractDataWriter{
         }
         CheckedFuture<Void, TransactionCommitFailedException> restSubmitFuture = tx.submit();
 
-        try
-        {
+        try {
             restSubmitFuture.checkedGet();
             txSucceed++;
-            endTime = System.nanoTime();
-
-        }catch (Exception e)
-        {
+        }catch (Exception e) {
             txError++;
         }
+        endTime = System.nanoTime();
     }
 }

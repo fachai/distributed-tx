@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2015 Cisco Systems, Inc. and others.  All rights reserved.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v1.0 which accompanies this distribution,
+ * and is available at http://www.eclipse.org/legal/epl-v10.html
+ */
 package org.opendaylight.distributed.tx.it.provider.datawriter;
 
 import org.opendaylight.controller.md.sal.binding.api.DataBroker;
@@ -22,11 +29,13 @@ import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.opendaylight.yangtools.yang.binding.KeyedInstanceIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.*;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Set;
 
 public abstract class AbstractNetconfWriter extends AbstractDataWriter {
     DataBroker xrNodeBroker = null;
-    private static final Logger LOG = LoggerFactory.getLogger(AbstractNetconfWriter.class);
     Set<NodeId> nodeIdSet;
     Map<NodeId, List<InterfaceName>> nodeIfList = new HashMap<>();
     public static final InstanceIdentifier<Topology> NETCONF_TOPO_IID = InstanceIdentifier
@@ -34,6 +43,8 @@ public abstract class AbstractNetconfWriter extends AbstractDataWriter {
                     Topology.class, new TopologyKey(new TopologyId(TopologyNetconf.QNAME
                             .getLocalName())));
     InstanceIdentifier<InterfaceConfigurations> netconfIid = InstanceIdentifier.create(InterfaceConfigurations.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractNetconfWriter.class);
+
 
     public AbstractNetconfWriter(BenchmarkTestInput input, DataBroker xrNodeBroker, Set nodeidset, Map<NodeId, List<InterfaceName>> nodeiflist) {
         super(input);
@@ -42,28 +53,28 @@ public abstract class AbstractNetconfWriter extends AbstractDataWriter {
         this.nodeIfList = nodeiflist;
     }
 
-    public boolean configInterface() {
+    public void configInterface() {
         WriteTransaction xrNodeWriteTx = null;
         for (int i = 1; i <= input.getLoop(); i++) {
             xrNodeWriteTx = xrNodeBroker.newWriteOnlyTransaction();
-            LOG.info("new TX"+i);
-            InterfaceName subIfname = new InterfaceName("GigabitEthernet0/0/0/1." + i);
-            final KeyedInstanceIdentifier<InterfaceConfiguration, InterfaceConfigurationKey> specificInterfaceCfgIid
-                    = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(new InterfaceActive("act"), subIfname));
-            final InterfaceConfigurationBuilder interfaceConfigurationBuilder = new InterfaceConfigurationBuilder();
-            interfaceConfigurationBuilder.setInterfaceName(subIfname);
-            interfaceConfigurationBuilder.setDescription("Test description" + "-" + input.getOperation());
-            interfaceConfigurationBuilder.setActive(new InterfaceActive("act"));
+
+            InterfaceName subIfName = new InterfaceName(DTXITConstants.INTERFACE_NAME_PREFIX + i);
+            KeyedInstanceIdentifier<InterfaceConfiguration, InterfaceConfigurationKey> specificInterfaceCfgIid
+                    = netconfIid.child(InterfaceConfiguration.class, new InterfaceConfigurationKey(
+                    new InterfaceActive(DTXITConstants.INTERFACE_ACTIVE), subIfName));
+
+            InterfaceConfigurationBuilder interfaceConfigurationBuilder = new InterfaceConfigurationBuilder();
+            interfaceConfigurationBuilder.setInterfaceName(subIfName);
+            interfaceConfigurationBuilder.setActive(new InterfaceActive(DTXITConstants.INTERFACE_ACTIVE));
             InterfaceConfiguration config = interfaceConfigurationBuilder.build();
-            //create sub-interface
+
             xrNodeWriteTx.put(LogicalDatastoreType.CONFIGURATION, specificInterfaceCfgIid, config);
             CheckedFuture<Void, TransactionCommitFailedException> submitFut = xrNodeWriteTx.submit();
             try {
                 submitFut.checkedGet();
             } catch (TransactionCommitFailedException e) {
-                continue;
+                LOG.trace("Can't build interface {}", subIfName.toString());
             }
         }
-        return true;
     }
 }
